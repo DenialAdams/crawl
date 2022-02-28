@@ -1,4 +1,5 @@
 import codecs
+import collections
 import datetime
 import errno
 import logging
@@ -402,11 +403,11 @@ class CrawlWebSocket(tornado.websocket.WebSocketHandler):
                     return
                 if returncode == 0:
                     try:
-                        save_dict = json_decode(data)[load_games.game_modes[game_key]]
+                        save_dict = json_decode(data)[config.game_modes[game_key]]
                         if not save_dict["loadable"]:
                             # the save in this slot is in use.
                             self.save_info[game_key] = "[playing]" # TODO: something better??
-                        elif load_games.game_modes[game_key] == save_dict["game_type"]:
+                        elif config.game_modes[game_key] == save_dict["game_type"]:
                             # save in the slot matches the game type we are
                             # checking.
                             self.save_info[game_key] = "[" + save_dict["short_desc"] + "]"
@@ -468,9 +469,16 @@ class CrawlWebSocket(tornado.websocket.WebSocketHandler):
             # TODO: dynamically send this info as it comes in, rather than
             # rendering it all at the end?
             try:
-                games = config.games
+                # post py3.6, this can all be done with a dictionary
+                # comprehension, but before that we need to manually keep
+                # the order
                 if self.account_restricted():
-                    games = {g:games[g] for g in games if self.game_id_allowed(g)}
+                    games = collections.OrderedDict()
+                    for g in config.games:
+                        if self.game_id_allowed(g):
+                            games[g] = config.games[g]
+                else:
+                    games = config.games
                 play_html = to_unicode(self.render_string("game_links.html",
                                                   games = games,
                                                   save_info = self.save_info,
@@ -513,10 +521,18 @@ class CrawlWebSocket(tornado.websocket.WebSocketHandler):
             self.reset_timeout()
 
     def update_db_info(self):
+        if not self.username:
+            return True # caller needs to check for anon if necessary
+        # won't detect a change in hold state on first login...
+        old_restriction = self.user_flags is not None and self.account_restricted()
         self.user_id, self.user_email, self.user_flags = userdb.get_user_info(self.username)
         self.logger.extra["username"] = self.username
         if userdb.dgl_is_banned(self.user_flags):
             return False
+        if old_restriction and not self.account_restricted():
+            self.logger.info("[Account] Hold cleared for user %s (IP: %s)",
+                                        self.username, self.request.remote_ip)
+
         return True
 
     def game_id_allowed(self, game_id):
@@ -672,11 +688,12 @@ class CrawlWebSocket(tornado.websocket.WebSocketHandler):
 
     def do_login(self, username):
         self.username = username
+        self.user_flags = None
         if not self.update_db_info():
             # XX consolidate with other ban check / login fail code somehow.
             # Also checked in userdb.user_passwd_match.
             fail_reason = 'Account is disabled.'
-            self.logger.warning("Failed login for user %s: %s", self.username,
+            self.logger.warning("[Account] Failed login for user %s: %s", self.username,
                                     fail_reason)
             self.send_message("login_fail", reason=fail_reason)
             return
@@ -714,10 +731,12 @@ class CrawlWebSocket(tornado.websocket.WebSocketHandler):
                                         real_username, self.request.remote_ip)
             self.do_login(real_username)
         elif fail_reason:
-            self.logger.warning("Failed login for user %s: %s", real_username, fail_reason)
+            self.logger.warning("Failed login for user %s (IP: %s): %s",
+                            real_username, self.request.remote_ip, fail_reason)
             self.send_message("login_fail", reason = fail_reason)
         else:
-            self.logger.warning("Failed login for user %s.", username)
+            self.logger.warning("Failed login for user %s  (IP: %s).", username,
+                            self.request.remote_ip)
             self.send_message("login_fail")
 
     def token_login(self, cookie):
@@ -869,12 +888,12 @@ class CrawlWebSocket(tornado.websocket.WebSocketHandler):
     def register(self, username, password, email):
         error = userdb.register_user(username, password, email)
         if error is None:
-            self.logger.info("Registered user %s (IP: %s, email: %s).",
+            self.logger.info("[Account] Registered user %s (IP: %s, email: %s).",
                             username, self.request.remote_ip, email)
             self.do_login(username)
         else:
-            self.logger.info("Registration attempt failed for username %s: %s",
-                             username, error)
+            self.logger.info("[Account] Registration attempt failed for user %s (IP: %s): %s",
+                             username, self.request.remote_ip, error)
             self.send_message("register_fail", reason = error)
 
     def start_change_password(self):
@@ -976,8 +995,8 @@ class CrawlWebSocket(tornado.websocket.WebSocketHandler):
             # force a logout. Note that this doesn't check the db at this point
             # in order to reduce i/o a bit.
             fail_reason = 'Account is disabled.'
-            self.logger.warning("Logging out user %s: %s", self.username,
-                                    fail_reason)
+            self.logger.warning("[Account] Logging out user %s: %s",
+                                    self.username, fail_reason)
             self.username = self.user_email = self.user_flags = self.user_id = None
             self.send_message("go_lobby")
             self.send_lobby_html()

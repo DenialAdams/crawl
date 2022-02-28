@@ -3228,35 +3228,32 @@ static void _display_tohit()
 
 /**
  * Print a message indicating the player's attack delay with their current
- * weapon & its ammo (if applicable).
- *
- * Assumes the attack speed of a ranged weapon does not depend on what
- * ammunition is being used (as long as it is valid).
+ * weapon (if applicable).
  */
 static void _display_attack_delay()
 {
+    int delay = you.attack_delay(nullptr, false).expected();
     const item_def* weapon = you.weapon();
-    int delay;
-    if (weapon && is_range_weapon(*weapon))
-    {
-        item_def ammo;
-        ammo.base_type = OBJ_MISSILES;
-        ammo.sub_type = fires_ammo_type(*weapon);
-        delay = you.attack_delay(&ammo, false).expected();
-    }
-    else
-        delay = you.attack_delay(nullptr, false).expected();
-
     const bool at_min_delay = weapon
                               && you.skill(item_attack_skill(*weapon))
                                  >= weapon_min_delay_skill(*weapon);
+    const bool shield_penalty = you.adjusted_shield_penalty() > 0;
+    const bool armour_penalty = is_slowed_by_armour(weapon)
+                                && you.adjusted_body_armour_penalty() > 0;
+    string penalty_msg = "";
+    if (shield_penalty || armour_penalty)
+    {
+        penalty_msg =
+            make_stringf( " (and is slowed by your %s)",
+                         shield_penalty && armour_penalty ? "shield and armour" :
+                         shield_penalty ? "shield" : "armour");
+    }
 
     mprf("Your attack delay is about %.1f%s%s.",
          delay / 10.0f,
          at_min_delay ?
             " (and cannot be improved with additional weapon skill)" : "",
-         you.adjusted_shield_penalty() ?
-            " (and is slowed by your insufficient shield skill)" : "");
+         penalty_msg.c_str());
 }
 
 // forward declaration
@@ -5000,7 +4997,6 @@ player::player()
     apply_berserk_penalty = false;
     berserk_penalty = 0;
     attribute.init(0);
-    quiver.init(ENDOFPACK);
 
     last_timer_effect.init(0);
     next_timer_effect.init(20 * BASELINE_DELAY);
@@ -5086,7 +5082,6 @@ player::player()
 
     m_quiver_history = quiver::ammo_history();
     quiver_action = quiver::action_cycler();
-    launcher_action = quiver::launcher_action_cycler();
 
     props.clear();
 
@@ -5198,20 +5193,46 @@ player_save_info& player_save_info::operator=(const player& rhs)
 {
     // TODO: maybe seed, version?
     name             = rhs.your_name;
-    experience       = rhs.experience;
-    experience_level = rhs.experience_level;
-    wizard           = rhs.wizard || rhs.suppress_wizard;
+    prev_save_version = rhs.prev_save_version;
     species          = rhs.species;
-    species_name     = rhs.chr_species_name;
+    job              = rhs.char_class;
+    experience_level = rhs.experience_level;
     class_name       = rhs.chr_class_name;
     religion         = rhs.religion;
+    jiyva_second_name = rhs.jiyva_second_name;
+    wizard           = rhs.wizard || rhs.suppress_wizard;
+    species_name     = rhs.chr_species_name;
     god_name         = rhs.chr_god_name;
-    jiyva_second_name= rhs.jiyva_second_name;
+    explore          = rhs.explore;
+
+    // doll data used only for startup menu, ignore?
 
     // [ds] Perhaps we should move game type to player?
     saved_game_type  = crawl_state.type;
+    map = crawl_state.map;
 
     return *this;
+}
+
+void player::init_from_save_info(const player_save_info &s)
+{
+    your_name         = s.name;
+    prev_save_version = s.prev_save_version;
+    species           = s.species;
+    char_class        = s.job;
+    experience_level  = s.experience_level;
+    chr_class_name    = s.class_name;
+    religion          = s.religion;
+    jiyva_second_name = s.jiyva_second_name;
+    wizard            = s.wizard;
+    chr_species_name  = s.species_name;
+    chr_god_name      = s.god_name;
+    explore           = s.explore;
+    // do not copy doll data?
+
+    // side effect alert!
+    crawl_state.type = s.saved_game_type;
+    crawl_state.map = s.map;
 }
 
 bool player_save_info::operator<(const player_save_info& rhs) const
@@ -6432,11 +6453,6 @@ string player::no_tele_reason(bool blinking) const
 bool player::no_tele(bool blinking) const
 {
     return !no_tele_reason(blinking).empty();
-}
-
-bool player::fights_well_unarmed()
-{
-    return x_chance_in_y(30 + skill(SK_UNARMED_COMBAT, 10), 600);
 }
 
 bool player::racial_permanent_flight() const

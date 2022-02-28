@@ -125,15 +125,15 @@ drawing attention to your activities.
 # ------ Auxes -----
 horns mutation
 
-You have horns on your head, allowing you to gore foes when launching melee
-attacks but preventing you from wearing helmets. Each level of this mutation
-increases the strength of your gore attacks. The third level of this mutation
+You have horns on your head, allowing you to try to gore foes when launching
+melee attacks, but preventing you from wearing helmets. Each level of this mutation
+increases the damage of your gore attacks. The third level of this mutation
 prevents you from wearing any type of headgear.
 %%%%
 beak mutation
 
-You have a beak for a mouth, allowing you to peck foes when launching melee
-attacks but preventing you from wearing helmets.
+You have a beak for a mouth, allowing you to peck at foes when launching melee
+attacks, but preventing you from wearing helmets.
 %%%%
 fangs mutation
 
@@ -157,6 +157,10 @@ You have sharp nails, increasing the strength of your unarmed and off-hand
 attacks if you aren't wearing gloves. Each level of this mutation makes your
 nails sharper, longer, and stronger. The third level of this mutation prevents
 you from wearing gloves.
+
+The primary damage bonus requires using an unarmed attack. The off-hand effect
+is a damage bonus for the regular off-hand punch, and therefore requires a free
+off-hand.
 %%%%
 demonic touch mutation
 
@@ -196,6 +200,10 @@ naga tail mutation
 
 You have a long, snake-like tail in place of feet. The second level of this
 mutation allows you to constrict foes with your tail when attacking in melee.
+Your tail can constrict only one enemy at a time, and every attack at this
+mutation level will begin or renew a constriction attempt. The chances of
+succeeding are determined primarily by Dexterity, Fighting skill, and any
+slaying bonuses.
 %%%%
 stinger mutation
 
@@ -425,18 +433,18 @@ increases the magnitude of this effect.
 foul stench mutation
 
 Foes who strike you in melee sometimes cause you to emit a cloud of foul
-miasma, slowing and severely poisoning those caught within. Each level of
-this mutation increases the likelihood of this. This mutation also grants you
-immunity to miasma (from any source).
+miasma, slowing and severely poisoning those caught within. This mutation also
+grants you immunity to miasma (from any source).
 %%%%
 passive freeze mutation
 
-Foes who strike you in melee will be frozen, taking damage.
+Foes who strike you in melee will be frozen, taking damage. This effect is
+guaranteed to trigger if your foe does any damage.
 %%%%
 spiny mutation
 
-Foes who strike you in melee will be impaled on your spines, taking damage.
-Each level of this mutation increases the damage.
+Foes who strike you in melee have a 50% chance of being impaled on your spines,
+taking damage. Each level of this mutation increases the damage.
 %%%%
 augmentation mutation
 
@@ -609,7 +617,8 @@ damage dealt.
 reflexive curl mutation
 
 You curl up when struck, giving you protection against further attacks until
-your next action.
+your next action. This effect is guaranteed to happen in response to any
+direct damage.
 %%%%
 forlorn mutation
 
@@ -648,8 +657,7 @@ shaped, preventing you from wearing an extra set of gloves or magical rings.
 retaliatory headbutt mutation
 
 When a foe misses you in melee, you may reflexively retaliate, attempting to
-gore your attacker with your horns. Strength and Dexterity both improve your
-chances of success.
+gore your attacker with your horns.
 %%%%
 multi-lived mutation
 
@@ -687,15 +695,24 @@ levels, you choose an attribute to increase by four points.
 tentacles mutation
 
 Your gelatinous body has eight tentacles that help you move around in shallow
-or deep water and can be used to constrict enemies. Each tentacle can wear a
-ring, but you need four of them to move around, and either two or four
-tentacles to hold a weapon depending on its size.
+or deep water and can be used to constrict enemies while attacking them in
+melee. Each tentacle can wear a ring, but you need four of them to move around,
+and either two or four tentacles to hold a weapon depending on its size, and
+two tentacles to hold a shield.
+
+A constriction attack has a 66% chance of automatically triggering on any
+melee attack. When triggered, it will attempt to begin or renew constriction
+of a targeted enemy; the maximum number of enemies that can be constricted is
+determined by the number of free tentacles. Whether a constriction attempt
+succeeds when triggered is determined primarily by Dexterity, Fighting skill,
+and any slaying bonuses.
 %%%%
 mertail mutation
 
 Your morphogenic matrix is unstable, allowing your lower body to shift to
 a powerful aquatic tail when in shallow or deep water. It will quickly
-reform into legs once you leave the water.
+reform into legs once you leave the water. When in merform, your tail allows
+you to tail-slap foes when launching melee attacks.
 %%%%
 +LOS mutation
 
@@ -728,8 +745,9 @@ confers +1 AC and +1 EV.
 eyeballs mutation
 
 Golden eyeballs sprout from your flesh like mushrooms, confusing your foes.
-Each level of this mutation improves your accuracy with weapons and spells.
-The third level of this mutation also allows you to see invisible foes.
+Each level of this mutation improves your accuracy with weapons, unarmed
+attacks, auxiliary attacks, and spells. The third level of this mutation also
+allows you to see invisible foes.
 %%%%
 translucent skin mutation
 
@@ -740,8 +758,7 @@ accuracy further.
 tendrils mutation
 
 When struck in melee, the slimy tendrils covering your body may grab your
-attacker's weapon and yank it from their grasp. Greater Strength or Dexterity
-makes this somewhat more likely.
+attacker's weapon and yank it from their grasp, disarming them.
 %%%%
 jelly sensing items mutation
 
@@ -824,7 +841,8 @@ You are inexperienced, and unable to fully gain 27 levels.
 %%%%
 missing an eye mutation
 
-You are missing an eye, making it more difficult to aim.
+You are missing an eye, reducing the accuracy of your physical and magical
+attacks.
 %%%%
 no potions mutation
 

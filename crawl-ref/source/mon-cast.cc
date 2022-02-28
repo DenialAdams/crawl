@@ -140,6 +140,7 @@ static void _cast_flay(monster &caster, mon_spell_slot, bolt&);
 static void _flay(const monster &caster, actor &defender, int damage);
 static void _cast_still_winds(monster &caster, mon_spell_slot, bolt&);
 static void _mons_summon_elemental(monster &caster, mon_spell_slot, bolt&);
+static void _mons_summon_dancing_weapons(monster &caster, mon_spell_slot, bolt&);
 static bool _los_spell_worthwhile(const monster &caster, spell_type spell);
 static void _setup_fake_beam(bolt& beam, const monster&, int = -1);
 static void _branch_summon(monster &caster, mon_spell_slot slot, bolt&);
@@ -390,6 +391,7 @@ static const map<spell_type, mons_spell_logic> spell_to_logic = {
     { SPELL_EARTH_ELEMENTALS, { _always_worthwhile, _mons_summon_elemental } },
     { SPELL_AIR_ELEMENTALS, { _always_worthwhile, _mons_summon_elemental } },
     { SPELL_FIRE_ELEMENTALS, { _always_worthwhile, _mons_summon_elemental } },
+    { SPELL_SHEZAS_DANCE, { _always_worthwhile, _mons_summon_dancing_weapons } },
     { SPELL_HASTE_OTHER, {
         _always_worthwhile,
         _fire_simple_beam,
@@ -933,7 +935,8 @@ static bool _flavour_benefits_monster(beam_type flavour, monster& monster)
         return !monster.has_ench(ENCH_CONCENTRATE_VENOM)
                && (monster.has_spell(SPELL_SPIT_POISON)
                    || monster.has_attack_flavour(AF_POISON)
-                   || monster.has_attack_flavour(AF_POISON_STRONG));
+                   || monster.has_attack_flavour(AF_POISON_STRONG)
+                   || monster.has_attack_flavour(AF_REACH_STING));
 
     default:
         return false;
@@ -960,8 +963,12 @@ static bool _monster_will_buff(const monster &caster, const monster &targ)
     if (!mons_atts_aligned(caster.temp_attitude(), targ.real_attitude()))
         return false;
 
-    if (caster.type == MONS_IRONBOUND_CONVOKER || mons_bound_soul(caster))
+    if (caster.type == MONS_IRONBOUND_CONVOKER
+        || caster.type == MONS_AMAEMON
+        || mons_bound_soul(caster))
+    {
         return true; // will buff any ally
+    }
 
     if (targ.is_holy() && caster.is_holy())
         return true;
@@ -1702,6 +1709,7 @@ bool setup_mons_cast(const monster* mons, bolt &pbolt, spell_type spell_cast,
     case SPELL_BLINK_ALLIES_AWAY:
     case SPELL_PHANTOM_MIRROR:
     case SPELL_SUMMON_MANA_VIPER:
+    case SPELL_SUMMON_SCORPIONS:
     case SPELL_SUMMON_EMPEROR_SCORPIONS:
     case SPELL_BATTLECRY:
     case SPELL_WARNING_CRY:
@@ -4013,7 +4021,7 @@ bool handle_mon_spell(monster* mons)
     bolt beem = setup_targetting_beam(*mons);
 
     bool ignore_good_idea = false;
-    if (does_ru_wanna_redirect(mons))
+    if (does_ru_wanna_redirect(*mons))
     {
         ru_interference interference = get_ru_attack_interference_level();
         if (interference == DO_BLOCK_ATTACK)
@@ -4290,6 +4298,14 @@ static void _mons_summon_elemental(monster &mons, mon_spell_slot slot, bolt&)
 
     for (int i = 0; i < count; i++)
         _summon(mons, *mtyp, 3, slot);
+}
+
+static void _mons_summon_dancing_weapons(monster &mons, mon_spell_slot slot, bolt&)
+{
+    // TODO: scale by power?
+    const int count = random_range(2, 4);
+    for (int i = 0; i < count; i++)
+        _summon(mons, MONS_DANCING_WEAPON, 3, slot);
 }
 
 static void _mons_cast_haunt(monster* mons)
@@ -6196,10 +6212,9 @@ void mons_cast(monster* mons, bolt pbolt, spell_type spell_cast,
     {
         // Swap weapons if necessary so that that happens before the spell
         // casting message.
-        item_def *launcher = nullptr;
-        mons_usable_missile(mons, &launcher);
         const item_def *weapon = mons->mslot_item(MSLOT_WEAPON);
-        if (launcher && launcher != weapon)
+        const item_def *swap = mons->mslot_item(MSLOT_ALT_WEAPON);
+        if (swap && is_range_weapon(*swap) && (!weapon || !is_range_weapon(*weapon)))
             mons->swap_weapons();
         mons_cast_noise(mons, pbolt, spell_cast, slot_flags);
         handle_throw(mons, pbolt, true, false);
@@ -6251,6 +6266,15 @@ void mons_cast(monster* mons, bolt pbolt, spell_type spell_cast,
         for (int i = 0; i < num_vipers; ++i)
             _summon(*mons, MONS_MANA_VIPER, 2, slot);
         return;
+    }
+
+    case SPELL_SUMMON_SCORPIONS:
+    {
+        const int max_scorps = 1 + div_rand_round(splpow, 42);
+        const int num_scorps = random_range(1, max_scorps);
+        for (int i = 0; i < num_scorps; ++i)
+            _summon(*mons, MONS_SCORPION, 2, slot);
+        break;
     }
 
     case SPELL_SUMMON_EMPEROR_SCORPIONS:

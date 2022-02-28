@@ -1181,9 +1181,6 @@ static void _append_skill_target_desc(string &description, skill_type skill,
 static void _append_weapon_stats(string &description, const item_def &item)
 {
     const int base_dam = property(item, PWPN_DAMAGE);
-    const int ammo_type = fires_ammo_type(item);
-    const int ammo_dam = ammo_type == MI_NONE ? 0 :
-                                                ammo_type_damage(ammo_type);
     const skill_type skill = _item_training_skill(item);
     const int mindelay_skill = _item_training_target(item);
 
@@ -1191,34 +1188,27 @@ static void _append_weapon_stats(string &description, const item_def &item)
     const bool can_set_target = below_target
         && in_inventory(item) && !you.has_mutation(MUT_DISTRIBUTED_TRAINING);
 
-    if (skill == SK_SLINGS)
-    {
-        description += make_stringf("\nFiring bullets:    Base damage: %d",
-                                    base_dam +
-                                    ammo_type_damage(MI_SLING_BULLET));
-    }
-
     if (item.base_type == OBJ_STAVES
         && item_type_known(item)
         && staff_skill(static_cast<stave_type>(item.sub_type)) != SK_NONE
         && is_useless_skill(staff_skill(static_cast<stave_type>(item.sub_type))))
     {
         description += make_stringf(
-            "\nYour inability to study %s prevents you from drawing on the"
-            " full power of this staff in melee.\n",
+            "Your inability to study %s prevents you from drawing on the"
+            " full power of this staff in melee.\n\n",
             skill_name(staff_skill(static_cast<stave_type>(item.sub_type))));
     }
 
     description += make_stringf(
-    "\nBase accuracy: %+d  Base damage: %d  Base attack delay: %.1f"
+    "Base accuracy: %+d  Base damage: %d  Base attack delay: %.1f"
     "\nThis weapon's minimum attack delay (%.1f) is reached at skill level %d.",
         property(item, PWPN_HIT),
-        base_dam + ammo_dam,
+        base_dam,
         (float) property(item, PWPN_SPEED) / 10,
         (float) weapon_min_delay(item, item_brand_known(item)) / 10,
         mindelay_skill / 10);
 
-    if (!is_useless_item(item))
+    if (!is_useless_item(item) && crawl_state.need_save)
     {
         description += "\n    "
             + _your_skill_desc(skill, can_set_target, mindelay_skill);
@@ -1226,6 +1216,26 @@ static void _append_weapon_stats(string &description, const item_def &item)
 
     if (below_target)
         _append_skill_target_desc(description, skill, mindelay_skill);
+
+    if (is_slowed_by_armour(&item))
+    {
+        description += "\nHeavy armour slows attacks with this";
+        const int penalty_scale = 100;
+        const int armour_penalty = you.adjusted_body_armour_penalty(penalty_scale);
+        if (armour_penalty)
+        {
+            const bool significant = armour_penalty >= penalty_scale;
+            if (significant)
+                description += make_stringf(" (currently +%.1f", armour_penalty / (10.0f * penalty_scale));
+            else
+                description += " (currently only slightly";
+            const item_def *body_armour = you.slot_item(EQ_BODY_ARMOUR, false);
+            if (body_armour)
+                description += (significant ? " from " : " by ") + body_armour->name(DESC_YOUR);
+            description += ")";
+        }
+        description += ".";
+    }
 }
 
 static string _handedness_string(const item_def &item)
@@ -1259,7 +1269,7 @@ static string _handedness_string(const item_def &item)
 
 }
 
-static string _describe_weapon(const item_def &item, bool verbose)
+static string _describe_weapon(const item_def &item, bool verbose, bool monster)
 {
     string description;
 
@@ -1269,7 +1279,8 @@ static string _describe_weapon(const item_def &item, bool verbose)
 
     if (verbose)
     {
-        description += "\n";
+        if (!monster)
+            description += "\n\n";
         _append_weapon_stats(description, item);
     }
 
@@ -1293,8 +1304,13 @@ static string _describe_weapon(const item_def &item, bool verbose)
                 string adj = (item.sub_type == WPN_DAGGER) ? "extremely"
                                                            : "particularly";
                 description += "\n\nIt is " + adj + " good for stabbing"
-                               " helpless or unaware enemies.";
+                               " helpless or unaware enemies, and dexterity"
+                               " rather than strength increases its damage.";
             }
+            break;
+        case SK_LONG_BLADES:
+            description += "\n\nIts damage is increased by dexterity instead"
+                           " of by strength.";
             break;
         default:
             break;
@@ -1493,7 +1509,7 @@ static string _describe_weapon(const item_def &item, bool verbose)
             description += "\nIt is too large for you to wield.";
     }
 
-    if (!is_artefact(item))
+    if (!is_artefact(item) && !monster)
     {
         if (item_ident(item, ISFLAG_KNOW_PLUSES) && item.plus >= MAX_WPN_ENCHANT)
             description += "\nIt cannot be enchanted further.";
@@ -1513,23 +1529,9 @@ static string _describe_ammo(const item_def &item)
 
     description.reserve(64);
 
-    const bool can_launch = has_launcher(item);
-    const bool can_throw  = is_throwable(nullptr, item);
-
     if (item.brand && item_type_known(item))
     {
         description += "\n\n";
-
-        string threw_or_fired;
-        if (can_throw)
-        {
-            threw_or_fired += "threw";
-            if (can_launch)
-                threw_or_fired += " or ";
-        }
-        if (can_launch)
-            threw_or_fired += "fired";
-
         switch (item.brand)
         {
 #if TAG_MAJOR_VERSION == 34
@@ -1548,19 +1550,7 @@ static string _describe_ammo(const item_def &item)
             break;
 #endif
         case SPMSL_CHAOS:
-            description += "When ";
-
-            if (can_throw)
-            {
-                description += "thrown, ";
-                if (can_launch)
-                    description += "or ";
-            }
-
-            if (can_launch)
-                description += "fired from an appropriate launcher, ";
-
-            description += "it has a random effect.";
+            description += "When thrown, it has a random effect.";
             break;
         case SPMSL_POISONED:
             description += "It is coated with poison.";
@@ -1589,7 +1579,7 @@ static string _describe_ammo(const item_def &item)
         case SPMSL_DISPERSAL:
             description += "It causes any target it hits to blink, with a "
                            "tendency towards blinking further away from the "
-                           "one who " + threw_or_fired + " it.";
+                           "one who threw it.";
             break;
         case SPMSL_SILVER:
             description += "It deals increased damage compared to normal ammo "
@@ -1816,7 +1806,7 @@ static const char* _item_ego_desc(special_armour_type ego)
     }
 }
 
-static string _describe_armour(const item_def &item, bool verbose)
+static string _describe_armour(const item_def &item, bool verbose, bool monster)
 {
     string description;
 
@@ -1824,9 +1814,11 @@ static string _describe_armour(const item_def &item, bool verbose)
 
     if (verbose)
     {
+        if (!monster)
+            description += "\n\n";
         if (is_shield(item))
         {
-            description += "\n\nBase shield rating: "
+            description += "Base shield rating: "
                         + to_string(property(item, PARM_AC));
             description += "       Encumbrance rating: "
                         + to_string(-property(item, PARM_EVASION) / 10);
@@ -1838,7 +1830,7 @@ static string _describe_armour(const item_def &item, bool verbose)
         else
         {
             const int evp = property(item, PARM_EVASION);
-            description += "\n\nBase armour rating: "
+            description += "Base armour rating: "
                         + to_string(property(item, PARM_AC));
             if (get_armour_slot(item) == EQ_BODY_ARMOUR)
             {
@@ -1897,7 +1889,7 @@ static string _describe_armour(const item_def &item, bool verbose)
         description += "\n" + art_desc;
     }
 
-    if (!is_artefact(item))
+    if (!is_artefact(item) && !monster)
     {
         const int max_ench = armour_max_enchant(item);
         if (max_ench > 0)
@@ -1920,6 +1912,23 @@ static string _describe_armour(const item_def &item, bool verbose)
         && !is_offhand(item))
     {
         description += _armour_ac_change(item);
+    }
+
+    const int DELAY_SCALE = 100;
+    const int aevp = you.adjusted_body_armour_penalty(DELAY_SCALE);
+    if (crawl_state.need_save
+        && verbose
+        && aevp
+        && _you_are_wearing_item(item)
+        && is_slowed_by_armour(you.weapon()))
+    {
+        description += "\n\nWith your current strength and Armour skill, "
+                       "it slows attacks with missile weapons (like "
+                        + you.weapon()->name(DESC_YOUR) + ") ";
+        if (aevp >= DELAY_SCALE)
+            description += make_stringf("by %.1f.", aevp / (10.0f * DELAY_SCALE));
+        else
+            description += "only slightly.";
     }
 
     return description;
@@ -2057,19 +2066,17 @@ bool is_dumpable_artefact(const item_def &item)
  * Describe a specified item.
  *
  * @param item    The specified item.
- * @param verbose Controls various switches for the length of the description.
- * @param dump    This controls which style the name is shown in.
- * @param lookup  If true, the name is not shown at all.
- *   If either of those two are true, the DB description is not shown.
+ * @param mode    Controls various switches for the length of the description.
  * @return a string with the name, db desc, and some other data.
  */
-string get_item_description(const item_def &item, bool verbose,
-                            bool dump, bool lookup)
+string get_item_description(const item_def &item,
+                            item_description_mode mode)
 {
     ostringstream description;
+    const bool verbose = mode == IDM_DEFAULT || mode == IDM_MONSTER;
 
 #ifdef DEBUG_DIAGNOSTICS
-    if (!dump && !you.suppress_wizard)
+    if (mode != IDM_MONSTER && mode != IDM_DUMP && !you.suppress_wizard)
     {
         description << setfill('0');
         description << "\n\n"
@@ -2096,11 +2103,12 @@ string get_item_description(const item_def &item, bool verbose,
                     && item.base_type != OBJ_ARMOUR
                     && item.base_type != OBJ_BOOKS))
     {
-        description << "\n\n";
+        if (mode != IDM_MONSTER)
+            description << "\n\n";
 
-        bool need_base_desc = !lookup;
-
-        if (dump)
+        // Would be great to support DB descriptions in monster, but maybe tricky.
+        bool need_base_desc = mode != IDM_MONSTER;
+        if (mode == IDM_DUMP)
         {
             description << "["
                         << item.name(DESC_DBNAME, true, false, false)
@@ -2166,7 +2174,7 @@ string get_item_description(const item_def &item, bool verbose,
     {
     // Weapons, armour, jewellery, books might be artefacts.
     case OBJ_WEAPONS:
-        desc = _describe_weapon(item, verbose);
+        desc = _describe_weapon(item, verbose, mode == IDM_MONSTER);
         if (desc.empty())
             need_extra_line = false;
         else
@@ -2174,7 +2182,7 @@ string get_item_description(const item_def &item, bool verbose,
         break;
 
     case OBJ_ARMOUR:
-        desc = _describe_armour(item, verbose);
+        desc = _describe_armour(item, verbose, mode == IDM_MONSTER);
         if (desc.empty())
             need_extra_line = false;
         else
@@ -2190,7 +2198,12 @@ string get_item_description(const item_def &item, bool verbose,
         break;
 
     case OBJ_BOOKS:
-        if (!verbose && is_random_artefact(item))
+        if (mode == IDM_MONSTER)
+        {
+            description << desc << terse_spell_list(item);
+            need_extra_line = false;
+        }
+        else if (!verbose && is_random_artefact(item))
         {
             desc += describe_item_spells(item);
             if (desc.empty())
@@ -2209,7 +2222,7 @@ string get_item_description(const item_def &item, bool verbose,
 
     case OBJ_STAVES:
         {
-            string stats = "\n";
+            string stats = mode == IDM_MONSTER ? "" : "\n\n";
             _append_weapon_stats(stats, item);
             description << stats;
         }
@@ -2310,29 +2323,26 @@ string get_item_description(const item_def &item, bool verbose,
 
     if (!verbose && item.cursed())
         description << _describe_item_curse(item);
-    else
+    else if (verbose && mode != IDM_MONSTER)
     {
-        if (verbose)
-        {
-            if (need_extra_line)
-                description << "\n";
-            if (item.cursed())
-                description << _describe_item_curse(item);
+        if (need_extra_line)
+            description << "\n";
+        if (item.cursed())
+            description << _describe_item_curse(item);
 
-            if (is_artefact(item))
+        if (is_artefact(item))
+        {
+            if (item.base_type == OBJ_ARMOUR
+                || item.base_type == OBJ_WEAPONS)
             {
-                if (item.base_type == OBJ_ARMOUR
-                    || item.base_type == OBJ_WEAPONS)
-                {
-                    description << "\nThis ancient artefact cannot be changed "
-                        "by magic or mundane means.";
-                }
-                // Randart jewellery has already displayed this line.
-                else if (item.base_type != OBJ_JEWELLERY
-                         || (item_type_known(item) && is_unrandom_artefact(item)))
-                {
-                    description << "\nIt is an ancient artefact.";
-                }
+                description << "\nThis ancient artefact cannot be changed "
+                    "by magic or mundane means.";
+            }
+            // Randart jewellery has already displayed this line.
+            else if (item.base_type != OBJ_JEWELLERY
+                     || (item_type_known(item) && is_unrandom_artefact(item)))
+            {
+                description << "\nIt is an ancient artefact.";
             }
         }
     }
@@ -2348,7 +2358,7 @@ string get_item_description(const item_def &item, bool verbose,
 
     // This information is obscure and differs per-item, so looking it up in
     // a docs file you don't know to exist is tedious.
-    if (verbose)
+    if (verbose && mode != IDM_MONSTER)
     {
         description << "\n\n" << "Stash search prefixes: "
                     << userdef_annotate_item(STASH_LUA_SEARCH_ANNOTATE, &item);
@@ -2938,11 +2948,12 @@ void get_item_desc(const item_def &item, describe_info &inf)
 {
     // Don't use verbose descriptions if the item contains spells,
     // so we can actually output these spells if space is scarce.
-    const bool verbose = !item.has_spells();
+    const item_description_mode mode = item.has_spells() ? IDM_PLAIN
+                                                         : IDM_DEFAULT;
     string name = item.name(DESC_INVENTORY_EQUIP) + ".";
     if (!in_inventory(item))
         name = uppercase_first(name);
-    inf.body << name << get_item_description(item, verbose);
+    inf.body << name << get_item_description(item, mode);
 }
 
 static vector<command_type> _allowed_actions(const item_def& item)
@@ -3246,7 +3257,7 @@ command_type describe_item_popup(const item_def &item,
             loc.describe(true, true).c_str());
     }
 
-    desc += get_item_description(item, true, false);
+    desc += get_item_description(item);
 
     string quote;
     if (is_unrandom_artefact(item) && item_type_known(item))
@@ -3961,6 +3972,7 @@ void describe_mutation(mutation_type mut)
                                   mutation_max_levels(mut));
     }
     inf.body << get_mutation_desc(mut);
+
     show_description(inf);
 }
 
@@ -4418,10 +4430,9 @@ void describe_to_hit(const monster_info& mi, ostringstream &result,
     else
     {
         // TODO: handle throwing to-hit somehow?
-        const int missile = quiver::find_action_from_launcher(weapon)->get_item();
-        if (missile < 0)
-            return; // failure to launch
-        ranged_attack attk(&you, nullptr, &you.inv[missile], is_pproj_active());
+        item_def fake_proj;
+        populate_fake_projectile(*weapon, fake_proj);
+        ranged_attack attk(&you, nullptr, &fake_proj, is_pproj_active());
         acc_pct = to_hit_pct(mi, attk, false);
     }
 
@@ -4978,7 +4989,8 @@ static string _monster_stat_description(const monster_info& mi, bool mark_spells
         result << uppercase_first(pronoun) << " cannot regenerate.\n";
     else if (mons_class_fast_regen(mi.type))
         result << uppercase_first(pronoun) << " "
-               << conjugate_verb("regenerate", plural)
+               << conjugate_verb("regenerate", plural) << " "
+               << (mi.type == MONS_PARGHIT ? "astonishingly " : "")
                << " quickly.\n";
 
     const char* mon_size = get_size_adj(mi.body_size(), true);

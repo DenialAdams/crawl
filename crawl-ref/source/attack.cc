@@ -1044,13 +1044,32 @@ string attack::defender_name(bool allow_reflexive)
         return def_name(DESC_THE);
 }
 
+static int _get_damage_attr(skill_type wpn_skill, bool using_weapon)
+{
+    if (!using_weapon)
+        return you.strength();
+    switch (wpn_skill)
+    {
+    case SK_LONG_BLADES:
+    case SK_SHORT_BLADES:
+    case SK_CROSSBOWS:
+    case SK_BOWS:
+    case SK_SLINGS:
+        return you.dex();
+    default:
+        return you.strength();
+    }
+}
+
 int attack::player_stat_modify_damage(int damage)
 {
     // At 10 strength, damage is multiplied by 1.0
     // Each point of strength over 10 increases this by 0.025 (2.5%),
     // strength below 10 reduces the multiplied by the same amount.
     // Minimum multiplier is 0.01 (1%) (reached at -30 str).
-    damage *= max(1.0, 75 + 2.5 * you.strength());
+    // Ranged weapons and short/long blades use dex instead.
+    const int attr = _get_damage_attr(wpn_skill, using_weapon());
+    damage *= max(1.0, 75 + 2.5 * attr);
     damage /= 100;
 
     return damage;

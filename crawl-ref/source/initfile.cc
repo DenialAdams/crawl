@@ -238,8 +238,8 @@ const vector<GameOption*> game_options::build_options_list()
         new BoolGameOption(SIMPLE_NAME(default_manual_training), false),
         new BoolGameOption(SIMPLE_NAME(one_SDL_sound_channel), false),
         new BoolGameOption(SIMPLE_NAME(sounds_on), true),
-        new BoolGameOption(SIMPLE_NAME(launcher_autoquiver), true),
         new BoolGameOption(SIMPLE_NAME(quiver_menu_focus), false),
+        new BoolGameOption(SIMPLE_NAME(launcher_autoquiver), true),
         new ColourGameOption(SIMPLE_NAME(tc_reachable), BLUE),
         new ColourGameOption(SIMPLE_NAME(tc_excluded), LIGHTMAGENTA),
         new ColourGameOption(SIMPLE_NAME(tc_exclude_circle), RED),
@@ -591,11 +591,6 @@ static map<string, weapon_type> _special_weapon_map = {
     {"unarmed",     WPN_UNARMED},
     {"claws",       WPN_UNARMED},
 
-    {"thrown",      WPN_THROWN},
-    {"rocks",       WPN_THROWN},
-    {"boomerangs",   WPN_THROWN},
-    {"javelins",    WPN_THROWN},
-
     {"random",      WPN_RANDOM},
 
     {"viable",      WPN_VIABLE},
@@ -629,8 +624,6 @@ static string _weapon_to_str(weapon_type wpn_type)
     {
     case WPN_UNARMED:
         return "claws";
-    case WPN_THROWN:
-        return "thrown";
     case WPN_VIABLE:
         return "viable";
     case WPN_RANDOM:
@@ -663,9 +656,7 @@ int str_to_summon_type(const string &str)
 
 static fire_type _str_to_fire_types(const string &str)
 {
-    if (str == "launcher")
-        return FIRE_LAUNCHER;
-    else if (str == "stone")
+    if (str == "stone")
         return FIRE_STONE;
     else if (str == "rock")
         return FIRE_ROCK;
@@ -677,10 +668,10 @@ static fire_type _str_to_fire_types(const string &str)
         return FIRE_DART;
     else if (str == "net")
         return FIRE_NET;
-    else if (str == "throwing")
+    else if (str == "throwing" || str == "ammo")
         return FIRE_THROWING;
-    else if (str == "ammo")
-        return FIRE_AMMO;
+    else if (str == "launcher")
+        return FIRE_LAUNCHER;
     else if (str == "inscribed")
         return FIRE_INSCRIBED;
     else if (str == "spell")
@@ -1164,10 +1155,9 @@ void game_options::reset_options()
 
     force_spell_targeter =
         { SPELL_HAILSTORM, SPELL_STARBURST, SPELL_FROZEN_RAMPARTS,
-          SPELL_MAXWELLS_COUPLING, SPELL_IGNITION, SPELL_NOXIOUS_BOG,
+          SPELL_IGNITION, SPELL_NOXIOUS_BOG, SPELL_ANGUISH,
           SPELL_CAUSE_FEAR, SPELL_INTOXICATE, SPELL_DISCORD, SPELL_DISPERSAL,
-          SPELL_ENGLACIATION, SPELL_DAZZLING_FLASH, SPELL_FLAME_WAVE,
-          SPELL_ANGUISH, };
+          SPELL_ENGLACIATION, SPELL_DAZZLING_FLASH, SPELL_FLAME_WAVE };
     always_use_static_spell_targeters = false;
 
     force_ability_targeter =
@@ -4437,6 +4427,10 @@ static void _print_version()
 
 static void _print_save_version(char *name)
 {
+    // Ensure that the savedir option is set correctly on the first parse_args
+    // pass.
+    // TODO: read initfile for local games?
+    Options.reset_paths();
     try
     {
         string filename = name;

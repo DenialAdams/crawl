@@ -85,7 +85,7 @@ The contents of this text are:
 3-j     Quivers, firing, and ammo.
                 fire_items_start, fire_order, fire_order_spell,
                 fire_order_ability, fail_severity_to_quiver,
-                launcher_autoquiver, quiver_menu_focus
+                quiver_menu_focus
 3-k     Message Channels.
                 plain, prompt, god, duration, danger, warning, recovery,
                 talk, talk_visual, timed_portal, sound, intrinsic_gain,
@@ -425,11 +425,10 @@ default_manual_training = false (persistent)
         "training".
 
 autopickup_starting_ammo = true
-        When set, at game start, autopickup is forced on (as per the \
-        menu) for the player's starting ammunition type (including stones
-        for Earth Elementalists and arrows for Transmuters). Even when this
-        option is set, autopickup of those items can be disabled from the
-        \ menu once the game has begun.
+        When set, at game start, autopickup is forced on (as per the \ menu)
+        for the player's starting ammunition type (including stones for Earth
+        Elementalists). Even when this option is set, autopickup of those items
+        can be disabled from the \ menu once the game has begun.
 
 game_seed = none
         A number indicating the seed to initialize the random number generator
@@ -1052,11 +1051,10 @@ simple_targeting = false
         while avoiding the player. This applies to target selection when
         zapping as well as autotarget selection for quivered spells.
 
-force_spell_targeter = hailstorm, starburst, frozen ramparts, maxwell's
-                       capacitive coupling, ignition, eringya's noxious bog,
-                       cause fear, alistair's intoxication, discord, dispersal,
-                       metabolic englaciation, dazzling flash, flame wave,
-                       anguish
+force_spell_targeter = hailstorm, starburst, frozen ramparts, ignition,
+                       eringya's noxious bog, cause fear, alistair's
+                       intoxication, discord, dispersal, metabolic englaciation,
+                       dazzling flash, flame wave, anguish
         Force showing a targeter for the listed spells when casting normally,
         even if the spell isn't targeted. This for practical purposes only has
         an effect on statically targeted spells, such as the ones in the
@@ -1611,7 +1609,7 @@ use_animations += branch_entry
         banished. All animations are enabled by default, and the categories
         that can be enabled/disabled independently are:
 
-          beam             - Animation for casting a beam spell or throwing a
+          beam             - Animation for casting a beam spell or firing a
                              ranged weapon.
           range            - Flashes the screen with an overlay indicating the
                              actual range of an attempted spell, if there are
@@ -1819,16 +1817,15 @@ fire_order  = launcher, throwing, inscribed, spell, evokable, ability
         higher priority. Absent action types are not used when cycling
         the quiver. This option also affects autoquivering on game start.
 
-        'launcher' refers to firing the appropriate missile for a
-        wielded weapon (i.e. crossbow, bow, sling). 'throwing' refers to
-        all throwing ammo. Specific throwing ammo types can be refered to
-        by name ('javelin', 'boomerang', 'stone', 'rock', 'net', 'dart'),
-        but order of these only affects order internal to throwing ammo
-        types; 'inscribed' can also be used to control the order of ammo
-        that has been inscribed with "+f". See the "Inscriptions" section of
-        Crawl's manual for more information about inscriptions. Ammo types
-        can be separated with a "/" to indicate that inventory order should
-        determine cycle order. Order within types is determined by letter
+        'launcher' refers to firing a wielded ranged weapon (i.e. crossbow,
+        bow, sling). 'throwing' refers to all throwing ammo. Specific throwing
+        ammo types can be refered to by name ('javelin', 'boomerang', 'stone',
+        'rock', 'net', 'dart'), but order of these only affects order internal
+        to throwing ammo types; 'inscribed' can also be used to control the
+        order of ammo that has been inscribed with "+f". See the "Inscriptions"
+        section of Crawl's manual for more information about inscriptions. Ammo
+        types can be separated with a "/" to indicate that inventory order
+        should determine cycle order. Order within types is determined by letter
         order in the relevant submenu (e.g. inventory for throwing, etc).
 
 fire_order_spell = all
@@ -1859,9 +1856,9 @@ fail_severity_to_quiver = 2
         miscast values.
 
 launcher_autoquiver = true
-        If set to true, change the main quiver to launcher ammo on wielding
-        that launcher; if set to false, the main quiver is unaffected by
-        wielding a launcher. (Firing via tab or `v` still work.).
+        If set to true, change the quiver to the launcher on wielding it;
+        if set to false, the quiver is unchanged on wielding a launcher.
+        (Firing via tab or `v` will still work.).
 
 quiver_menu_focus = false (persistent)
         If set to true, start the quiver menu in "focused" mode where action
@@ -1870,8 +1867,6 @@ quiver_menu_focus = false (persistent)
         from the menu, but lettering is not stable in this menu. This option
         is persistent so that the current value in the quiver menu is saved
         across games and automatically reloaded unless set explicitly.
-
-(See also pickup_thrown in 3-a, and the various autofight settings in 3-g.)
 
 3-k     Message Channels.
 -------------------------

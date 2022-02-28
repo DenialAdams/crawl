@@ -22,6 +22,37 @@ from webtiles import auth, load_games, process_handler, userdb, config
 from webtiles import game_data_handler, util, ws_handler
 
 class MainHandler(tornado.web.RequestHandler):
+    def static_url(self, path, include_host=None):
+        """Returns a static URL for the given relative static file path.
+
+        This method requires you set the 'static_path' setting in your
+        application (which specifies the root directory of your static
+        files).
+
+        We append ?v=<signature> to the returned URL, which makes our
+        static file handler set an infinite expiration header on the
+        returned content. The signature is based on the content of the
+        file.
+
+        By default this method returns URLs relative to the current
+        host, but if ``include_host`` is true the URL returned will be
+        absolute.  If this handler has an ``include_host`` attribute,
+        that value will be used as the default for all `static_url`
+        calls that do not pass ``include_host`` as a keyword argument.
+        """
+        self.require_setting("static_path", "static_url")
+        static_handler_class = self.settings.get(
+            "static_handler_class", tornado.web.StaticFileHandler)
+
+        if include_host is None:
+            include_host = getattr(self, "include_host", False)
+
+        if include_host:
+            base = self.request.protocol + "://" + self.request.host
+        else:
+            base = ""
+        return base + "/crawl/" + static_handler_class.make_static_url(self.settings, path)
+
     def get(self):
         host = self.request.host
         if self.request.protocol == "https" or self.request.headers.get("x-forwarded-proto") == "https":
@@ -38,7 +69,7 @@ class MainHandler(tornado.web.RequestHandler):
             if recovery_token_error:
                 logging.warning("Recovery token error from %s", self.request.remote_ip)
 
-        self.render("client.html", socket_server = protocol + host + "/socket",
+        self.render("client.html", socket_server = protocol + host + "/crawl/socket",
                     username = None,
                     config = config,
                     reset_token = recovery_token, reset_token_error = recovery_token_error)

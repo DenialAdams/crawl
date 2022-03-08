@@ -1569,7 +1569,7 @@ bolt mons_spell_beam(const monster* mons, spell_type spell_cast, int power,
 
     case SPELL_ERUPTION:
         beam.flavour     = BEAM_LAVA;
-        beam.damage      = dice_def(3, 24);
+        beam.damage      = eruption_damage();
         beam.hit         = AUTOMATIC_HIT;
         beam.glyph       = dchar_glyph(DCHAR_EXPLOSION);
         beam.ex_size     = 2;
@@ -1789,6 +1789,12 @@ bool setup_mons_cast(const monster* mons, bolt &pbolt, spell_type spell_cast,
         pbolt.damage.size = pbolt.damage.size * 2 / 3;
 
     return true;
+}
+
+// XXX TODO: make this a zap, probably
+dice_def eruption_damage()
+{
+    return dice_def(3, 24);
 }
 
 // Can 'binder' bind 'bound's soul with BIND_SOUL?
@@ -4305,7 +4311,11 @@ static void _mons_summon_dancing_weapons(monster &mons, mon_spell_slot slot, bol
     // TODO: scale by power?
     const int count = random_range(2, 4);
     for (int i = 0; i < count; i++)
-        _summon(mons, MONS_DANCING_WEAPON, 3, slot);
+    {
+        monster* mon = _summon(mons, MONS_DANCING_WEAPON, 3, slot);
+        if (mon)
+            mon->add_ench(ENCH_HASTE);
+    }
 }
 
 static void _mons_cast_haunt(monster* mons)

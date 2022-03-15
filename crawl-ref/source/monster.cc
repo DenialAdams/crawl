@@ -1101,7 +1101,8 @@ bool monster::pickup(item_def &item, mon_inv_type slot, bool msg)
     }
 
     // Similarly, monsters won't pick up shields if they're
-    // wielding (or alt-wielding) a two-handed weapon.
+    // wielding (or alt-wielding) a two-handed weapon, or
+    // wielding two weapons.
     if (slot == MSLOT_SHIELD)
     {
         const item_def* wpn = mslot_item(MSLOT_WEAPON);
@@ -1109,6 +1110,8 @@ bool monster::pickup(item_def &item, mon_inv_type slot, bool msg)
         if (wpn && hands_reqd(*wpn) == HANDS_TWO)
             return false;
         if (alt && hands_reqd(*alt) == HANDS_TWO)
+            return false;
+        if (mons_wields_two_weapons(*this) && wpn && alt)
             return false;
     }
 
@@ -1537,9 +1540,9 @@ bool monster::wants_weapon(const item_def &weap) const
 
 bool monster::wants_armour(const item_def &item) const
 {
-    // Monsters that are capable of dual wielding won't pick up shields.
+    // Monsters that are capable of dual wielding won't pick up shields or orbs.
     // Neither will monsters that are already wielding a two-hander.
-    if (is_shield(item)
+    if (is_offhand(item)
         && (mons_wields_two_weapons(*this)
             || mslot_item(MSLOT_WEAPON)
                && hands_reqd(*mslot_item(MSLOT_WEAPON))
@@ -1549,7 +1552,7 @@ bool monster::wants_armour(const item_def &item) const
     }
 
     // Don't pick up new armour if we've been gifted something by the player.
-    if (is_shield(item) && props.exists(BEOGH_SH_GIFT_KEY))
+    if (is_offhand(item) && props.exists(BEOGH_SH_GIFT_KEY))
         return false;
     else if (props.exists(BEOGH_ARM_GIFT_KEY))
         return false;
@@ -5164,8 +5167,14 @@ bool monster::has_action_energy() const
 
 bool monster::may_have_action_energy() const
 {
-    const int max_gain = (speed * you.time_taken + 9) / 10;
+    const int max_gain = (speed * you.time_taken + 9) / BASELINE_DELAY;
     return speed_increment + max_gain >= ENERGY_THRESHOLD;
+}
+
+/// At the player's current movement speed, will they eventually outpace this monster?
+bool monster::outpaced_by_player() const
+{
+    return speed * you.time_taken < action_energy(EUT_MOVE) * BASELINE_DELAY;
 }
 
 /// If a monster had enough energy to act this turn, change it so it doesn't.

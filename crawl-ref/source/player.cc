@@ -1124,24 +1124,30 @@ static int _player_bonus_regen()
     return rr;
 }
 
+static bool _mons_inhibits_regen(const monster &m)
+{
+    return mons_is_threatening(m)
+                && !m.wont_attack()
+                && !m.neutral()
+                && !m.submerged();
+}
+
 /// Is the player's hp regeneration inhibited by nearby monsters?
-bool regeneration_is_inhibited()
+/// If the optional monster argument is provided, instead check whether that
+/// specific monster inhibits regeneration.
+bool regeneration_is_inhibited(const monster *m)
 {
     // used mainly for resting: don't add anything here that can be waited off
     if (you.get_mutation_level(MUT_INHIBITED_REGENERATION) == 1
         || you.duration[DUR_COLLAPSE]
         || (you.has_mutation(MUT_VAMPIRISM) && !you.vampire_alive))
     {
-        for (monster_near_iterator mi(you.pos(), LOS_NO_TRANS); mi; ++mi)
-        {
-            if (mons_is_threatening(**mi)
-                && !mi->wont_attack()
-                && !mi->neutral()
-                && !mi->submerged())
-            {
-                return true;
-            }
-        }
+        if (m)
+            return _mons_inhibits_regen(*m);
+        else
+            for (monster_near_iterator mi(you.pos(), LOS_NO_TRANS); mi; ++mi)
+                if (_mons_inhibits_regen(**mi))
+                    return true;
     }
 
     return false;
@@ -2562,9 +2568,9 @@ static int _rest_trigger_level(int max)
     return (max * Options.rest_wait_percent) / 100;
 }
 
-static bool _should_stop_resting(int cur, int max)
+static bool _should_stop_resting(int cur, int max, bool check_opts=true)
 {
-    return cur == max || cur == _rest_trigger_level(max);
+    return cur == max || check_opts && cur == _rest_trigger_level(max);
 }
 
 /**
@@ -5308,14 +5314,23 @@ bool player::is_banished() const
     return banished;
 }
 
-bool player::is_sufficiently_rested() const
+bool player::is_sufficiently_rested(bool starting) const
 {
-    // Only return false if resting will actually help.
+    // Only return false if resting will actually help. Anything here should
+    // explicitly trigger an appropriate activity interrupt to prevent infinite
+    // resting (and shouldn't just rely on a message interrupt).
+    // if an interrupt is disabled, we don't count it at all for resting. (So
+    // if someone disables all these interrupts, resting becomes impossible.)
+    const bool hp_interrupts = Options.activity_interrupts["rest"][
+                                static_cast<int>(activity_interrupt::full_hp)];
     return (!player_regenerates_hp()
-                || _should_stop_resting(hp, hp_max))
+                || _should_stop_resting(hp, hp_max, !starting)
+                || !hp_interrupts)
         && (!player_regenerates_mp()
-                || _should_stop_resting(magic_points, max_magic_points))
-        && !you.duration[DUR_BARBS];
+                || _should_stop_resting(magic_points, max_magic_points, !starting)
+                || !Options.activity_interrupts["rest"][
+                                static_cast<int>(activity_interrupt::full_mp)])
+        && (!you.duration[DUR_BARBS] || !hp_interrupts);
 }
 
 bool player::in_water() const

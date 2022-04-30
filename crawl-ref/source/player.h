@@ -509,7 +509,7 @@ public:
     bool can_water_walk() const;
     int visible_igrd(const coord_def&) const;
     bool is_banished() const override;
-    bool is_sufficiently_rested() const; // Up to rest_wait_percent HP and MP.
+    bool is_sufficiently_rested(bool starting=false) const; // Up to rest_wait_percent HP and MP.
     bool is_web_immune() const override;
     bool cannot_speak() const;
     bool invisible() const override;
@@ -993,7 +993,7 @@ int player_wizardry(spell_type spell);
 int player_prot_life(bool allow_random = true, bool temp = true,
                      bool items = true);
 
-bool regeneration_is_inhibited();
+bool regeneration_is_inhibited(const monster *m=nullptr);
 int player_regen();
 int player_mp_regen();
 

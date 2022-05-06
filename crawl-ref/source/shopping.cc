@@ -518,7 +518,6 @@ unsigned int item_value(item_def item, bool ident)
             case SCR_ENCHANT_ARMOUR:
             case SCR_ENCHANT_WEAPON:
             case SCR_TORMENT:
-            case SCR_HOLY_WORD:
             case SCR_SILENCE:
             case SCR_VULNERABILITY:
                 valued += 75;
@@ -527,6 +526,7 @@ unsigned int item_value(item_def item, bool ident)
             case SCR_AMNESIA:
             case SCR_FEAR:
             case SCR_IMMOLATION:
+            case SCR_POISON:
             case SCR_MAGIC_MAPPING:
                 valued += 35;
                 break;
@@ -541,6 +541,7 @@ unsigned int item_value(item_def item, bool ident)
             case SCR_CURSE_ARMOUR:
             case SCR_CURSE_WEAPON:
             case SCR_CURSE_JEWELLERY:
+            case SCR_HOLY_WORD:
 #endif
                 valued += 20;
                 break;

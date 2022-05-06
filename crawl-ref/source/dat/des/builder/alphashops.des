@@ -112,7 +112,7 @@
 
       elseif s == "H" then i = { "halberd", "hand axe",
        "hand crossbow", "hunting sling", "potion of heal wounds",
-       "potion of haste", "scroll of holy word", "manual of hexes", "hat",
+       "potion of haste", "manual of hexes", "hat",
        "helmet", "book of hexes", "book of the hunter" }
 
       elseif s == "I" then i = { "ring of ice",
@@ -145,7 +145,7 @@
        "plate armour", "ring of poison resistance", "manual of polearms",
        "wand of polymorph", "ring of positive energy", "ring of protection",
        "manual of poison magic", "wand of paralysis",
-       "ring of protection from fire", "staff of poison",
+       "ring of protection from fire", "staff of poison", "scroll of poison",
        "ring of protection from cold", "book of pain" }
 
       elseif s == "Q" then i = { "quarterstaff", "quicksilver dragon scales",

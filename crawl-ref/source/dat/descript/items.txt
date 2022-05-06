@@ -1072,12 +1072,6 @@ scroll of fog
 
 A scroll that surrounds the reader with a dense cloud of fog.
 %%%%
-scroll of holy word
-
-A scroll that calls on the good gods to cause great damage to any nearby undead
-or demonic creature — possibly including the reader! It will briefly daze
-monsters that are affected.
-%%%%
 scroll of identify
 
 A useful magic scroll which identifies the properties of any unknown object.
@@ -1094,6 +1088,11 @@ A scroll that reveals the surroundings of the one who reads it.
 scroll of noise
 
 A prank scroll that creates a loud noise when read.
+%%%%
+scroll of poison
+
+A scroll that fills the air with poison, covering every unoccupied space in
+sight with toxic fumes.
 %%%%
 scroll of silence
 

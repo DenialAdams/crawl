@@ -150,9 +150,12 @@ bool bless_weapon(god_type god, brand_type brand, colour_t colour)
     }
 
     item_def& wpn(you.inv[item_slot]);
-    // Only TSO allows blessing ranged weapons.
-    if (!is_brandable_weapon(wpn, brand == SPWPN_HOLY_WRATH, true))
+    // TSO and KIKU allow blessing ranged weapons, but LUGONU does not.
+    if (!is_brandable_weapon(wpn, brand == SPWPN_HOLY_WRATH
+                                                                  || brand == SPWPN_PAIN, true))
+    {
         return false;
+    }
 
     string prompt = "Do you wish to have " + wpn.name(DESC_YOUR)
                        + " ";
@@ -1864,34 +1867,6 @@ bool kiku_receive_corpses(int pow)
             simple_god_message(" can find no cadavers for you!");
         return false;
     }
-}
-
-/**
- * Destroy a corpse at or adjacent to the player's location
- *
- * @param just_check True if just checking whether the ability is possible,
- *                   false if we should go ahead and destroy a corpse.
- * @return           True if a corpse was available, false otherwise.
-*/
-bool kiku_take_corpse(bool just_check)
-{
-    for (fair_adjacent_iterator ai(you.pos(), false); ai; ++ai)
-    {
-        for (stack_iterator si(*ai, true); si; ++si)
-        {
-            if (si->base_type != OBJ_CORPSES || si->sub_type != CORPSE_BODY)
-                continue;
-
-            if (just_check)
-                return true;
-
-            item_was_destroyed(*si);
-            destroy_item(si->index());
-            return true;
-        }
-    }
-
-    return false;
 }
 
 bool kiku_gift_capstone_spells()

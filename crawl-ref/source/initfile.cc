@@ -112,6 +112,10 @@ game_options Options;
 static string _get_save_path(string subdir);
 static string _supported_language_listing();
 
+static bool _force_allow_wizard();
+static bool _force_allow_explore();
+
+
 static bool _first_less(const pair<int, int> &l, const pair<int, int> &r)
 {
     return l.first < r.first;
@@ -158,6 +162,11 @@ const vector<GameOption*> game_options::build_options_list()
     #define SIMPLE_NAME(_opt) _opt, {#_opt}
     vector<GameOption*> options = {
         new BoolGameOption(SIMPLE_NAME(autopickup_starting_ammo), true),
+        new MultipleChoiceGameOption<int>(
+            autopickup_on, {"default_autopickup"},
+            1,
+            {{"true", 1}, // XX this would be better as an enum
+             {"false", 0}}, true),
         new BoolGameOption(SIMPLE_NAME(default_show_all_skills), false),
         new MultipleChoiceGameOption<skill_focus_mode>(
             SIMPLE_NAME(skill_focus),
@@ -246,6 +255,11 @@ const vector<GameOption*> game_options::build_options_list()
         new BoolGameOption(SIMPLE_NAME(spell_menu), false),
         new BoolGameOption(SIMPLE_NAME(easy_floor_use), false),
         new BoolGameOption(SIMPLE_NAME(bad_item_prompt), true),
+        new MultipleChoiceGameOption<slot_select_mode>(
+            SIMPLE_NAME(assign_item_slot),
+            SS_FORWARD,
+            {{"forward", SS_FORWARD},
+             {"backward", SS_BACKWARD}}),
         new BoolGameOption(SIMPLE_NAME(dos_use_background_intensity), true),
         new BoolGameOption(SIMPLE_NAME(explore_greedy), true),
         new BoolGameOption(SIMPLE_NAME(explore_auto_rest), true),
@@ -361,7 +375,7 @@ const vector<GameOption*> game_options::build_options_list()
              {"true", travel_open_doors_type::_true}}),
 
 #ifdef DGL_SIMPLE_MESSAGING
-        new BoolGameOption(SIMPLE_NAME(messaging), false),
+        new BoolGameOption(SIMPLE_NAME(messaging), true),
 #endif
 #ifndef DGAMELAUNCH
         new BoolGameOption(SIMPLE_NAME(name_bypasses_menu), true),
@@ -451,6 +465,20 @@ const vector<GameOption*> game_options::build_options_list()
              {"false", SCREENMODE_WINDOW},
              {"maybe", SCREENMODE_AUTO},
              {"auto", SCREENMODE_AUTO}}, true),
+        new MultipleChoiceGameOption<maybe_bool>(
+            SIMPLE_NAME(tile_use_small_layout),
+            MB_MAYBE,
+#ifdef TOUCH_UI
+            {{"true", MB_TRUE},
+             {"false", MB_FALSE},
+             {"maybe", MB_MAYBE},
+             {"auto", MB_MAYBE}}, true
+#else
+            // this option is unsupported, undocumented, and fairly crashy.
+            // XX do something about this.
+            {}
+#endif
+            ),
 #endif
 #ifdef USE_TILE_WEB
         new BoolGameOption(SIMPLE_NAME(tile_realtime_anim), false),
@@ -488,6 +516,41 @@ const vector<GameOption*> game_options::build_options_list()
 #ifdef USE_FT
         new BoolGameOption(SIMPLE_NAME(tile_font_ft_light), false),
 #endif
+        // see post-processing in fixup_options that handles the interaction
+        // with CLOs for the following two options:
+        new MultipleChoiceGameOption<wizard_option_type>(
+            SIMPLE_NAME(wiz_mode),
+#if defined(DGAMELAUNCH) || !defined(WIZARD)
+            WIZ_NEVER,
+#elif defined(DEBUG_DIAGNOSTICS)
+            WIZ_YES, // default debug build games to wizmode. Can be overridden in rc
+#else
+            WIZ_NO,
+#endif
+#if defined(DGAMELAUNCH) || !defined(WIZARD)
+            {}, // setting in rc is disabled
+#else
+            {{"true", WIZ_YES},
+             {"false", WIZ_NO},
+             {"never", WIZ_NEVER}},
+#endif
+             true),
+        new MultipleChoiceGameOption<wizard_option_type>(
+            SIMPLE_NAME(explore_mode),
+#if defined(DGAMELAUNCH) || !defined(WIZARD)
+            WIZ_NEVER,
+#else
+            WIZ_NO,
+#endif
+#if defined(DGAMELAUNCH) || !defined(WIZARD)
+            {}, // setting in rc is disabled
+#else
+            {{"true", WIZ_YES},
+             {"false", WIZ_NO},
+             {"never", WIZ_NEVER}},
+#endif
+             true),
+
 #ifdef WIZARD
         new BoolGameOption(SIMPLE_NAME(fsim_csv), false),
         new ListGameOption<string>(SIMPLE_NAME(fsim_scale)),
@@ -1136,12 +1199,6 @@ void game_options::reset_options()
 
     additional_macro_files.clear();
 
-#ifdef DGL_SIMPLE_MESSAGING
-    messaging = true;
-#endif
-
-    autopickup_on    = 1;
-
     game = newgame_def();
 
     incremental_pregen = true;
@@ -1158,15 +1215,9 @@ void game_options::reset_options()
 
     user_note_prefix       = "";
 
-    arena_dump_msgs        = false;
-    arena_dump_msgs_all    = false;
-    arena_list_eq          = false;
-
     // Sort only pickup menus by default.
     sort_menus.clear();
     set_menu_sort("pickup: true");
-
-    assign_item_slot       = SS_FORWARD;
 
     explore_stop           = (ES_ITEM | ES_STAIR | ES_PORTAL | ES_BRANCH
                               | ES_SHOP | ES_ALTAR | ES_RUNED_DOOR
@@ -1215,12 +1266,8 @@ void game_options::reset_options()
           ABIL_RU_APOCALYPSE, ABIL_LUGONU_CORRUPT, ABIL_IGNIS_FOXFIRE };
     always_use_static_ability_targeters = false;
 
-    // These are only used internally, and only from the commandline:
-    // XXX: These need a better place.
-    sc_entries             = 0;
-    sc_format              = -1;
-
 #ifdef DGAMELAUNCH
+    // not settable via rc on DGL, so no Options object to initialize them
     restart_after_game = MB_FALSE;
     restart_after_save = false;
     newgame_after_quit = false;
@@ -1233,30 +1280,7 @@ void game_options::reset_options()
 #endif
 #endif
 
-#ifdef WIZARD
-#  ifdef DGAMELAUNCH
-    if (wiz_mode != WIZ_NO)
-    {
-        wiz_mode         = WIZ_NEVER;
-        explore_mode     = WIZ_NEVER;
-    }
-#  else
-#    ifdef DEBUG_DIAGNOSTICS
-    // Most of the time in debug builds, you want to be using wizmode anyways.
-    // This can be overridden by an explicit rc setting.
-    wiz_mode             = WIZ_YES;
-#    else
-    wiz_mode             = WIZ_NO;
-#    endif
-    explore_mode         = WIZ_NO;
-#  endif
-#endif
     terp_files.clear();
-
-#ifdef USE_TILE_LOCAL
-    // touch only
-    tile_use_small_layout = MB_MAYBE;
-#endif
 
 #ifdef USE_TILE
     // XXX: arena may now be chosen after options are read.
@@ -2149,7 +2173,9 @@ void read_options(const string &s, bool runscript, bool clear_aliases)
 
 game_options::game_options()
     : seed(0), seed_from_rc(0),
-    no_save(false), no_player_bones(false), language(lang_t::EN),
+    no_save(false), no_player_bones(false),
+    sc_entries(0), sc_format(-1),
+    language(lang_t::EN),
     lang_name(nullptr),
     prefs_dirty(false)
 {
@@ -2383,6 +2409,18 @@ void game_options::fixup_options()
 
     if (!check_mkdir("Morgue directory", &morgue_dir))
         end(1, false, "Cannot create morgue directory '%s'", morgue_dir.c_str());
+
+#ifdef WIZARD
+    // Let CLOs override wiz/explore disabling (including the option being
+    // disabled on dgamelaunch builds)
+    if (_force_allow_wizard() && wiz_mode == WIZ_NEVER)
+        wiz_mode = WIZ_NO;
+    if ((_force_allow_wizard() || _force_allow_explore())
+                                            && explore_mode == WIZ_NEVER)
+    {
+        explore_mode = WIZ_NO;
+    }
+#endif
 }
 
 static int _str_to_killcategory(const string &s)
@@ -3059,13 +3097,6 @@ void game_options::read_option_line(const string &str, bool runscript)
     }
     else if (key == "fake_lang")
         set_fake_langs(field);
-    else if (key == "default_autopickup")
-    {
-        if (read_bool(field, true))
-            autopickup_on = 1;
-        else
-            autopickup_on = 0;
-    }
     else if (key == "lua_file" && runscript)
     {
 #ifdef CLUA_BINDINGS
@@ -3220,13 +3251,6 @@ void game_options::read_option_line(const string &str, bool runscript)
         else
             report_error("Bad fire item start index: %s\n", field.c_str());
     }
-    else if (key == "assign_item_slot")
-    {
-        if (field == "forward")
-            assign_item_slot = SS_FORWARD;
-        else if (field == "backward")
-            assign_item_slot = SS_BACKWARD;
-    }
 #ifndef DGAMELAUNCH
     else if (key == "restart_after_game")
         restart_after_game = read_maybe_bool(field);
@@ -3303,37 +3327,6 @@ void game_options::read_option_line(const string &str, bool runscript)
             flush_input[FLUSH_LUA]
                 = read_bool(field, flush_input[FLUSH_LUA]);
         }
-    }
-    else if (key == "wiz_mode")
-    {
-        // wiz_mode is recognised as a legal key in all compiles -- bwr
-#ifdef WIZARD
-    #ifndef DGAMELAUNCH
-        if (field == "never")
-            wiz_mode = WIZ_NEVER;
-        else if (field == "no")
-            wiz_mode = WIZ_NO;
-        else if (field == "yes")
-            wiz_mode = WIZ_YES;
-        else
-            report_error("Unknown wiz_mode option: %s\n", field.c_str());
-    #endif
-#endif
-    }
-    else if (key == "explore_mode")
-    {
-#ifdef WIZARD
-    #ifndef DGAMELAUNCH
-        if (field == "never")
-            explore_mode = WIZ_NEVER;
-        else if (field == "no")
-            explore_mode = WIZ_NO;
-        else if (field == "yes")
-            explore_mode = WIZ_YES;
-        else
-            report_error("Unknown explore_mode option: %s\n", field.c_str());
-    #endif
-#endif
     }
     else if (key == "ban_pickup")
     {
@@ -4349,8 +4342,33 @@ static const char *cmd_ops[] =
 #endif
 };
 
-static const int num_cmd_ops = CLO_NOPS;
-static bool arg_seen[num_cmd_ops];
+
+#define num_cmd_ops CLO_NOPS
+
+static bool& _arg_seen(commandline_option_type c)
+{
+    static bool arg_seen[num_cmd_ops];
+    static bool arg_seen_init = false;
+    if (!arg_seen_init)
+    {
+        for (int i = 0; i < num_cmd_ops; i++)
+            arg_seen[i] = false;
+        arg_seen_init = true;
+    }
+    return arg_seen[c];
+}
+
+// set these checks up so they can be forward-declared without reordering the
+// whole file
+static bool _force_allow_wizard()
+{
+    return _arg_seen(CLO_WIZARD);
+}
+
+static bool _force_allow_explore()
+{
+    return _arg_seen(CLO_EXPLORE);
+}
 
 static string _find_executable_path()
 {
@@ -5130,7 +5148,7 @@ bool parse_args(int argc, char **argv, bool rc_only)
 
     // initialise
     for (int i = 0; i < num_cmd_ops; i++)
-         arg_seen[i] = false;
+         _arg_seen(static_cast<commandline_option_type>(i)) = false;
 
     if (SysEnv.cmd_args.empty())
     {
@@ -5191,14 +5209,14 @@ bool parse_args(int argc, char **argv, bool rc_only)
         }
 
         // Disallow options specified more than once.
-        if (arg_seen[o])
+        if (_arg_seen(static_cast<commandline_option_type>(o)))
         {
             fprintf(stderr, "Duplicate option: %s\n\n", argv[current]);
             return false;
         }
 
         // Set arg to 'seen'.
-        arg_seen[o] = true;
+        _arg_seen(static_cast<commandline_option_type>(o)) = true;
 
         // Partially parse next argument.
         bool next_is_param = false;
@@ -5537,20 +5555,6 @@ bool parse_args(int argc, char **argv, bool rc_only)
                 Options.game.type = GAME_TYPE_TUTORIAL;
             break;
 
-        case CLO_WIZARD:
-#ifdef WIZARD
-            if (!rc_only)
-                Options.wiz_mode = WIZ_NO;
-#endif
-            break;
-
-        case CLO_EXPLORE:
-#ifdef WIZARD
-            if (!rc_only)
-                Options.explore_mode = WIZ_NO;
-#endif
-            break;
-
         case CLO_NO_SAVE:
             if (!rc_only)
                 Options.no_save = true;
@@ -5613,7 +5617,7 @@ bool parse_args(int argc, char **argv, bool rc_only)
             nextUsed = true;
 
             // Can be used multiple times.
-            arg_seen[o] = false;
+            _arg_seen(static_cast<commandline_option_type>(o)) = false;
             break;
 
         case CLO_EXTRA_OPT_LAST:
@@ -5628,7 +5632,7 @@ bool parse_args(int argc, char **argv, bool rc_only)
             nextUsed = true;
 
             // Can be used multiple times.
-            arg_seen[o] = false;
+            _arg_seen(static_cast<commandline_option_type>(o)) = false;
             break;
         }
 

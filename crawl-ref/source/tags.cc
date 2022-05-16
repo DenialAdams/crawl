@@ -4256,7 +4256,7 @@ static void _tag_read_you_items(reader &th)
         you.force_autopickup[OBJ_FOOD][FOOD_RATION] = oldstate;
 
         you.force_autopickup[OBJ_BOOKS][BOOK_MANUAL] =
-            you.force_autopickup[OBJ_BOOKS][NUM_BOOKS];
+            you.force_autopickup[OBJ_BOOKS][0];
     }
     if (th.getMinorVersion() < TAG_MINOR_FOOD_PURGE_AP_FIX)
     {
@@ -6375,6 +6375,22 @@ static void _tag_read_level(reader &th)
             }
         }
     }
+    if (th.getMinorVersion() < TAG_MINOR_BOX_OF_BEASTS_CHARGES)
+    {
+        // this is a fairly approximate fixup for obscure cases where new
+        // random types were added and broke handling of draconian zig levels;
+        // requires a save where the game crashed during levelgen on such a
+        // zig level.
+        CrawlHashTable &props = env.properties;
+        CrawlVector &type_vec = props[VAULT_MON_TYPES_KEY].get_vector();
+        for (size_t i = 0; i < type_vec.size(); i++)
+        {
+            monster_type type = static_cast<monster_type>(type_vec[i].get_int());
+            if (type == RANDOM_MOBILE_MONSTER || type == RANDOM_COMPATIBLE_MONSTER)
+                type_vec[i] = RANDOM_DRACONIAN;
+        }
+    }
+
 #endif
 
     env.dactions_done = unmarshallInt(th);

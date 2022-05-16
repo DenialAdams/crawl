@@ -1262,7 +1262,7 @@ bool bezotted()
 }
 
 // Decrease the zot clock when the player enters a new level.
-void decr_zot_clock()
+void decr_zot_clock(bool extra_life)
 {
     if (!zot_clock_active())
         return;
@@ -1278,7 +1278,12 @@ void decr_zot_clock()
     {
         // old branch, new floor
         if (bezotted())
-            mpr("As you enter the new level, Zot loses track of you.");
+        {
+            if (extra_life)
+                mpr("As you die, Zot loses track of you.");
+            else
+                mpr("As you enter the new level, Zot loses track of you.");
+        }
         zot = max(0, zot - ZOT_CLOCK_PER_FLOOR / div);
     }
 }
@@ -1302,7 +1307,7 @@ void incr_zot_clock()
 
     if (_zot_clock() >= MAX_ZOT_CLOCK)
     {
-        mpr("Zot has found you!");
+        mprf("%s", getSpeakString("Zot death").c_str());
         ouch(INSTANT_DEATH, KILLED_BY_ZOT);
         return;
     }

@@ -30,7 +30,6 @@
 #include "religion.h"
 #include "shopping.h"
 #include "skills.h"
-#include "spl-wpnench.h"
 #include "stringutil.h"
 #include "tag-version.h"
 #include "terrain.h"
@@ -787,6 +786,7 @@ const set<pair<object_class_type, int> > removed_items =
     { OBJ_BOOKS,     BOOK_AKASHIC_RECORD },
     { OBJ_BOOKS,     BOOK_BATTLE },
     { OBJ_BOOKS,     BOOK_STONE },
+    { OBJ_BOOKS,     BOOK_PAIN },
     { OBJ_RODS,      ROD_VENOM },
     { OBJ_RODS,      ROD_WARDING },
     { OBJ_RODS,      ROD_DESTRUCTION },

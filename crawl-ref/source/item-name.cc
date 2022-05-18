@@ -1035,7 +1035,9 @@ static const char* _book_type_name(int booktype)
     case BOOK_WINTER:                 return "Winter";
     case BOOK_SPHERES:                return "the Spheres";
     case BOOK_ARMAMENTS:              return "Armaments";
+#if TAG_MAJOR_VERSION == 34
     case BOOK_PAIN:                   return "Pain";
+#endif
     case BOOK_DECAY:                  return "Decay";
     case BOOK_DISPLACEMENT:           return "Displacement";
     case BOOK_RIME:                   return "Rime";
@@ -3074,13 +3076,6 @@ bool is_useless_item(const item_def &item, bool temp, bool ident)
         return false;
 
     case OBJ_CORPSES:
-        if (you.has_spell(SPELL_ANIMATE_DEAD)
-            || you.has_spell(SPELL_ANIMATE_SKELETON)
-            || you.has_spell(SPELL_SIMULACRUM))
-        {
-            return false;
-        }
-
         return true;
 
     case OBJ_MISCELLANY:

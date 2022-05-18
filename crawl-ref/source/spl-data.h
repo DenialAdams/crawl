@@ -539,9 +539,9 @@ static const struct spell_desc spelldata[] =
 {
     SPELL_ANIMATE_DEAD, "Animate Dead",
     spschool::necromancy,
-    spflag::area | spflag::neutral | spflag::utility,
+    spflag::helpful | spflag::utility | spflag::selfench,
     4,
-    200,
+    100,
     -1, -1,
     3, 0,
     TILEG_ANIMATE_DEAD,
@@ -549,6 +549,18 @@ static const struct spell_desc spelldata[] =
 
 {
     SPELL_PAIN, "Pain",
+    spschool::necromancy,
+    spflag::dir_or_target | spflag::needs_tracer | spflag::WL_check
+        | spflag::monster,
+    1,
+    25,
+    5, 5,
+    1, 0,
+    TILEG_PAIN,
+},
+
+{
+    SPELL_NECROTIZE, "Necrotize",
     spschool::necromancy,
     spflag::dir_or_target | spflag::needs_tracer | spflag::WL_check,
     1,
@@ -561,7 +573,7 @@ static const struct spell_desc spelldata[] =
 {
     SPELL_ANIMATE_SKELETON, "Animate Skeleton",
     spschool::necromancy,
-    spflag::utility,
+    spflag::utility | spflag::monster,
     1,
     50,
     -1, -1,
@@ -785,10 +797,10 @@ static const struct spell_desc spelldata[] =
 
 {
     SPELL_CORPSE_ROT, "Corpse Rot",
-    spschool::necromancy | spschool::air,
-    spflag::area | spflag::neutral | spflag::unclean,
-    2,
-    50,
+    spschool::necromancy | spschool::air | spschool::poison,
+    spflag::helpful | spflag::utility | spflag::selfench | spflag::unclean,
+    4,
+    100,
     -1, -1,
     2, 0,
     TILEG_CORPSE_ROT,
@@ -1188,10 +1200,10 @@ static const struct spell_desc spelldata[] =
 {
     SPELL_SIMULACRUM, "Simulacrum",
     spschool::ice | spschool::necromancy,
-    spflag::none,
+    spflag::dir_or_target | spflag::needs_tracer,
     6,
     200,
-    -1, -1,
+    LOS_RADIUS, LOS_RADIUS,
     5, 0,
     TILEG_SIMULACRUM,
 },
@@ -1216,17 +1228,6 @@ static const struct spell_desc spelldata[] =
     -1, -1,
     25, 10,
     TILEG_CHAIN_LIGHTNING,
-},
-
-{
-    SPELL_EXCRUCIATING_WOUNDS, "Excruciating Wounds",
-    spschool::necromancy,
-    spflag::helpful,
-    5,
-    200,
-    -1, -1,
-    5, 5,
-    TILEG_EXCRUCIATING_WOUNDS,
 },
 
 {
@@ -3647,6 +3648,7 @@ AXED_SPELL(SPELL_VORTEX, "Vortex")
 AXED_SPELL(SPELL_GOAD_BEASTS, "Goad Beasts")
 AXED_SPELL(SPELL_TELEPORT_SELF, "Teleport Self")
 AXED_SPELL(SPELL_TOMB_OF_DOROKLOHE, "Tomb of Doroklohe")
+AXED_SPELL(SPELL_EXCRUCIATING_WOUNDS, "Excruciating Wounds")
 #endif
 
 };

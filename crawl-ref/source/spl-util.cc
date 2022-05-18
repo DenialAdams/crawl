@@ -1169,13 +1169,25 @@ string casting_uselessness_reason(spell_type spell, bool temp)
     switch (spell)
     {
     case SPELL_ANIMATE_DEAD:
-    case SPELL_ANIMATE_SKELETON:
     case SPELL_DEATH_CHANNEL:
     case SPELL_SIMULACRUM:
     case SPELL_INFESTATION:
     case SPELL_TUKIMAS_DANCE:
         if (you.allies_forbidden())
             return "you cannot coerce anything to obey you.";
+        break;
+    default:
+        break;
+    }
+
+    // Gozagite effects.
+    switch (spell)
+    {
+    case SPELL_CORPSE_ROT:
+    case SPELL_ANIMATE_DEAD:
+    case SPELL_SIMULACRUM:
+        if (have_passive(passive_t::goldify_corpses))
+            return "necromancy does not work on golden corpses.";
         break;
     default:
         break;
@@ -1290,17 +1302,6 @@ string spell_uselessness_reason(spell_type spell, bool temp, bool prevent,
             return "your current blood level is not sufficient.";
         break;
 
-    case SPELL_EXCRUCIATING_WOUNDS:
-        if (is_useless_skill(SK_NECROMANCY))
-            return "you lack the necromantic skill to inflict true pain.";
-        if (temp
-            && (!you.weapon()
-                || you.weapon()->base_type != OBJ_WEAPONS
-                || !is_brandable_weapon(*you.weapon(), true)))
-        {
-            return "you aren't wielding a brandable weapon.";
-        }
-        // intentional fallthrough to portal projectile
     case SPELL_PORTAL_PROJECTILE:
         if (you.has_mutation(MUT_NO_GRASPING))
             return "this spell is useless without hands.";
@@ -1387,28 +1388,12 @@ string spell_uselessness_reason(spell_type spell, bool temp, bool prevent,
             return "you're being held away from the wall.";
         break;
 
-    case SPELL_ANIMATE_DEAD:
-        if (temp && !animate_dead(&you, 1, BEH_FRIENDLY, MHITYOU, &you, "", GOD_NO_GOD, false))
-            return "there is nothing nearby to animate!";
-        break;
-
-    case SPELL_ANIMATE_SKELETON:
-        if (temp && find_animatable_skeletons(you.pos()).empty())
-            return "there is nothing nearby to animate!";
-        break;
-    case SPELL_SIMULACRUM:
-        if (temp && find_simulacrable_corpse(you.pos()) < 0)
-            return "there is nothing here to animate!";
-        break;
-
     case SPELL_DEATH_CHANNEL:
+    case SPELL_ANIMATE_DEAD:
         if (have_passive(passive_t::reaping))
             return "you are already reaping souls!";
         break;
 
-    case SPELL_CORPSE_ROT:
-        if (temp && corpse_rot(&you, 0, false) == spret::abort)
-            return "there is nothing fresh enough to decay nearby.";
         // fallthrough
     case SPELL_POISONOUS_VAPOURS:
     case SPELL_CONJURE_FLAME:
@@ -1931,6 +1916,7 @@ const set<spell_type> removed_spells =
     SPELL_VORTEX,
     SPELL_GOAD_BEASTS,
     SPELL_TELEPORT_SELF,
+    SPELL_EXCRUCIATING_WOUNDS,
 #endif
 };
 

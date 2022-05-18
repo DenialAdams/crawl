@@ -1129,6 +1129,41 @@ static int _get_dest_stair_type(dungeon_feature_type stair_taken,
     return DNGN_FLOOR;
 }
 
+static bool _nonfriendly_nearby(coord_def p)
+{
+    for (monster_near_iterator mi(p); mi; ++mi)
+        if (!mi->friendly())
+            return true;
+    return false;
+}
+
+static bool _shaft_safely()
+{
+    // Loosely modelled on bring_to_safety(). Perhaps should be unified.
+    for (int tries = 0; tries < 1000; ++tries)
+    {
+        coord_def pos;
+        pos.x = random2(GXM);
+        pos.y = random2(GYM);
+
+        if (!in_bounds(pos)
+            || is_feat_dangerous(env.grid(pos), true)
+            || cloud_at(pos) // XXX: ignore if is_harmless_cloud?
+            || monster_at(pos)
+            || env.pgrid(pos) & FPROP_NO_TELE_INTO
+            || slime_wall_neighbour(pos)
+            || _nonfriendly_nearby(pos))
+        {
+            continue;
+        }
+
+        you.moveto(pos);
+        return true;
+    }
+
+    return false;
+}
+
 static void _place_player_on_stair(int stair_taken, const coord_def& dest_pos,
                                    const string &hatch_name)
 
@@ -1141,7 +1176,7 @@ static void _place_player_on_stair(int stair_taken, const coord_def& dest_pos,
     if (stair_type == DNGN_TRAP_SHAFT && you.where_are_you == BRANCH_DUNGEON)
     {
         // Shafts are scary enough in D without putting you near mons.
-        if (bring_to_safety())
+        if (_shaft_safely())
             return;
         // If we can't find a safe place, fall through to default random placement.
     }
@@ -1985,6 +2020,10 @@ bool load_level(dungeon_feature_type stair_taken, load_mode_type load_mode,
     if (!you.save->has_chunk(level_name) && load_mode == LOAD_VISITOR)
         return false;
 
+    const bool fast = load_mode == LOAD_ENTER_LEVEL_FAST;
+    if (fast)
+        load_mode = LOAD_ENTER_LEVEL;
+
     const bool make_changes =
         (load_mode == LOAD_START_GAME || load_mode == LOAD_ENTER_LEVEL);
 
@@ -1994,15 +2033,14 @@ bool load_level(dungeon_feature_type stair_taken, load_mode_type load_mode,
         _fixup_visited_from_package();
 #endif
 
-    // Did we get here by popping the level stack?
-    bool popped = false;
-
     coord_def return_pos; //TODO: initialize to null
 
     string hatch_name = "";
     if (feat_is_escape_hatch(stair_taken))
         hatch_name = _get_hatch_name();
 
+    // Did we get here by popping the level stack?
+    bool popped = false;
     if (load_mode != LOAD_VISITOR)
         popped = _leave_level(stair_taken, old_level, &return_pos);
 
@@ -2198,9 +2236,10 @@ bool load_level(dungeon_feature_type stair_taken, load_mode_type load_mode,
     // Things to update for player entering level
     if (load_mode == LOAD_ENTER_LEVEL)
     {
-        // new levels have less wary monsters, and we don't
-        // want them to attack players quite as soon:
-        you.time_taken *= (just_created_level ? 1 : 2);
+        // new stairs have less wary monsters, and we don't
+        // want them to attack players quite as soon.
+        // (just_created_level only relevant if we crashed.)
+        you.time_taken *= fast || just_created_level ? 1 : 2;
 
         you.time_taken = div_rand_round(you.time_taken * 3, 4);
 

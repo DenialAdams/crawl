@@ -58,6 +58,7 @@
 #include "religion.h"
 #include "shout.h"
 #include "spl-damage.h"
+#include "spl-other.h"
 #include "spl-summoning.h"
 #include "sprint.h" // SPRINT_MULTIPLIER
 #include "state.h"
@@ -1149,6 +1150,42 @@ static string _killer_type_name(killer_type killer)
     die("invalid killer type");
 }
 
+static string _derived_undead_message(const monster &mons, monster_type which_z,
+                                      const char* mist)
+{
+    switch (which_z)
+    {
+    case MONS_SPECTRAL_THING:
+    case MONS_SIMULACRUM:
+        // XXX: print immediately instead?
+        return make_stringf("A %s mist starts to gather...", mist);
+    case MONS_SKELETON:
+    case MONS_ZOMBIE:
+        break;
+    default:
+        return "A buggy dead thing appears!";
+    }
+
+    const auto habitat = mons_class_primary_habitat(mons.type);
+    if (habitat == HT_WATER || habitat == HT_LAVA)
+        return "The dead are swimming!";
+
+    if (mons_class_flag(mons.type, M_FLIES))
+        return "The dead are flying!";
+
+    const auto shape = get_mon_shape(mons);
+    if (shape == MON_SHAPE_SNAKE || shape == MON_SHAPE_SNAIL)
+        return "The dead are slithering!";
+    if (shape == MON_SHAPE_ARACHNID || shape == MON_SHAPE_CENTIPEDE)
+        return "The dead are crawling!"; // to say nothing of creeping
+
+    const monster_type genus = mons_genus(mons.type);
+    if (genus == MONS_FROG || genus == MONS_QUOKKA)
+        return "The dead are hopping!";
+
+    return "The dead are walking!"; // a classic for sure
+}
+
 /**
  * Make derived undead out of a dying/dead monster.
  *
@@ -1209,7 +1246,7 @@ static void _make_derived_undead(monster* mons, bool quiet,
         // No undead 0-headed hydras, sorry.
         if (mons->heads() == 0)
         {
-            if (!quiet)
+            if (!quiet && which_z != MONS_SKELETON)
                 mprf("A %s mist gathers momentarily, then fades.", mist);
             return;
         }
@@ -1225,13 +1262,20 @@ static void _make_derived_undead(monster* mons, bool quiet,
             agent_name = agent->as_monster()->full_name(DESC_A);
     }
 
-    string monster_name = "";
-
-    string message = quiet ? "" :
-        make_stringf("A %s mist starts to gather...", mist);
-
+    const string message = quiet ? "" : _derived_undead_message(*mons, which_z, mist);
     make_derived_undead_fineff::schedule(mons->pos(), mg,
             mons->get_experience_level(), agent_name, message);
+}
+
+static void _make_simulacra(monster* mons, int pow, god_type god)
+{
+    const int count = 1 + random2(1 + div_rand_round(pow, 20));
+    for (int i = 0; i < count; ++i)
+    {
+        _make_derived_undead(mons, false, MONS_SIMULACRUM, BEH_FRIENDLY,
+                SPELL_SIMULACRUM, god);
+    }
+    mpr("A freezing mist starts to gather...");
 }
 
 static void _druid_final_boon(const monster* mons)
@@ -1318,14 +1362,28 @@ static void _yred_reap(monster &mons, bool expl)
                          SPELL_NO_SPELL, you.religion);
 }
 
+static bool _animate_dead_reap(monster &mons)
+{
+    if (!you.duration[DUR_ANIMATE_DEAD])
+        return false;
+    const int pow = you.props[ANIMATE_DEAD_POWER_KEY].get_int();
+    if (!x_chance_in_y(150 + pow/2, 200))
+        return false;
+
+    _make_derived_undead(&mons, false, MONS_ZOMBIE, BEH_FRIENDLY,
+                         SPELL_ANIMATE_DEAD, GOD_NO_GOD);
+    return true;
+}
+
 static bool _reaping(monster &mons)
 {
     if (!mons.props.exists(REAPING_DAMAGE_KEY))
         return false;
 
     int rd = mons.props[REAPING_DAMAGE_KEY].get_int();
-    dprf("Reaping chance: %d/%d", rd, mons.damage_total);
-    if (!x_chance_in_y(rd, mons.damage_total))
+    const int denom = mons.damage_total * 2;
+    dprf("Reaping chance: %d/%d", rd, denom);
+    if (!x_chance_in_y(rd, denom))
         return false;
 
     actor *killer = actor_by_mid(mons.props[REAPER_KEY].get_int());
@@ -1334,6 +1392,113 @@ static bool _reaping(monster &mons)
     if (killer->is_player() && you.allies_forbidden())
         return false;
     return _mons_reaped(*killer, mons);
+}
+
+static bool _try_place_miasma_at(coord_def p)
+{
+    if (cell_is_solid(p))
+        return false;
+
+    cloud_struct *cl = cloud_at(p);
+    if (cl && !is_harmless_cloud(cl->type))
+        return false;
+
+    place_cloud(CLOUD_MIASMA, p, 2 + random2avg(8, 2), &you);
+    return true;
+}
+
+static void _corpse_rot(monster &mons, int pow)
+{
+    if (!mons_can_be_zombified(mons))
+        return;
+
+    coord_def center = you.pos();
+    int rot = 1 + random2(1 + div_rand_round(pow, 25));
+
+    for (fair_adjacent_iterator ai(center); ai; ++ai)
+    {
+        if (_try_place_miasma_at(*ai))
+        {
+            --rot;
+            if (!rot)
+                return;
+        }
+    }
+
+    // Continue out to radius 2 if radius 1 is full
+    for (distance_iterator di(center, true, true, 2); di; ++di)
+    {
+        if (_try_place_miasma_at(*di))
+        {
+            --rot;
+            if (!rot)
+                return;
+        }
+    }
+
+    mprf("You %s decay.", you.can_smell() ? "smell" : "sense");
+}
+
+static bool _apply_necromancy(monster &mons, bool quiet, bool exploded,
+                              bool was_visible, bool corpseworthy)
+{
+    if (mons.has_ench(ENCH_INFESTATION))
+        _infestation_create_scarab(&mons);
+
+    // Yred worship and death channel aren't stronger than this enchantment
+    if (mons.has_ench(ENCH_BOUND_SOUL))
+    {
+        _make_derived_undead(&mons, quiet, MONS_SIMULACRUM,
+                             SAME_ATTITUDE(&mons),
+                             SPELL_BIND_SOULS, GOD_NO_GOD);
+        return true;
+    }
+
+    if (was_visible && corpseworthy)
+    {
+        // no doubling up with yred and death channel / simulacrum
+        if (have_passive(passive_t::reaping) && !have_passive(passive_t::goldify_corpses))
+        {
+            if (yred_reap_chance())
+                _yred_reap(mons, exploded);
+            return true;
+        }
+
+        if (mons.has_ench(ENCH_SIMULACRUM) && !have_passive(passive_t::goldify_corpses))
+        {
+            const int simu_pow = mons.props[SIMULACRUM_POWER_KEY].get_int();
+            _make_simulacra(&mons, simu_pow, GOD_NO_GOD);
+            return true;
+        }
+
+        if (you.duration[DUR_DEATH_CHANNEL])
+        {
+            _make_derived_undead(&mons, quiet, MONS_SPECTRAL_THING,
+                                 BEH_FRIENDLY,
+                                 SPELL_DEATH_CHANNEL,
+                                 static_cast<god_type>(you.attribute[ATTR_DIVINE_DEATH_CHANNEL]));
+        }
+
+        if (!exploded
+            && !have_passive(passive_t::goldify_corpses)
+            && (_animate_dead_reap(mons) || _reaping(mons)))
+        {
+            return true;
+        }
+    }
+
+    if (!exploded
+        && !have_passive(passive_t::goldify_corpses)
+        && corpseworthy
+        && mons.has_ench(ENCH_NECROTIZE))
+    {
+        _make_derived_undead(&mons, quiet, MONS_SKELETON,
+                                 BEH_FRIENDLY,
+                                 SPELL_NECROTIZE,
+                                 GOD_NO_GOD);
+        return true;
+    }
+    return false;
 }
 
 static bool _god_will_bless_follower(monster* victim)
@@ -2121,7 +2286,7 @@ item_def* monster_die(monster& mons, killer_type killer,
                     // Death Channel
                     else if (mons.type == MONS_SPECTRAL_THING)
                         simple_monster_message(mons, " fades into mist!");
-                    // Animate Skeleton/Animate Dead/Infestation
+                    // Necrotize/Animate Dead/Infestation
                     else if (mons.type == MONS_ZOMBIE
                              || mons.type == MONS_SKELETON
                              || mons.type == MONS_DEATH_SCARAB)
@@ -2358,37 +2523,16 @@ item_def* monster_die(monster& mons, killer_type killer,
     bool corpse_consumed = false;
     if (!was_banished && !mons_reset)
     {
-        if (mons.has_ench(ENCH_INFESTATION))
-            _infestation_create_scarab(&mons);
+        const bool wretch = mons.props.exists(KIKU_WRETCH_KEY);
+        corpse_consumed = _apply_necromancy(mons, !death_message, exploded,
+                                            was_visible, could_give_xp || wretch);
 
-        // Yred worship and death channel aren't stronger than this enchantment
-        if (mons.has_ench(ENCH_BOUND_SOUL))
+        // currently allowing this to stack with other death effects -hm
+        if (you.duration[DUR_CORPSE_ROT] && !have_passive(passive_t::goldify_corpses))
         {
-            _make_derived_undead(&mons, !death_message, MONS_SIMULACRUM,
-                                 SAME_ATTITUDE(&mons),
-                                 SPELL_BIND_SOULS, GOD_NO_GOD);
-            corpse_consumed = true;
+            const int rot_pow = you.props[CORPSE_ROT_POWER_KEY].get_int();
+            _corpse_rot(mons, rot_pow);
         }
-        else if (was_visible && could_give_xp)
-        {
-            // no doubling up with yred and death channel
-            if (have_passive(passive_t::reaping))
-            {
-                if (yred_reap_chance())
-                    _yred_reap(mons, exploded);
-                corpse_consumed = true;
-            }
-            else if (you.duration[DUR_DEATH_CHANNEL])
-            {
-                _make_derived_undead(&mons, !death_message, MONS_SPECTRAL_THING,
-                                     BEH_FRIENDLY,
-                                     SPELL_DEATH_CHANNEL,
-                                     static_cast<god_type>(you.attribute[ATTR_DIVINE_DEATH_CHANNEL]));
-            }
-        }
-
-        if (!corpse_consumed && coinflip() && _reaping(mons))
-            corpse_consumed = true;
     }
 
     if (!wizard && !submerged && !was_banished)
@@ -2498,8 +2642,11 @@ item_def* monster_die(monster& mons, killer_type killer,
         if (!silent && !wizard)
             _special_corpse_messaging(mons);
         // message ordering... :(
-        if (corpse->base_type == OBJ_CORPSES) // not gold
+        if (corpse->base_type == OBJ_CORPSES // not gold
+            && !mons.props.exists(KIKU_WRETCH_KEY))
+        {
             _maybe_drop_monster_organ(*corpse, silent);
+        }
     }
 
     ASSERT(mons.type != MONS_NO_MONSTER);

@@ -527,7 +527,7 @@ DESCRIP:  Whenever the wielder enters a berserk rage, their allies are
  berserked alongside them.
 
 NAME:    arbalest "Damnation"
-INSCRIP: damnation,
+INSCRIP: damnation
 OBJ:     OBJ_WEAPONS/WPN_ARBALEST
 FB_BRAND: SPWPN_FLAMING
 PLUS:    +6
@@ -1639,6 +1639,29 @@ TILE_EQ:    staff_mage_two
 BRAND:      SPWPN_PROTECTION
 INSCRIP:    meekguard
 DBRAND:     It provides extra protection to wielders with little health.
+
+ENUM:     CONDEMNATION
+NAME:     trishula "Condemnation"
+OBJ:      OBJ_WEAPONS/WPN_TRISHULA
+PLUS:     8
+COLOUR:   ETC_HOLY
+BRAND:    SPWPN_HOLY_WRATH
+LIFE:     1
+BOOL:     fly, noises
+INSCRIP:  anguish,
+DBRAND:   It inflicts anguish, making its victims' attacks reflect back on
+ them.
+TILE:    urand_condemnation
+TILE_EQ: condemnation
+
+NAME:    amulet of Elemental Vulnerability
+OBJ:     OBJ_JEWELLERY/AMU_NOTHING
+COLOUR:  ETC_VEHUMET
+TILE:    urand_elemental_vulnerability
+AC:      8
+BOOL:    poison
+FIRE:    -2
+COLD:    -2
 
 # This entry must always be last.
 ENUM:   DUMMY2

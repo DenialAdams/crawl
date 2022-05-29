@@ -15,6 +15,7 @@ struct mutation_def
     const char* have[3];    ///< What appears on the 'A' screen.
     const char* gain[3];    ///< Message when you gain the mutation.
     const char* lose[3];    ///< Message when you lose the mutation.
+    tileidx_t   tile;       ///< Icon for the mutation.
 };
 
 struct mutation_category_def
@@ -499,6 +500,8 @@ static const mutation_def mut_data[] =
   {"You possess an exceptional clarity of mind.", "", ""},
   {"Your thoughts seem clearer.", "", ""},
   {"Your thinking seems confused.", "", ""},
+
+    TILEG_MUT_CLARITY
 },
 
 { MUT_BERSERK, 7, 3, mutflag::bad, false,
@@ -630,6 +633,8 @@ static const mutation_def mut_data[] =
   {"You feel frail.",
    "You feel frail.",
    "You feel frail."},
+
+    TILEG_MUT_ROBUST,
 },
 
 #if TAG_MAJOR_VERSION == 34
@@ -768,6 +773,8 @@ static const mutation_def mut_data[] =
   {"Your teeth shrink to normal size.",
    "Your teeth shrink and become duller.",
    "Your teeth shrink and become duller."},
+
+    TILEG_MUT_FANGS
 },
 
 { MUT_HOOVES, 5, 3, mutflag::good, true,
@@ -1371,6 +1378,8 @@ static const mutation_def mut_data[] =
   {"Your icy blue scales disappear.",
    "Your icy blue scales recede somewhat.",
    "Your icy blue scales recede somewhat."},
+
+    TILEG_MUT_ICY_BLUE_SCALES
 },
 
 { MUT_IRIDESCENT_SCALES, 10, 3, mutflag::good, true,
@@ -1387,6 +1396,8 @@ static const mutation_def mut_data[] =
   {"Your iridescent scales disappear.",
    "Your iridescent scales recede somewhat.",
    "Your iridescent scales recede somewhat."},
+
+    TILEG_MUT_IRIDESCENT_SCALES
 },
 
 { MUT_LARGE_BONE_PLATES, 2, 3, mutflag::good, true,
@@ -1403,6 +1414,8 @@ static const mutation_def mut_data[] =
   {"Your large bone plates disappear.",
    "Your large bone plates recede somewhat.",
    "Your large bone plates recede somewhat."},
+
+    TILEG_MUT_LARGE_BONE_PLATES,
 },
 
 { MUT_MOLTEN_SCALES, 0, 3, mutflag::good, true,
@@ -1419,6 +1432,8 @@ static const mutation_def mut_data[] =
   {"Your molten scales disappear.",
    "Your molten scales recede somewhat.",
    "Your molten scales recede somewhat."},
+
+    TILEG_MUT_MOLTEN_SCALES
 },
 #if TAG_MAJOR_VERSION == 34
 
@@ -1453,6 +1468,8 @@ static const mutation_def mut_data[] =
   {"Your rugged brown scales disappear.",
    "Your rugged brown scales recede somewhat.",
    "Your rugged brown scales recede somewhat."},
+
+    TILEG_MUT_RUGGED_BROWN_SCALES,
 },
 
 { MUT_SLIMY_GREEN_SCALES, 0, 3, mutflag::good, true,
@@ -1469,6 +1486,8 @@ static const mutation_def mut_data[] =
   {"Your slimy green scales disappear.",
    "Your slimy green scales recede somewhat.",
    "Your slimy green scales recede somewhat."},
+
+    TILEG_MUT_SLIMY_GREEN_SCALES
 },
 
 { MUT_THIN_METALLIC_SCALES, 0, 3, mutflag::good, true,
@@ -1485,6 +1504,8 @@ static const mutation_def mut_data[] =
   {"Your thin metallic scales disappear.",
    "Your thin metallic scales recede somewhat.",
    "Your thin metallic scales recede somewhat."},
+
+    TILEG_MUT_THIN_METALLIC_SCALES
 },
 
 { MUT_THIN_SKELETAL_STRUCTURE, 2, 3, mutflag::good, false,
@@ -1501,6 +1522,8 @@ static const mutation_def mut_data[] =
   {"Your skeletal structure returns to normal.",
    "Your skeletal structure densifies.",
    "Your skeletal structure densifies."},
+
+    TILEG_MUT_THIN_SKELETAL_STRUCTURE,
 },
 
 { MUT_YELLOW_SCALES, 0, 3, mutflag::good, true,
@@ -1517,6 +1540,8 @@ static const mutation_def mut_data[] =
   {"Your yellow scales disappear.",
    "Your yellow scales recede somewhat.",
    "Your yellow scales recede somewhat."},
+
+    TILEG_MUT_YELLOW_SCALES
 },
 
 { MUT_SHARP_SCALES, 0, 3, mutflag::good, true,
@@ -1533,6 +1558,8 @@ static const mutation_def mut_data[] =
   {"Your sharp scales disappear.",
    "Your sharp scales recede somewhat.",
    "Your sharp scales recede somewhat."},
+
+    TILEG_MUT_SHARP_SCALES,
 },
 
 { MUT_STURDY_FRAME, 2, 3, mutflag::good, true,
@@ -1581,6 +1608,8 @@ static const mutation_def mut_data[] =
   {"Your brain returns to normal size.",
    "Your brain shrinks.",
    "Your brain shrinks."},
+
+    TILEG_MUT_BIG_BRAIN,
 },
 
 { MUT_CAMOUFLAGE, 1, 3, mutflag::good, true,

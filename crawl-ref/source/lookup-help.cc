@@ -35,6 +35,7 @@
 #include "message.h"
 #include "mon-info.h"
 #include "mon-tentacle.h"
+#include "mutation.h"
 #include "output.h"
 #include "prompt.h"
 #include "religion.h"
@@ -472,6 +473,11 @@ static bool _status_filter(string key, string /*body*/)
     return !strip_suffix(lowercase(key), " status");
 }
 
+static bool _mutation_filter(string key, string /*body*/)
+{
+    return !strip_suffix(lowercase(key), " mutation");
+}
+
 
 static void _recap_mon_keys(vector<string> &keys)
 {
@@ -751,6 +757,24 @@ static MenuEntry* _cloud_menu_gen(char letter, const string &str, string &key)
     fake_cloud_info.colour = me->colour;
     const tileidx_t idx = tileidx_cloud(fake_cloud_info);
     me->add_tile(tile_def(idx));
+
+    return me;
+}
+
+/**
+ * Generate a ?/U menu entry. (ref. _simple_menu_gen()).
+ */
+static MenuEntry* _mut_menu_gen(char letter, const string &str, string &key)
+{
+    MenuEntry* me = _simple_menu_gen(letter, str, key);
+
+    const mutation_type mut = mutation_from_name(str, false);
+    if (mut == NUM_MUTATIONS)
+        return me;
+
+    const tileidx_t tile = get_mutation_tile(mut);
+    if (tile)
+        me->add_tile(tile_def(tile + mutation_max_levels(mut) - 1));
 
     return me;
 }
@@ -1268,6 +1292,9 @@ static const vector<LookupType> lookup_types = {
                _describe_cloud, lookup_type::db_suffix),
     LookupType('T', "status", nullptr, _status_filter,
                nullptr, nullptr, _simple_menu_gen,
+               _describe_generic, lookup_type::db_suffix),
+    LookupType('U', "mutation", nullptr, _mutation_filter,
+               nullptr, nullptr, _mut_menu_gen,
                _describe_generic, lookup_type::db_suffix),
 };
 

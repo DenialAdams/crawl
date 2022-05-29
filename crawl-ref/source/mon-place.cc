@@ -1533,7 +1533,7 @@ static bool _good_zombie(monster_type base, monster_type cs,
         return false;
 
     // If zombie, monster must have a corpse.
-    if (cs == MONS_ZOMBIE && !mons_zombifiable(base))
+    if (cs == MONS_ZOMBIE && !mons_class_can_be_zombified(base))
         return false;
 
     return true;
@@ -1549,7 +1549,7 @@ bool zombie_picker::veto(monster_type mt)
         corpse_type = random_draconian_monster_species();
 
     // Zombifiability in general.
-    if (!mons_class_can_leave_corpse(corpse_type))
+    if (!mons_class_can_be_zombified(corpse_type))
         return true;
     // Monsters that don't really exist
     if (mons_class_flag(mt, M_UNFINISHED))

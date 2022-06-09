@@ -84,6 +84,7 @@
  #include "tilepick.h"
  #include "tileview.h"
 #endif
+#include "timed-effects.h" // bezotting_level
 #include "transform.h"
 #include "traps.h"
 #include "travel.h"
@@ -707,6 +708,9 @@ void update_vision_range()
     // Halo and umbra radius scale with you.normal_vision, so to avoid
     // penalizing players with low LOS from items, don't shrink normal_vision.
     you.current_vision = you.normal_vision;
+
+    if (you.species == SP_METEORAN)
+        you.current_vision -= max(0, (bezotting_level() - 1) * 2); // spooky fx
 
     // scarf of shadows gives -1.
     if (you.wearing_ego(EQ_CLOAK, SPARM_SHADOWS))
@@ -2582,7 +2586,9 @@ void calc_hp(bool scale, bool set)
 
     you.hp_max = get_real_hp(true, true);
 
-    if (scale)
+    // hp_max is not serialized, so fixup code that tries to trigger rescaling
+    // during load should not actually do it.
+    if (scale && old_max > 0)
     {
         int hp = you.hp * 100 + you.hit_points_regeneration;
         int new_max = you.hp_max;
@@ -3945,11 +3951,11 @@ bool player_regenerates_mp()
     // Djinn don't do the whole "mp" thing.
     if (you.has_mutation(MUT_HP_CASTING))
         return false;
+#if TAG_MAJOR_VERSION == 34
     // Don't let DD use guardian spirit for free HP, since their
     // damage shaving is enough. (due, dpeg)
     if (you.spirit_shield() && you.species == SP_DEEP_DWARF)
         return false;
-#if TAG_MAJOR_VERSION == 34
     // Pakellas blocks MP regeneration.
     if (have_passive(passive_t::no_mp_regen) || player_under_penance(GOD_PAKELLAS))
         return false;
@@ -4194,10 +4200,12 @@ int get_player_poisoning()
 {
     if (player_res_poison() >= 3)
         return 0;
+#if TAG_MAJOR_VERSION == 34
     // Approximate the effect of damage shaving by giving the first
     // 25 points of poison damage for 'free'
     if (can_shave_damage())
         return max(0, (you.duration[DUR_POISONING] / 1000) - 25);
+#endif
     return you.duration[DUR_POISONING] / 1000;
 }
 
@@ -4277,6 +4285,7 @@ void handle_player_poison(int delay)
     int dmg = (you.duration[DUR_POISONING] / 1000)
                - ((you.duration[DUR_POISONING] - decrease) / 1000);
 
+#if TAG_MAJOR_VERSION == 34
     // Approximate old damage shaving by giving immunity to small amounts
     // of poison. Stronger poison will do the same damage as for non-DD
     // until it goes below the threshold, which is a bit weird, but
@@ -4288,6 +4297,7 @@ void handle_player_poison(int delay)
         if (dmg < 0)
             dmg = 0;
     }
+#endif
 
     msg_channel_type channel = MSGCH_PLAIN;
     const char *adj = "";
@@ -4356,18 +4366,28 @@ int poison_survival()
         return you.hp;
     const int rr = player_regen();
     const bool chei = have_passive(passive_t::slow_poison);
+#if TAG_MAJOR_VERSION == 34
     const bool dd = can_shave_damage();
+#endif
     const int amount = you.duration[DUR_POISONING];
     const double full_aut = _poison_dur_to_aut(amount);
     // Calculate the poison amount at which regen starts to beat poison.
     double min_poison_rate = poison_min_hp_aut;
+#if TAG_MAJOR_VERSION == 34
     if (dd)
         min_poison_rate = 25.0/poison_denom;
+#endif
     if (chei)
         min_poison_rate /= 1.5;
     int regen_beats_poison;
     if (rr <= (int) min_poison_rate)
-        regen_beats_poison = dd ? 25000 : 0;
+    {
+        regen_beats_poison =
+#if TAG_MAJOR_VERSION == 34
+         dd ? 25000 :
+#endif
+              0;
+    }
     else
     {
         regen_beats_poison = poison_denom * 10.0 * rr;
@@ -4706,7 +4726,12 @@ bool invis_allowed(bool quiet, string *fail_reason)
     string msg;
     bool success = true;
 
-    if (you.haloed() && you.halo_radius() != -1)
+    if (you.has_mutation(MUT_GLOWING))
+    {
+        mpr("Your body glows too brightly to become invisible.");
+        success = false;
+    }
+    else if (you.haloed() && you.halo_radius() != -1)
     {
         vector<string> sources;
 
@@ -5321,11 +5346,13 @@ bool player::is_sufficiently_rested(bool starting) const
                                 static_cast<int>(activity_interrupt::full_hp)];
     return (!player_regenerates_hp()
                 || _should_stop_resting(hp, hp_max, !starting)
-                || !hp_interrupts)
+                || !hp_interrupts
+                || you.has_mutation(MUT_EXPLORE_REGEN))
         && (!player_regenerates_mp()
                 || _should_stop_resting(magic_points, max_magic_points, !starting)
                 || !Options.activity_interrupts["rest"][
-                                static_cast<int>(activity_interrupt::full_mp)])
+                                static_cast<int>(activity_interrupt::full_mp)]
+                || you.has_mutation(MUT_EXPLORE_REGEN))
         && (!you.duration[DUR_BARBS] || !hp_interrupts);
 }
 
@@ -7044,15 +7071,18 @@ bool player::visible_to(const actor *looker) const
  * Is the player backlit?
  *
  * @param self_halo If true, ignore the player's self-halo.
+ * @param temp If true, include temporary sources of being backlit.
  * @returns True if the player is backlit.
 */
-bool player::backlit(bool self_halo) const
+bool player::backlit(bool self_halo, bool temp) const
 {
-    return player_severe_contamination()
-           || duration[DUR_CORONA]
-           || duration[DUR_LIQUID_FLAMES]
-           || duration[DUR_QUAD_DAMAGE]
-           || !umbraed() && haloed() && (self_halo || halo_radius() == -1);
+    return temp && (player_severe_contamination()
+                    || duration[DUR_CORONA]
+                    || duration[DUR_LIQUID_FLAMES]
+                    || duration[DUR_QUAD_DAMAGE]
+                    || !umbraed() && haloed()
+                       && (self_halo || halo_radius() == -1))
+           || you.has_mutation(MUT_GLOWING);
 }
 
 bool player::umbra() const

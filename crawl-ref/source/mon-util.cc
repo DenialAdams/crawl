@@ -1676,6 +1676,7 @@ bool mons_class_can_be_zombified(monster_type mc)
     return !invalid_monster_type(ms)
             && !mons_class_flag(mc, M_NO_ZOMBIE)
             && !mons_class_flag(mc, M_INSUBSTANTIAL)
+            && !mons_is_tentacle_or_tentacle_segment(mc)
             && (mons_class_holiness(mc) & MH_NATURAL
                 || mons_class_can_leave_corpse(ms));
 }
@@ -1695,6 +1696,7 @@ bool mons_can_be_spectralised(const monster& mon, bool divine)
 {
     return mon.holiness() & (MH_NATURAL | MH_DEMONIC | MH_HOLY)
            && !mon.is_summoned()
+           && !testbits(mon.flags, MF_NO_REWARD)
            && mon.type != MONS_PANDEMONIUM_LORD
            && (mons_has_attacks(mon, true)
                || divine && mon.has_spells());

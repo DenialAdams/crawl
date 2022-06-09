@@ -2770,9 +2770,9 @@ bool is_dangerous_item(const item_def &item, bool temp)
 
 static bool _invisibility_is_useless(const bool temp)
 {
-    // If you're Corona'd or a TSO-ite, this is always useless.
-    return temp ? you.backlit()
-                : you.haloed() && will_have_passive(passive_t::halo);
+    // Always useless if you're a Meteoran or have a halo from TSO.
+    return you.backlit(temp)
+           || you.haloed() && will_have_passive(passive_t::halo);
 }
 
 /**
@@ -2875,7 +2875,8 @@ bool is_useless_item(const item_def &item, bool temp, bool ident)
                 return temp && have_passive(passive_t::upgraded_storm_shield)
                        || you.get_mutation_level(MUT_DISTORTION_FIELD) == 3;
             case SPARM_INVISIBILITY:
-                return you.has_mutation(MUT_NO_ARTIFICE);
+                return you.has_mutation(MUT_NO_ARTIFICE)
+                       || _invisibility_is_useless(temp);
             default:
                 return false;
             }

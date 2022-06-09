@@ -2318,10 +2318,22 @@ static const mutation_def mut_data[] =
   {"You feel less hungry for flesh.", "", ""},
 },
 
-{ MUT_SHORT_LIFESPAN, 0, 1, mutflag::bad, false, "short lifespan",
+{ MUT_SHORT_LIFESPAN, 0, 1, mutflag::bad, false, "otherworldly",
   {"You are easily found by Zot.", "", ""},
   {"You feel your time running out.", "", ""},
   {"You feel long-lived.", "", ""},
+},
+
+{ MUT_GLOWING, 0, 1, mutflag::bad, false, "glowing",
+  {"You glow in the dark.", "", ""},
+  {"Your body begins glowing.", "", ""},
+  {"You feel a bit dim.", "", ""},
+},
+
+{ MUT_EXPLORE_REGEN, 0, 1, mutflag::good, false, "explore regen",
+  {"You regain HP and MP as you explore.", "", ""},
+  {"You feel a fierce wanderlust.", "", ""},
+  {"You feel like a homebody.", "", ""},
 },
 
 };

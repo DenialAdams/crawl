@@ -59,6 +59,8 @@ naga_red_f
 naga_red_m
 ogre_m OGRE
 ogre_f
+meteoran_f METEORAN
+meteoran_m
 troll_f TROLL
 troll_m
 octopode1 OCTOPODE
@@ -128,8 +130,6 @@ merfolk_water_f MERFOLK_WATER
 merfolk_water_m
 vampire_f VAMPIRE
 vampire_m
-deep_dwarf_m DEEP_DWARF
-deep_dwarf_f
 gargoyle_m GARGOYLE
 gargoyle_f
 gargoyle_red_m

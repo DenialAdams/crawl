@@ -1461,6 +1461,7 @@ static tileidx_t _mon_to_zombie_tile(const monster_info &mon)
                                          TILEP_MONS_ZOMBIE_QUADRUPED_LARGE} },
         { MON_SHAPE_BLOB,               {TILEP_MONS_ZOMBIE_JELLY}},
         { MON_SHAPE_ORB,                {TILEP_MONS_ZOMBIE_ORB}},
+        { MON_SHAPE_MISC,               {TILEP_MONS_ZOMBIE_X}},
         { MON_SHAPE_HUMANOID,           GENERIC_ZOMBIES },
         { MON_SHAPE_HUMANOID_WINGED,    GENERIC_ZOMBIES },
         { MON_SHAPE_HUMANOID_TAILED,    GENERIC_ZOMBIES },
@@ -1924,15 +1925,12 @@ static tileidx_t _tileidx_monster_no_props(const monster_info& mon)
                    ? _mon_random(TILEP_MONS_BOULDER_BEETLE_ROLLING, mon.number)
                    : base;
 
-        case MONS_ANIMATED_ARMOUR:
-            return base | TILE_FLAG_ANIM_OBJ;
-
         case MONS_DANCING_WEAPON:
         {
             // Use item tile.
             ASSERT(mon.inv[MSLOT_WEAPON]);
             const item_def& item = *mon.inv[MSLOT_WEAPON];
-            return tileidx_item(item) | TILE_FLAG_ANIM_OBJ;
+            return tileidx_item(item);
         }
 
         case MONS_SPECTRAL_WEAPON:
@@ -2052,58 +2050,6 @@ tileidx_t tileidx_monster(const monster_info& mons)
         ch |= TILE_FLAG_MORE_POISON;
     else if (mons.is(MB_MAX_POISONED))
         ch |= TILE_FLAG_MAX_POISON;
-    if (mons.is(MB_BURNING))
-        ch |= TILE_FLAG_STICKY_FLAME;
-    if (mons.is(MB_INNER_FLAME))
-        ch |= TILE_FLAG_INNER_FLAME;
-    if (!mons.constrictor_name.empty())
-        ch |= TILE_FLAG_CONSTRICTED;
-    if (mons.is(MB_BERSERK))
-        ch |= TILE_FLAG_BERSERK;
-    if (mons.is(MB_SLOWED))
-        ch |= TILE_FLAG_SLOWED;
-    if (mons.is(MB_MIRROR_DAMAGE))
-        ch |= TILE_FLAG_PAIN_MIRROR;
-    if (mons.is(MB_HASTED))
-        ch |= TILE_FLAG_HASTED;
-    if (mons.is(MB_STRONG))
-        ch |= TILE_FLAG_MIGHT;
-    if (mons.is(MB_PETRIFYING))
-        ch |= TILE_FLAG_PETRIFYING;
-    if (mons.is(MB_PETRIFIED))
-        ch |= TILE_FLAG_PETRIFIED;
-    if (mons.is(MB_BLIND))
-        ch |= TILE_FLAG_BLIND;
-    if (mons.is(MB_SUMMONED))
-        ch |= TILE_FLAG_SUMMONED;
-    if (mons.is(MB_PERM_SUMMON))
-        ch |= TILE_FLAG_PERM_SUMMON;
-    if (mons.is(MB_WORD_OF_RECALL))
-        ch |= TILE_FLAG_RECALL;
-    if (mons.is(MB_LIGHTLY_DRAINED) || mons.is(MB_HEAVILY_DRAINED))
-        ch |= TILE_FLAG_DRAIN;
-    if (mons.is(MB_IDEALISED))
-        ch |= TILE_FLAG_IDEALISED;
-    if (mons.is(MB_BOUND_SOUL))
-        ch |= TILE_FLAG_BOUND_SOUL;
-    if (mons.is(MB_INFESTATION))
-        ch |= TILE_FLAG_INFESTED;
-    if (mons.is(MB_CORROSION))
-        ch |= TILE_FLAG_CORRODED;
-    if (mons.is(MB_SWIFT))
-        ch |= TILE_FLAG_SWIFT;
-    if (mons.is(MB_VILE_CLUTCH))
-        ch |= TILE_FLAG_VILE_CLUTCH;
-    if (mons.is(MB_POSSESSABLE))
-        ch |= TILE_FLAG_POSSESSABLE;
-    if (mons.is(MB_WITHERING) || mons.is(MB_CRUMBLING))
-        ch |= TILE_FLAG_SLOWLY_DYING;
-    if (mons.is(MB_FIRE_CHAMPION))
-        ch |= TILE_FLAG_FIRE_CHAMP;
-    if (mons.is(MB_ANGUISH))
-        ch |= TILE_FLAG_ANGUISH;
-    if (mons.is(MB_SIMULACRUM))
-        ch |= TILE_FLAG_BOUND_SOUL; //for now
 
     if (mons.attitude == ATT_FRIENDLY)
         ch |= TILE_FLAG_PET;
@@ -2207,6 +2153,61 @@ tileidx_t tileidx_monster(const monster_info& mons)
     return ch;
 }
 #endif
+
+static const map<monster_info_flags, tileidx_t> status_icons = {
+    { MB_BURNING, TILEI_STICKY_FLAME },
+    { MB_INNER_FLAME, TILEI_INNER_FLAME },
+    { MB_BERSERK, TILEI_BERSERK },
+    { MB_SLOWED, TILEI_SLOWED },
+    { MB_MIRROR_DAMAGE, TILEI_PAIN_MIRROR },
+    { MB_HASTED, TILEI_HASTED },
+    { MB_STRONG, TILEI_MIGHT },
+    { MB_PETRIFYING, TILEI_PETRIFYING },
+    { MB_PETRIFIED, TILEI_PETRIFIED },
+    { MB_BLIND, TILEI_BLIND },
+    { MB_SUMMONED, TILEI_SUMMONED },
+    { MB_PERM_SUMMON, TILEI_PERM_SUMMON },
+    { MB_WORD_OF_RECALL, TILEI_RECALL },
+    { MB_LIGHTLY_DRAINED, TILEI_DRAIN },
+    { MB_HEAVILY_DRAINED, TILEI_DRAIN },
+    { MB_IDEALISED, TILEI_IDEALISED },
+    { MB_BOUND_SOUL, TILEI_BOUND_SOUL },
+    { MB_SIMULACRUM, TILEI_BOUND_SOUL }, //for now
+    { MB_INFESTATION, TILEI_INFESTED },
+    { MB_CORROSION, TILEI_CORRODED },
+    { MB_SWIFT, TILEI_SWIFT },
+    { MB_VILE_CLUTCH, TILEI_VILE_CLUTCH },
+    { MB_POSSESSABLE, TILEI_POSSESSABLE },
+    { MB_WITHERING, TILEI_SLOWLY_DYING },
+    { MB_CRUMBLING, TILEI_SLOWLY_DYING },
+    { MB_FIRE_CHAMPION, TILEI_FIRE_CHAMP },
+    { MB_ANGUISH, TILEI_ANGUISH },
+    { MB_WEAK, TILEI_WEAKENED },
+    { MB_WATERLOGGED, TILEI_WATERLOGGED },
+    { MB_STILL_WINDS, TILEI_STILL_WINDS },
+    { MB_SIMULACRUM, TILEI_SIMULACRUM },
+    { MB_ANTIMAGIC, TILEI_ANTIMAGIC },
+    { MB_DAZED, TILEI_DAZED },
+    { MB_PARTIALLY_CHARGED, TILEI_PARTIALLY_CHARGED },
+    { MB_FULLY_CHARGED, TILEI_FULLY_CHARGED },
+    { MB_FIRE_VULN, TILEI_FIRE_VULN },
+    { MB_CONCENTRATE_VENOM, TILEI_CONC_VENOM },
+    { MB_REPEL_MSL, TILEI_REPEL_MISSILES },
+    { MB_INJURY_BOND, TILEI_INJURY_BOND },
+};
+
+set<tileidx_t> status_icons_for(const monster_info &mons)
+{
+    set<tileidx_t> icons;
+    if (mons.type == MONS_DANCING_WEAPON || mons.type == MONS_ANIMATED_ARMOUR)
+        icons.insert(TILEI_ANIMATED_WEAPON);
+    if (!mons.constrictor_name.empty())
+        icons.insert(TILEI_CONSTRICTED);
+    for (auto status : status_icons)
+        if (mons.is(status.first))
+            icons.insert(status.second);
+    return icons;
+}
 
 static tileidx_t tileidx_draco_base(monster_type draco)
 {
@@ -3543,9 +3544,11 @@ tileidx_t tileidx_ability(const ability_type ability)
         return TILEG_ABILITY_EXSANGUINATE;
     case ABIL_REVIVIFY:
         return TILEG_ABILITY_REVIVIFY;
+#if TAG_MAJOR_VERSION == 34
     // Deep Dwarves
     case ABIL_HEAL_WOUNDS:
         return TILEG_ABILITY_HEAL_WOUNDS;
+#endif
     // Formicids
     case ABIL_DIG:
         return TILEG_ABILITY_DIG;
@@ -3968,6 +3971,9 @@ static tileidx_t _tileidx_player_species_base(const species_type species)
     switch (species)
     {
         case SP_HUMAN:
+#if TAG_MAJOR_VERSION == 34
+        case SP_DEEP_DWARF:
+#endif
             return TILEG_SP_HUMAN;
         case SP_DEEP_ELF:
             return TILEG_SP_DEEP_ELF;
@@ -4006,8 +4012,6 @@ static tileidx_t _tileidx_player_species_base(const species_type species)
             return TILEG_SP_MERFOLK;
         case SP_VAMPIRE:
             return TILEG_SP_VAMPIRE;
-        case SP_DEEP_DWARF:
-            return TILEG_SP_DEEP_DWARF;
         case SP_FELID:
             return TILEG_SP_FELID;
         case SP_OCTOPODE:
@@ -4024,6 +4028,8 @@ static tileidx_t _tileidx_player_species_base(const species_type species)
             return TILEG_SP_GNOLL;
         case SP_DJINNI:
             return TILEG_SP_DJINNI;
+        case SP_METEORAN:
+            return TILEG_SP_METEORAN;
         default:
             return TILEP_ERROR;
     }

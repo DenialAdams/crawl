@@ -506,9 +506,10 @@ static void _catchup_monster_moves(monster* mon, int turns)
         return;
     }
 
-    // Yred zombies crumble on floor change
-    if (mon->friendly() && is_yred_undead_slave(*mon)
-        && !mons_bound_soul(*mon))
+    // Yred & animate dead zombies crumble on floor change
+    if (mon->friendly()
+        && (is_yred_undead_slave(*mon) && !mons_bound_soul(*mon)
+            || mon->props.exists(ANIMATE_DEAD_KEY)))
     {
         if (turns > 2)
             monster_die(*mon, KILL_DISMISSED, NON_MONSTER);
@@ -1222,6 +1223,11 @@ int turns_until_zot()
     return turns_until_zot_in(you.where_are_you);
 }
 
+static int _zot_lifespan_div()
+{
+    return you.has_mutation(MUT_SHORT_LIFESPAN) ? 10 : 1;
+}
+
 // A scale from 0 to 4 of how much danger the player is in of
 // reaching the end of the zot clock. 0 is no danger, 4 is dead.
 static int _bezotting_level_in(branch_type br)
@@ -1229,7 +1235,7 @@ static int _bezotting_level_in(branch_type br)
     if (!_zot_clock_active_in(br))
         return 0;
 
-    const int remaining_turns = turns_until_zot_in(br);
+    const int remaining_turns = turns_until_zot_in(br) * _zot_lifespan_div();
     if (remaining_turns <= 0)
         return 4;
     if (remaining_turns < 100)
@@ -1268,7 +1274,7 @@ void decr_zot_clock(bool extra_life)
         return;
     int &zot = _zot_clock();
 
-    const int div = you.has_mutation(MUT_SHORT_LIFESPAN) ? 10 : 1;
+    const int div = _zot_lifespan_div();
     if (zot == -1)
     {
         // new branch
@@ -1286,6 +1292,8 @@ void decr_zot_clock(bool extra_life)
         }
         zot = max(0, zot - ZOT_CLOCK_PER_FLOOR / div);
     }
+    if (you.species == SP_METEORAN)
+        update_vision_range();
 }
 
 static int _added_zot_time()
@@ -1305,11 +1313,22 @@ void incr_zot_clock()
     if (!bezotted())
         return;
 
+    const bool in_death_range = get_real_hp(true, true) <= get_real_hp(true, false) / 10;
     if (_zot_clock() >= MAX_ZOT_CLOCK)
     {
-        mprf("%s", getSpeakString("Zot death").c_str());
-        ouch(INSTANT_DEATH, KILLED_BY_ZOT);
-        return;
+        if (in_death_range)
+        {
+            mprf("%s", getSpeakString("Zot death").c_str());
+            ouch(INSTANT_DEATH, KILLED_BY_ZOT);
+            return;
+        }
+
+        mpr("Zot's power touches on you...");
+        drain_player(270, true, true);
+        take_note(Note(NOTE_MESSAGE, 0, 0, "Touched by the power of Zot."));
+        interrupt_activity(activity_interrupt::force);
+
+        set_turns_until_zot(you.has_mutation(MUT_SHORT_LIFESPAN) ? 200 : 1000);
     }
 
     const int lvl = bezotting_level();
@@ -1319,15 +1338,20 @@ void incr_zot_clock()
     switch (lvl)
     {
         case 1:
-            mpr("You have lingered too long. Zot senses you. Dive deeper or flee this branch before you perish!");
+            mprf("You have lingered too long. Zot senses you. Dive deeper or flee this branch before you %s!", in_death_range ? "perish" : "suffer");
             break;
         case 2:
-            mpr("Zot draws nearer. Dive deeper or flee this branch before you perish!");
+            mprf("Zot draws nearer. Dive deeper or flee this branch before you %s!",
+                 in_death_range ? "perish" : "suffer");
             break;
         case 3:
-            mpr("Zot has nearly found you. Death is approaching. Descend or flee this branch!");
+            mprf("Zot has nearly found you. %s is approaching. Descend or flee this branch!",
+                 in_death_range ? "death" : "suffering");
             break;
     }
+
+    if (you.species == SP_METEORAN)
+        update_vision_range();
 
     take_note(Note(NOTE_MESSAGE, 0, 0, "Glimpsed the power of Zot."));
     interrupt_activity(activity_interrupt::force);
@@ -1340,4 +1364,6 @@ void set_turns_until_zot(int turns_left)
 
     int &clock = _zot_clock();
     clock = MAX_ZOT_CLOCK - turns_left * BASELINE_DELAY;
+    if (you.species == SP_METEORAN)
+        update_vision_range();
 }

@@ -3594,12 +3594,8 @@ static bool _sac_mut_maybe_valid(mutation_type mut)
 
     // Vampires can't get inhibited regeneration for some reason related
     // to their existing regen silliness.
-    // Neither can deep dwarf, for obvious reasons.
-    if (mut == MUT_INHIBITED_REGENERATION
-        && you.has_mutation(MUT_VAMPIRISM))
-    {
+    if (mut == MUT_INHIBITED_REGENERATION && you.has_mutation(MUT_VAMPIRISM))
         return false;
-    }
 
     // demonspawn can't get frail if they have a robust facet
     if (you.species == SP_DEMONSPAWN && mut == MUT_FRAIL
@@ -4197,7 +4193,7 @@ static const char* _describe_sacrifice_piety_gain(int piety_gain)
     else if (piety_gain >= 29)
         return "a major";
     else if (piety_gain >= 21)
-        return "a significant";
+        return "a medium";
     else if (piety_gain >= 13)
         return "a modest";
     else

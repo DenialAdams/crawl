@@ -675,7 +675,7 @@ void handle_behaviour(monster* mon)
             // Batty monsters don't automatically reseek so that
             // they'll flitter away, we'll reset them just before
             // they get movement in handle_monsters() instead. -- bwr
-            if (proxFoe && !mons_is_batty(*mon) || mons_foe_is_marked(*mon))
+            if ((proxFoe || mons_foe_is_marked(*mon)) && !mons_is_batty(*mon))
             {
                 new_beh = BEH_SEEK;
                 break;
@@ -908,6 +908,7 @@ static bool _mons_check_foe(monster* mon, const coord_def& p,
            && summon_can_attack(mon, p)
            && (friendly || !is_sanctuary(p))
            && !mons_is_firewood(*foe)
+           && !foe->props.exists(KIKU_WRETCH_KEY)
            || p == you.pos() && mon->has_ench(ENCH_INSANE);
 }
 

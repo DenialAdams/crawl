@@ -166,7 +166,7 @@ static const map<job_type, job_def> job_data =
         SPELL_STONE_ARROW,
         SPELL_PETRIFY,
     },
-    { "stone q:30", "robe", "potion of magic", },
+    { "robe", "potion of magic", },
     WCHOICE_NONE,
     { { SK_TRANSMUTATIONS, 1 }, { SK_EARTH_MAGIC, 3 }, { SK_SPELLCASTING, 2 },
       { SK_DODGING, 2 }, { SK_STEALTH, 2 }, }
@@ -378,8 +378,8 @@ static const map<job_type, job_def> job_data =
       { SK_WEAPON, 2 }, },
 } },
 
-{ JOB_WIZARD, {
-    "Wz", "Hedge Wizard",
+{ JOB_HEDGE_WIZARD, {
+    "HW", "Hedge Wizard",
     2, 6, 4,
     { SP_DEEP_ELF, SP_NAGA, SP_BASE_DRACONIAN, SP_OCTOPODE, SP_HUMAN,
       SP_DJINNI, SP_METEORAN, },

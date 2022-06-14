@@ -4728,7 +4728,7 @@ bool invis_allowed(bool quiet, string *fail_reason)
 
     if (you.has_mutation(MUT_GLOWING))
     {
-        mpr("Your body glows too brightly to become invisible.");
+        msg = "Your body glows too brightly to become invisible.";
         success = false;
     }
     else if (you.haloed() && you.halo_radius() != -1)
@@ -7076,6 +7076,9 @@ bool player::visible_to(const actor *looker) const
 */
 bool player::backlit(bool self_halo, bool temp) const
 {
+    if (temp && form == transformation::shadow)
+        return false;
+
     return temp && (player_severe_contamination()
                     || duration[DUR_CORONA]
                     || duration[DUR_LIQUID_FLAMES]
@@ -7093,19 +7096,23 @@ bool player::umbra() const
 // This is the imperative version.
 void player::backlight()
 {
-    if (!duration[DUR_INVIS] && form != transformation::shadow)
+    if (form == transformation::shadow)
+    {
+        mpr("Shadows surge around you.");
+        return;
+    }
+
+    if (!duration[DUR_INVIS])
     {
         if (duration[DUR_CORONA])
             mpr("You glow brighter.");
         else
             mpr("You are outlined in light.");
-        increase_duration(DUR_CORONA, random_range(15, 35), 250);
     }
     else
-    {
         mpr("You feel strangely conspicuous.");
-        increase_duration(DUR_CORONA, random_range(3, 5), 250);
-    }
+
+    increase_duration(DUR_CORONA, random_range(15, 35), 250);
 }
 
 bool player::can_mutate() const

@@ -5275,6 +5275,8 @@ bool item_list::parse_single_spec(item_spec& result, string s)
         result.props[USEFUL_KEY] = bool(true);
     if (strip_tag(s, "unobtainable"))
         result.props[UNOBTAINABLE_KEY] = true;
+    if (strip_tag(s, "no_exclude"))
+        result.props[NO_EXCLUDE_KEY] = true;
 
     const int mimic = strip_number_tag(s, "mimic:");
     if (mimic != TAG_UNFOUND)
@@ -5607,6 +5609,12 @@ void item_list::parse_random_by_class(string c, item_spec &spec)
         spec.sub_type = NUM_JEWELLERY;
         return;
     }
+    if (c == "beam wand")
+    {
+        spec.base_type = OBJ_WANDS;
+        spec.sub_type = item_for_set(ITEM_SET_BEAM_WANDS);
+        return;
+    }
 
     error = make_stringf("Bad item class: '%s'", c.c_str());
 }
@@ -5641,11 +5649,17 @@ item_list::item_spec_slot item_list::parse_item_spec(string spec)
 
     for (const string &specifier : split_string("/", spec))
     {
-        item_spec result;
-        if (parse_single_spec(result, specifier))
-            list.ilist.push_back(result);
-        else
+        item_spec parsed_spec;
+        if (!parse_single_spec(parsed_spec, specifier))
+        {
             dprf(DIAG_DNGN, "Failed to parse: %s", specifier.c_str());
+            continue;
+        }
+        if (parsed_spec.props.exists(NO_EXCLUDE_KEY)
+            || !item_excluded_from_set(parsed_spec.base_type, parsed_spec.sub_type))
+        {
+            list.ilist.push_back(parsed_spec);
+        }
     }
 
     return list;

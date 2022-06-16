@@ -79,11 +79,11 @@
 #include "terrain.h"
 #include "throw.h"
 #include "tilepick.h"
-#include "timed-effects.h" // bezotted
 #include "travel.h"
 #include "viewchar.h"
 #include "view.h"
 #include "xom.h"
+#include "zot.h" // bezotted
 
 static int _autopickup_subtype(const item_def &item);
 static void _autoinscribe_item(item_def& item);
@@ -4751,7 +4751,8 @@ bool maybe_identify_base_type(item_def &item)
 
     for (int i = item_base; i < item_count + item_base; i++)
     {
-        const bool identified = you.type_ids[item.base_type][i];
+        const bool identified = you.type_ids[item.base_type][i]
+                             || item_known_excluded_from_set(item.base_type, i);
         ident_count += identified ? 1 : 0;
     }
 

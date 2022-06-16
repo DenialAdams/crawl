@@ -605,6 +605,7 @@ static beam_type _chaos_beam_flavour(bolt* beam)
           5, BEAM_POLYMORPH,
          // Seen through miscast effects.
           5, BEAM_ACID,
+          5, BEAM_LIGHT,
           5, BEAM_DAMNATION,
           5, BEAM_STICKY_FLAME,
           5, BEAM_MINDBURST,
@@ -3896,6 +3897,9 @@ void bolt::affect_player()
 
     }
 
+    if (flavour == BEAM_LIGHT && one_chance_in(3))
+        confuse_player(random_range(2, 3));
+
     if (flavour == BEAM_MIASMA && final_dam > 0)
         was_affected = miasma_player(agent(), name);
 
@@ -4576,12 +4580,25 @@ void bolt::monster_post_hit(monster* mon, int dmg)
         simple_monster_message(*mon, " is paralysed.");
         mon->add_ench(mon_enchant(ENCH_PARALYSIS, 1, agent(), BASELINE_DELAY));
     }
+
+    if (flavour == BEAM_LIGHT && !mon->has_ench(ENCH_BLIND))
+    {
+        const int dur = max(1, div_rand_round(54, mon->get_hit_dice())) * BASELINE_DELAY;
+        auto ench = mon_enchant(ENCH_BLIND, 1, agent(),
+                                random_range(dur, dur * 2));
+        if (mon->add_ench(ench))
+            simple_monster_message(*mon, " is blinded.");
+    }
 }
 
 void bolt::knockback_actor(actor *act, int dam)
 {
-    if (!act || !can_knockback(*act, dam))
+    if (!act
+        || !can_knockback(*act, dam)
+        || act->resists_dislodge("being knocked back"))
+    {
         return;
+    }
 
     const int distance =
         (origin_spell == SPELL_FORCE_LANCE
@@ -6626,6 +6643,7 @@ static string _beam_type_name(beam_type type)
     case BEAM_POISON:                return "poison";
     case BEAM_NEG:                   return "negative energy";
     case BEAM_ACID:                  return "acid";
+    case BEAM_LIGHT:                 return "light";
     case BEAM_MIASMA:                return "miasma";
     case BEAM_SPORE:                 return "spores";
     case BEAM_POISON_ARROW:          return "poison sting";
@@ -6739,7 +6757,7 @@ bool bolt::can_knockback(const actor &act, int dam) const
  * Can this bolt pull an actor?
  *
  * If a bolt is capable of pulling actors and the given actor can be pulled,
- * return true.
+ * return true. May print messages.
  *
  * @param act The target actor. Check if the actor is non-stationary and not
  *            already adjacent.
@@ -6748,8 +6766,12 @@ bool bolt::can_knockback(const actor &act, int dam) const
 */
 bool bolt::can_pull(const actor &act, int dam) const
 {
-    if (act.is_stationary() || adjacent(source, act.pos()))
+    if (act.is_stationary()
+        || adjacent(source, act.pos())
+        || act.resists_dislodge("being pulled"))
+    {
         return false;
+    }
 
     return origin_spell == SPELL_HARPOON_SHOT && dam;
 }

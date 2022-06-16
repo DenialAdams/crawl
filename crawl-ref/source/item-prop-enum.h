@@ -764,6 +764,8 @@ enum wand_type
     WAND_CLOUDS_REMOVED,
     WAND_SCATTERSHOT_REMOVED,
 #endif
+    WAND_LIGHT,
+    WAND_QUICKSILVER,
     NUM_WANDS
 };
 
@@ -796,3 +798,10 @@ enum food_type
     NUM_FOODS
 };
 #endif
+
+enum item_set_type
+{
+    ITEM_SET_HEX_WANDS,
+    ITEM_SET_BEAM_WANDS,
+    NUM_ITEM_SET_TYPES
+};

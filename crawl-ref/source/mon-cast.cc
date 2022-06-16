@@ -1362,6 +1362,7 @@ bolt mons_spell_beam(const monster* mons, spell_type spell_cast, int power,
     case SPELL_SLEEP:
     case SPELL_DIG:
     case SPELL_CHARMING:
+    case SPELL_BOLT_OF_LIGHT:
     case SPELL_QUICKSILVER_BOLT:
     case SPELL_PRIMAL_WAVE:
     case SPELL_BLINKBOLT:
@@ -1785,10 +1786,9 @@ bool setup_mons_cast(const monster* mons, bolt &pbolt, spell_type spell_cast,
         pbolt.aux_source = pbolt.name;
     else
         pbolt.aux_source.clear();
-    // Dial down damage from wands of disintegration, since
-    // disintegration beams can do large amounts of damage.
-    if (evoke && spell_cast == SPELL_MINDBURST)
-        pbolt.damage.size = pbolt.damage.size * 2 / 3;
+    // Dial down damage from wands, to spare early players.
+    if (evoke)
+        pbolt.damage.size = div_rand_round(pbolt.damage.size * 2, 3);
 
     return true;
 }
@@ -3515,6 +3515,16 @@ static void _setup_ghostly_sacrifice_beam(bolt& beam, const monster& caster,
 
     beam.target = _mons_ghostly_sacrifice_target(caster, beam);
     beam.aimed_at_spot = true;  // to get noise to work properly
+}
+
+static bool _can_injury_bond(const monster &protector, const monster &protectee)
+{
+    return mons_atts_aligned(protector.temp_attitude(),
+                             protectee.temp_attitude())
+        && !protectee.has_ench(ENCH_CHARM)
+        && !protectee.has_ench(ENCH_HEXED)
+        && !protectee.has_ench(ENCH_INJURY_BOND)
+        && &protector != &protectee;
 }
 
 /**
@@ -6154,8 +6164,7 @@ void mons_cast(monster* mons, bolt pbolt, spell_type spell_cast,
         // FIXME: allies preservers vs the player
         for (monster_near_iterator mi(mons, LOS_NO_TRANS); mi; ++mi)
         {
-            if (mons_aligned(mons, *mi) && !mi->has_ench(ENCH_CHARM)
-                && !mi->has_ench(ENCH_HEXED) && *mi != mons)
+            if (_can_injury_bond(*mons, **mi))
             {
                 mon_enchant bond = mon_enchant(ENCH_INJURY_BOND, 1, mons,
                                                40 + random2(80));
@@ -7431,16 +7440,9 @@ ai_action::goodness monster_spell_goodness(monster* mon, spell_type spell)
         return ai_action::good_or_bad(!find_battlesphere(mon));
 
     case SPELL_INJURY_BOND:
-        for (monster_iterator mi; mi; ++mi)
-        {
-            if (mons_aligned(mon, *mi) && !mi->has_ench(ENCH_CHARM)
-                && !mi->has_ench(ENCH_HEXED)
-                && *mi != mon && mon->see_cell_no_trans(mi->pos())
-                && !mi->has_ench(ENCH_INJURY_BOND))
-            {
+        for (monster_near_iterator mi(mon, LOS_NO_TRANS); mi; ++mi)
+            if (_can_injury_bond(*mon, **mi))
                 return ai_action::good(); // We found at least one target; that's enough.
-            }
-        }
         return ai_action::bad();
 
     case SPELL_BLINK_ALLIES_ENCIRCLE:

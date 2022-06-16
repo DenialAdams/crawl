@@ -153,6 +153,7 @@
 #include "wiz-you.h" // FREEZE_TIME_KEY
 #include "wizard.h" // handle_wizard_command() and enter_explore_mode()
 #include "xom.h" // XOM_CLOUD_TRAIL_TYPE_KEY
+#include "zot.h"
 
 // ----------------------------------------------------------------------
 // Globals whose construction/destruction order needs to be managed
@@ -603,11 +604,18 @@ static string _wanderer_spell_str()
                               });
 }
 
+static string _get_equip_str()
+{
+    if (inv_count() == 0)
+        return "";
+    if (you.char_class == JOB_WANDERER)
+        return _wanderer_equip_str();
+    return "";
+}
+
 static void _djinn_announce_spells()
 {
-    const string equip_str = (you.char_class == JOB_WANDERER
-                                 && inv_count() > 0) ? _wanderer_equip_str()
-                                                    : "";
+    const string equip_str =_get_equip_str();
     const string spell_str = you.spell_no ?
                                 "the following spells memorised: " + _wanderer_spell_str() :
                                 "";
@@ -616,6 +624,9 @@ static void _djinn_announce_spells()
 
     const string spacer = spell_str.empty() || equip_str.empty() ? "" : "; and ";
     mprf("You begin with %s%s%s.", equip_str.c_str(), spacer.c_str(), spell_str.c_str());
+
+    take_note(Note(NOTE_MESSAGE, 0, 0, you.your_name + " set off with " +
+                                       equip_str + spell_str + "."));
 }
 
 // Announce to the message log and make a note of the player's starting items,
@@ -650,7 +661,7 @@ static void _wanderer_note_equipment()
          spell_str.c_str(), library_str.c_str());
 
     const string combined_str = you.your_name + " set off with "
-                                + equip_str + spell_str + library_str;
+                                + equip_str + spell_str + library_str + ".";
     take_note(Note(NOTE_MESSAGE, 0, 0, combined_str));
 }
 

@@ -1439,7 +1439,7 @@ static const struct spell_desc spelldata[] =
 {
     SPELL_QUICKSILVER_BOLT, "Quicksilver Bolt",
     spschool::conjuration,
-    spflag::dir_or_target | spflag::needs_tracer | spflag::monster,
+    spflag::dir_or_target | spflag::needs_tracer,
     5,
     200,
     LOS_RADIUS, LOS_RADIUS,
@@ -2611,6 +2611,17 @@ static const struct spell_desc spelldata[] =
     5, 5,
     6, 0,
     TILEG_CORROSIVE_BOLT,
+},
+
+{
+    SPELL_BOLT_OF_LIGHT, "Bolt of Light",
+    spschool::conjuration | spschool::fire | spschool::air,
+    spflag::dir_or_target | spflag::needs_tracer,
+    6,
+    200,
+    5, 5,
+    6, 0,
+    TILEG_LIGHTNING_BOLT,
 },
 
 {

@@ -1210,6 +1210,9 @@ int player_mp_regen()
         && you.props[MANA_REGEN_AMULET_ACTIVE].get_int() == 1)
     {
         regen_amount += 40;
+        // grants a second pip on top of its base type
+        if (player_equip_unrand(UNRAND_VITALITY))
+            regen_amount += 40;
     }
 
     if (player_equip_unrand(UNRAND_POWER_GLOVES))
@@ -2233,6 +2236,13 @@ void forget_map(bool rot)
         if (!env.map_knowledge(p).known() || you.see_cell(p))
             continue;
 
+        if (player_in_branch(BRANCH_ABYSS)
+            && env.map_knowledge(p).item()
+            && env.map_knowledge(p).item()->is_type(OBJ_RUNES, RUNE_ABYSSAL))
+        {
+            continue;
+        }
+
         if (rot)
         {
             const int dist = grid_distance(you.pos(), p);
@@ -2452,7 +2462,7 @@ unsigned int gain_exp(unsigned int exp_gained)
 
     you.experience_pool += exp_gained;
 
-    if (player_under_penance(GOD_HEPLIAKLQANA) || player_in_branch(BRANCH_ABYSS))
+    if (player_under_penance(GOD_HEPLIAKLQANA))
         return 0; // no XP for you!
 
     const unsigned int max_gain = (unsigned int)MAX_EXP_TOTAL - you.experience;
@@ -2468,13 +2478,6 @@ void apply_exp()
         return;
 
     you.experience_pool = 0;
-
-    if (player_in_branch(BRANCH_ABYSS))
-    {
-        // no progress to any XP gated effects either
-        _reduce_abyss_xp_timer(exp_gained);
-        return;
-    }
 
     // xp-gated effects that don't use sprint inflation
     _handle_xp_penance(exp_gained);
@@ -2493,6 +2496,7 @@ void apply_exp()
     _handle_stat_loss(skill_xp);
     _handle_temp_mutation(skill_xp);
     _recharge_xp_evokers(skill_xp);
+    _reduce_abyss_xp_timer(skill_xp);
     _handle_hp_drain(skill_xp);
 
     if (player_under_penance(GOD_HEPLIAKLQANA))
@@ -5213,7 +5217,6 @@ void player::init_skills()
     training.init(0);
     can_currently_train.reset();
     skill_points.init(0);
-    ct_skill_points.init(0);
     skill_order.init(MAX_SKILL_ORDER);
     skill_manual_points.init(0);
     training_targets.init(0);

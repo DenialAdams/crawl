@@ -179,7 +179,7 @@ static int _abyssal_rune_roll()
 
     const double depth = you.depth + god_favoured;
 
-    return (int) pow(100.0, depth/(1 + brdepth[BRANCH_ABYSS]));
+    return (int) pow(100.0, depth/6);
 }
 
 static void _abyss_fixup_vault(const vault_placement *vp)
@@ -239,6 +239,99 @@ static void _abyss_postvault_fixup()
     link_items();
     dgn_make_transporters_from_markers();
     env.markers.activate_all();
+}
+
+// returns whether the abyssal rune is at `p`, updating map knowledge as a
+// side-effect
+static bool _sync_rune_knowledge(coord_def p)
+{
+    if (!in_bounds(p))
+        return false;
+    // somewhat convoluted because to update map knowledge properly, we need
+    // an actual rune item
+    const bool already = env.map_knowledge(p).item();
+    const bool rune_memory = already && env.map_knowledge(p).item()->is_type(
+                                                    OBJ_RUNES, RUNE_ABYSSAL);
+    for (stack_iterator si(p); si; ++si)
+    {
+        if (si->is_type(OBJ_RUNES, RUNE_ABYSSAL))
+        {
+            // found! make sure map memory is up-to-date
+            if (!rune_memory)
+                env.map_knowledge(p).set_item(*si, already);
+
+            if (!you.see_cell(p))
+                env.map_knowledge(p).flags |= MAP_DETECTED_ITEM;
+            return true;
+        }
+    }
+    // no rune found, clear as needed
+    if (already && (!rune_memory
+                    || !!(env.map_knowledge(p).flags & MAP_MORE_ITEMS)))
+    {
+        // something else seems to have been there, clear the rune but leave
+        // a remnant
+        env.map_knowledge(p).set_detected_item();
+    }
+    else
+        env.map_knowledge(p).clear();
+    return false;
+}
+
+void clear_abyssal_rune_knowledge()
+{
+    coord_def &cur_loc = you.props[ABYSSAL_RUNE_LOC_KEY].get_coord();
+    if (in_bounds(cur_loc) && !you.runes[RUNE_ABYSSAL])
+        mpr("Your memory of the abyssal rune fades away.");
+    cur_loc = coord_def(-1,-1);
+}
+
+static void _detect_abyssal_rune()
+{
+    // Don't print misleading messages about the rune disappearing
+    // after you already picked it up.
+    if (you.runes[RUNE_ABYSSAL])
+    {
+        clear_abyssal_rune_knowledge();
+        return;
+    }
+
+    if (!you.props.exists(ABYSSAL_RUNE_LOC_KEY))
+        you.props[ABYSSAL_RUNE_LOC_KEY].get_coord() = coord_def(-1,-1);
+    coord_def &cur_loc = you.props[ABYSSAL_RUNE_LOC_KEY].get_coord();
+    const bool existed = in_bounds(cur_loc);
+    if (existed && _sync_rune_knowledge(cur_loc))
+        return; // still exists in the same place, no need to do anything more
+
+    // now we need to check if a new or moved rune appeared
+
+    bool detected = false;
+    cur_loc = coord_def(-1,-1);
+    // check if a new one generated
+    for (rectangle_iterator ri(MAPGEN_BORDER); ri; ++ri)
+    {
+        // sets map knowledge by side effect if found
+        if (_sync_rune_knowledge(*ri))
+        {
+            detected = true;
+            cur_loc = *ri;
+            break;
+        }
+    }
+
+    if (existed)
+    {
+        mprf("The abyss shimmers again as the detected "
+            "abyssal rune vanishes from your memory%s.",
+            detected ? " and reappears" : "");
+    }
+    else if (detected)
+    {
+        mpr("The abyssal matter surrounding you shimmers strangely.");
+        mpr("You detect the abyssal rune!");
+    }
+
+    // XX could do the xom check from here?
 }
 
 static bool _abyss_place_rune_vault(const map_bitmask &abyss_genlevel_mask)
@@ -310,7 +403,8 @@ static int _banished_depth(const int power)
     // you can do about that.
     const int maxdepth = div_rand_round((power + 5), 6);
     const int mindepth = (4 * power + 7) / 23;
-    return min(5, max(1, random_range(mindepth, maxdepth)));
+    const int bottom = brdepth[BRANCH_ABYSS];
+    return min(bottom, max(1, random_range(mindepth, maxdepth)));
 }
 
 void banished(const string &who, const int power)
@@ -1152,6 +1246,7 @@ static void _update_abyss_terrain(const coord_def &p,
 
     switch (currfeat)
     {
+        case DNGN_RUNELIGHT:
         case DNGN_EXIT_ABYSS:
         case DNGN_ABYSSAL_STAIR:
             return;
@@ -1239,9 +1334,9 @@ static void _abyss_apply_terrain(const map_bitmask &abyss_genlevel_mask,
                                  bool morph = false, bool now = false)
 {
     // The chance is reciprocal to these numbers.
-    const int depth = you.runes[RUNE_ABYSSAL] ? brdepth[BRANCH_ABYSS] + 1
-                                              : you.depth - 1;
-    const int exit_chance = 7250 - 1250 * (depth - 1);
+    const int depth = you.runes[RUNE_ABYSSAL] ? 5 : you.depth - 2;
+    // Cap the chance at the old max depth (5).
+    const int exit_chance = 7250 - 1250 * min(depth, 5);
 
     int exits_wanted  = 0;
     int altars_wanted = 0;
@@ -1384,6 +1479,8 @@ static void _generate_area(const map_bitmask &abyss_genlevel_mask)
 
     _ensure_player_habitable(true);
 
+    _detect_abyssal_rune();
+
     // Abyss has a constant density.
     env.density = 0;
 }
@@ -1459,6 +1556,7 @@ static void abyss_area_shift()
     // TODO: should dactions be rerun at this point instead? That would cover
     // this particular case...
     gozag_detect_level_gold(false);
+    _detect_abyssal_rune();
 }
 
 void destroy_abyss()
@@ -1605,6 +1703,7 @@ retry:
     }
 
     setup_environment_effects();
+    _detect_abyssal_rune();
 }
 
 static void _increase_depth()
@@ -1691,6 +1790,7 @@ void abyss_teleport(bool wizard_tele)
     vault_list.insert(vault_list.end(),
                         level_vaults.begin(), level_vaults.end());
 
+    _detect_abyssal_rune();
     more();
 }
 

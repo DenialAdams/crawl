@@ -4863,27 +4863,9 @@ string item_list::add_item(const string &spec, bool fix)
             pick_item(sp);
         }
 
-        items.push_back(sp);
-    }
-
-    return error;
-}
-
-string item_list::set_item(int index, const string &spec)
-{
-    error.clear();
-    if (index < 0)
-        return error = make_stringf("Index %d out of range", index);
-
-    item_spec_slot sp = parse_item_spec(spec);
-    if (error.empty())
-    {
-        if (index >= (int) items.size())
-        {
-            items.reserve(index + 1);
-            items.resize(index + 1, item_spec_slot());
-        }
-        items.push_back(sp);
+        // If the only item here was an excluded item, we'll get an empty list.
+        if (!sp.ilist.empty())
+            items.push_back(sp);
     }
 
     return error;

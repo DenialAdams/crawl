@@ -211,6 +211,12 @@ Grum
 
 A tough-looking gnoll, wearing the pelt of one of his former war dogs.
 %%%%
+Grunn
+
+A brutally twisted undead gnoll in the eternal service of Ereshkigal, lord of
+Tartarus. Legend has it that he sold his soul to return his most beloved hunting
+dog to life. Whether that hound is a member of his current pack, none can say.
+%%%%
 Harold
 
 A middle-aged bounty hunter, anxious to retire after one final job. He hopes to
@@ -3134,9 +3140,9 @@ skeletal bat
 A bat skeleton without the decency to lie unmoving like dead bats are supposed
 to.
 %%%%
-spriggan baker
+spriggan hatter
 
-A spriggan that has mastered the culinary arts.
+A spriggan who is going slightly mad from the toxic fumes of their craft.
 %%%%
 water elementalist statue
 

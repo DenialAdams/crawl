@@ -1756,6 +1756,18 @@ bool is_brandable_weapon(const item_def &wpn, bool allow_ranged, bool divine)
 }
 
 /**
+ * Which skill should the lochaber axe use?
+ *
+ * @return The higher of your Polearms and Axes skills.
+ */
+static skill_type _lochaber_skill()
+{
+    return you.skill(SK_AXES, 100, false, true) >
+           you.skill(SK_POLEARMS, 100, false, true) ?
+               SK_AXES : SK_POLEARMS;
+}
+
+/**
  * Returns the skill used by the given item to attack.
  *
  * @param item  The item under consideration.
@@ -1767,6 +1779,8 @@ skill_type item_attack_skill(const item_def &item)
     switch (item.base_type)
     {
     case OBJ_WEAPONS:
+        if (is_unrandom_artefact(item, UNRAND_LOCHABER_AXE))
+            return _lochaber_skill();
         return Weapon_prop[ Weapon_index[item.sub_type] ].skill;
     case OBJ_STAVES:
         return SK_STAVES;
@@ -1884,6 +1898,12 @@ bool item_skills(const item_def &item, set<skill_type> &skills)
     if (sk != SK_FIGHTING)
         skills.insert(sk);
 
+    if (is_unrandom_artefact(item, UNRAND_LOCHABER_AXE))
+    {
+        skills.insert(SK_POLEARMS);
+        skills.insert(SK_AXES);
+    }
+
     return !skills.empty();
 }
 
@@ -1977,7 +1997,8 @@ void populate_fake_projectile(const item_def &wep, item_def &fake_proj)
 bool ammo_always_destroyed(const item_def &missile)
 {
     const int brand = get_ammo_brand(missile);
-    return brand == SPMSL_CHAOS
+    return missile.sub_type == MI_STONE
+           || brand == SPMSL_CHAOS
            || brand == SPMSL_DISPERSAL
            || brand == SPMSL_EXPLODING;
 }
@@ -2023,8 +2044,11 @@ reach_type weapon_reach(const item_def &item)
 {
     if (is_unrandom_artefact(item, UNRAND_RIFT))
         return REACH_THREE;
-    if (item_attack_skill(item) == SK_POLEARMS)
+    if (item_attack_skill(item) == SK_POLEARMS
+        || is_unrandom_artefact(item, UNRAND_LOCHABER_AXE))
+    {
         return REACH_TWO;
+    }
     return REACH_NONE;
 }
 

@@ -1184,9 +1184,11 @@ LIFE:     1
 BOOL:     poison, evil
 
 NAME:     amulet of Vitality
-OBJ:      OBJ_JEWELLERY/AMU_REGENERATION
-HP:       +15
+OBJ:      OBJ_JEWELLERY/AMU_MANA_REGENERATION
+INSCRIP:  RegenMP++
+REGEN:    2
 COLOUR:   ETC_MUTAGENIC
+BOOL:     skip_ego, evil
 TILE:     urand_vitality
 
 NAME:     autumn katana
@@ -1664,14 +1666,29 @@ COLD:    -2
 
 NAME:    mountain boots
 OBJ:     OBJ_ARMOUR/ARM_BOOTS
-TILE:    urand_spider
+TILE:    urand_mountain
 TILE_EQ: spider
 PLUS:    +3
 COLOUR:  ETC_MOUNTAIN
 COLD:    1
 BOOL:    special
-INSCRIP: rDislodge,
-DBRAND:  It prevents involuntary movement from physical forces.
+INSCRIP: steadfast,
+DBRAND:  It prevents involuntary movement, except for blinking,
+ teleportation, or banishment.
+
+NAME:       lochaber axe
+OBJ:        OBJ_WEAPONS/WPN_BARDICHE
+TYPE:       lochaber axe
+TILE:       urand_lochaber_axe
+TILE_EQ:    lochaber_axe
+COLOUR:     ETC_IRON
+PLUS:       +5
+BASE_ACC:   -1
+BASE_DAM:   +1
+BASE_DELAY: +1
+INSCRIP:    reach-cleave, poleaxe
+DBRAND:     It can be evoked to extend its reach, and strikes at all foes within reach, dealing less damage to those not targeted.
++It uses either Axes or Polearms skill, whichever is higher.
 
 # This entry must always be last.
 ENUM:   DUMMY2

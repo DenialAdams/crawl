@@ -568,13 +568,9 @@ static void _throw_noise(actor* act, const item_def &ammo)
     // XXX: move both sound levels & messages into item-prop.cc?
     switch (launcher->sub_type)
     {
-    case WPN_HUNTING_SLING:
+    case WPN_SLING:
         level = 1;
         msg   = "You hear a whirring sound.";
-        break;
-    case WPN_FUSTIBALUS:
-        level = 3;
-        msg   = "You hear a loud whirring sound.";
         break;
     case WPN_SHORTBOW:
         level = 5;

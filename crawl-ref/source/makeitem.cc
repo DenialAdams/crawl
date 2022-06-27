@@ -118,7 +118,6 @@ static weapon_type _determine_weapon_subtype(int item_level)
     if (one_chance_in(30) && x_chance_in_y(item_level + 3, 100))
     {
         return random_choose(WPN_LAJATANG,
-                             WPN_FUSTIBALUS,
                              WPN_TRIPLE_CROSSBOW,
                              WPN_DEMON_WHIP,
                              WPN_DEMON_BLADE,
@@ -152,7 +151,7 @@ static weapon_type _determine_weapon_subtype(int item_level)
     }
     else
     {
-        return random_choose(WPN_HUNTING_SLING,
+        return random_choose(WPN_SLING,
                              WPN_SPEAR,
                              WPN_HAND_AXE,
                              WPN_MACE,
@@ -1763,7 +1762,8 @@ int items(bool allow_uniques,
           int force_type,
           int item_level,
           int force_ego,
-          int agent)
+          int agent,
+          string custom_name)
 {
     rng::subgenerator item_rng;
 
@@ -1849,6 +1849,9 @@ int items(bool allow_uniques,
         _setup_fallback_randart(unrand_id, item, force_type, item_level);
         allow_uniques = false;
     }
+
+    if (!custom_name.empty())
+        item.props[ITEM_NAME_KEY] = custom_name;
 
     // Determine sub_type accordingly. {dlb}
     switch (item.base_type)

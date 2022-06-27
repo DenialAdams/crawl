@@ -46,8 +46,8 @@ static const mutation_def mut_data[] =
 { MUT_STRONG, 7, 2, mutflag::good, false,
   "strong",
 
-  {"Your muscles are strong. (Str +4, Int/Dex-1)",
-   "Your muscles are very strong. (Str +8, Int/Dex-2)", ""},
+  {"Your muscles are strong. (Str +4, Int/Dex -1)",
+   "Your muscles are very strong. (Str +8, Int/Dex -2)", ""},
   {"", "", ""},
   {"", "", ""},
 },
@@ -55,8 +55,8 @@ static const mutation_def mut_data[] =
 { MUT_CLEVER, 7, 2, mutflag::good, false,
   "clever",
 
-  {"Your mind is acute. (Int +4, Str/Dex-1)",
-   "Your mind is very acute. (Int +8, Str/Dex-2)", ""},
+  {"Your mind is acute. (Int +4, Str/Dex -1)",
+   "Your mind is very acute. (Int +8, Str/Dex -2)", ""},
   {"", "", ""},
   {"", "", ""},
 },
@@ -64,8 +64,8 @@ static const mutation_def mut_data[] =
 { MUT_AGILE, 7, 2, mutflag::good, false,
   "agile",
 
-  {"You are agile. (Dex +4, Int/Str-1)",
-   "You are very agile. (Dex +8, Int/Str-2)", ""},
+  {"You are agile. (Dex +4, Str/Int -1)",
+   "You are very agile. (Dex +8, Str/Int -2)", ""},
   {"", "", ""},
   {"", "", ""},
 },
@@ -295,20 +295,20 @@ static const mutation_def mut_data[] =
 },
 #endif
 
-{ MUT_TELEPORT, 3, 3, mutflag::bad, false,
+{ MUT_TELEPORT, 3, 2, mutflag::bad, false,
   "teleportitis",
 
   {"You are occasionally teleported next to monsters.",
-   "You are sometimes teleported next to monsters.",
-   "You are often teleported next to monsters."},
+   "You are often teleported next to monsters.",
+   ""},
 
   {"You feel weirdly uncertain.",
    "You feel even more weirdly uncertain.",
-   "You feel even more weirdly uncertain."},
+   ""},
 
   {"You feel stable.",
    "You feel stable.",
-   "You feel stable."},
+   ""},
 },
 
 { MUT_STRONG_WILLED, 5, 3, mutflag::good, false,
@@ -504,20 +504,20 @@ static const mutation_def mut_data[] =
     TILEG_MUT_CLARITY
 },
 
-{ MUT_BERSERK, 7, 3, mutflag::bad, false,
+{ MUT_BERSERK, 7, 2, mutflag::bad, false,
   "berserk",
 
-  {"You tend to lose your temper in combat.",
-   "You often lose your temper in combat.",
-   "You have an uncontrollable temper."},
+  {"You sometimes lose your temper in combat.",
+   "You have an uncontrollable temper.",
+   ""},
 
   {"You feel a little pissed off.",
-   "You feel angry.",
-   "You feel extremely angry at everything!"},
+   "You feel extremely angry at everything!",
+   ""},
 
   {"You feel a little more calm.",
    "You feel a little less angry.",
-   "You feel a little less angry."},
+   ""},
 },
 
 { MUT_DETERIORATION, 10, 2, mutflag::bad | mutflag::xom, false,
@@ -1840,20 +1840,32 @@ static const mutation_def mut_data[] =
 },
 #endif
 
-{ MUT_DRINK_SAFETY, 0, 1, mutflag::bad, false,
+{ MUT_DRINK_SAFETY, 7, 2, mutflag::bad | mutflag::xom, false,
   "inability to drink while threatened",
 
-  {"You sometimes lose the ability to drink potions when taking damage.", "", ""},
-  {"You lose the ability to drink potions when threatened.", "", ""},
-  {"You can once more drink potions while threatened.", "", ""},
+  {"You occasionally lose the ability to drink potions when taking damage.",
+   "You sometimes lose the ability to drink potions when taking damage.",
+   ""},
+  {"You occasionally lose the ability to drink potions when threatened.",
+   "You lose the ability to drink potions when threatened more often.",
+   ""},
+  {"You can once more drink potions while threatened.",
+   "You lose the ability to drink potions when threatened less often.",
+   ""},
 },
 
-{ MUT_READ_SAFETY, 10, 1, mutflag::bad | mutflag::xom, false,
+{ MUT_READ_SAFETY, 7, 2, mutflag::bad | mutflag::xom, false,
   "inability to read while threatened",
 
-  {"You sometimes lose the ability to read scrolls when taking damage.", "", ""},
-  {"You lose the ability to read scrolls when threatened.", "", ""},
-  {"You can once more read scrolls while threatened.", "", ""},
+  {"You occasionally lose the ability to read scrolls when taking damage.",
+   "You sometimes lose the ability to read scrolls when taking damage.",
+   ""},
+  {"You occasionally lose the ability to read scrolls when threatened.",
+   "You lose the ability to read scrolls when threatened more often.",
+   ""},
+  {"You can once more read scrolls while threatened.",
+   "You lose the ability to read scrolls when threatened less often.",
+   ""},
 },
 
 { MUT_MISSING_HAND, 0, 1, mutflag::bad, false,

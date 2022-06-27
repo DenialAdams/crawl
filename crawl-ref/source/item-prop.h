@@ -17,6 +17,7 @@ struct bolt;
 
 void init_properties();
 
+#define ITEM_NAME_KEY "name"
 
 typedef uint32_t armflags_t;
 #define ard(flg, lev) (armflags_t)((flg) * ((lev) & 7))
@@ -167,6 +168,7 @@ bool item_skills(const item_def &item, set<skill_type> &skills);
 
 // launcher and ammo functions:
 bool is_range_weapon(const item_def &item) PURE;
+bool is_crossbow(const item_def &item) PURE;
 bool is_slowed_by_armour(const item_def *item) PURE;
 const char *ammo_name(missile_type ammo) IMMUTABLE;
 bool is_throwable(const actor *actor, const item_def &wpn) PURE;

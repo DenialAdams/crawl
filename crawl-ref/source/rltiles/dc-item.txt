@@ -43,6 +43,9 @@ morningstar3
 eveningstar1 WPN_EVENINGSTAR
 eveningstar2
 eveningstar3
+hammer1 WPN_HAMMER
+hammer2
+hammer3
 bullwhip WPN_WHIP
 bullwhip2
 bullwhip3
@@ -154,14 +157,11 @@ staff_mummy WPN_STAFF_MUMMY
 blowgun1 WPN_BLOWGUN
 blowgun2
 
-sling1 WPN_HUNTING_SLING
+sling1 WPN_SLING
 sling2
 sling3
-%rim 0
-fustibalus1 WPN_FUSTIBALUS
-fustibalus2
-fustibalus3
 
+%rim 0
 shortbow1 WPN_SHORTBOW
 shortbow2
 shortbow3

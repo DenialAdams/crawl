@@ -1249,6 +1249,8 @@ static tileidx_t _zombie_tile_to_simulacrum(const tileidx_t z_tile)
         return TILEP_MONS_SIMULACRUM_DRAKE;
     case TILEP_MONS_ZOMBIE_KRAKEN:
         return TILEP_MONS_SIMULACRUM_KRAKEN;
+    case TILEP_MONS_ZOMBIE_JELLY:
+        return TILEP_MONS_SIMULACRUM_SLIME;
     default:
         if (tile_player_basetile(z_tile) == TILEP_MONS_ZOMBIE_HYDRA)
         {
@@ -2287,6 +2289,8 @@ static tileidx_t _tileidx_wyrmbane(int plus)
 
 static tileidx_t _tileidx_weapon_base(const item_def &item)
 {
+    if (item.props.exists(ITEM_TILE_KEY))
+        return item.props[ITEM_TILE_KEY].get_short();
     switch (item.sub_type)
     {
     case WPN_DAGGER:                return TILE_WPN_DAGGER;
@@ -2307,8 +2311,7 @@ static tileidx_t _tileidx_weapon_base(const item_def &item)
 #if TAG_MAJOR_VERSION == 34
     case WPN_BLOWGUN:               return TILE_WPN_BLOWGUN;
 #endif
-    case WPN_HUNTING_SLING:         return TILE_WPN_HUNTING_SLING;
-    case WPN_FUSTIBALUS:            return TILE_WPN_FUSTIBALUS;
+    case WPN_SLING:                 return TILE_WPN_SLING;
     case WPN_SHORTBOW:              return TILE_WPN_SHORTBOW;
     case WPN_HAND_CROSSBOW:         return TILE_WPN_HAND_CROSSBOW;
     case WPN_ARBALEST:              return TILE_WPN_ARBALEST;
@@ -2316,7 +2319,6 @@ static tileidx_t _tileidx_weapon_base(const item_def &item)
     case WPN_SPEAR:                 return TILE_WPN_SPEAR;
     case WPN_TRIDENT:               return TILE_WPN_TRIDENT;
     case WPN_HALBERD:               return TILE_WPN_HALBERD;
-    case WPN_SCYTHE:                return TILE_WPN_SCYTHE;
     case WPN_GLAIVE:                return TILE_WPN_GLAIVE;
 #if TAG_MAJOR_VERSION == 34
     case WPN_STAFF:                 return TILE_WPN_STAFF;
@@ -2437,6 +2439,9 @@ static tileidx_t _tileidx_missile(const item_def &item)
 
 static tileidx_t _tileidx_armour_base(const item_def &item)
 {
+    if (item.props.exists(ITEM_TILE_KEY))
+        return item.props[ITEM_TILE_KEY].get_short();
+
     int type  = item.sub_type;
     switch (type)
     {
@@ -2748,13 +2753,16 @@ static tileidx_t _tileidx_gold(const item_def &item)
 
 tileidx_t tileidx_item(const item_def &item)
 {
-    if (item.props.exists(ITEM_TILE_KEY))
-        return item.props[ITEM_TILE_KEY].get_short();
-
     const int clas        = item.base_type;
     const int type        = item.sub_type;
     const int subtype_rnd = item.subtype_rnd;
     const int rnd         = item.rnd;
+
+    if (item.props.exists(ITEM_TILE_KEY)
+        && clas != OBJ_WEAPONS && clas != OBJ_ARMOUR)
+    {
+        return item.props[ITEM_TILE_KEY].get_short();
+    }
 
     switch (clas)
     {
@@ -3263,9 +3271,7 @@ tileidx_t tileidx_skill(skill_type skill, int train)
     case SK_MACES_FLAILS:   ch = TILEG_MACES_FLAILS_ON; break;
     case SK_POLEARMS:       ch = TILEG_POLEARMS_ON; break;
     case SK_STAVES:         ch = TILEG_STAVES_ON; break;
-    case SK_SLINGS:         ch = TILEG_SLINGS_ON; break;
-    case SK_BOWS:           ch = TILEG_BOWS_ON; break;
-    case SK_CROSSBOWS:      ch = TILEG_CROSSBOWS_ON; break;
+    case SK_RANGED_WEAPONS: ch = TILEG_RANGED_WEAPONS_ON; break;
     case SK_THROWING:       ch = TILEG_THROWING_ON; break;
     case SK_ARMOUR:         ch = TILEG_ARMOUR_ON; break;
     case SK_DODGING:        ch = TILEG_DODGING_ON; break;

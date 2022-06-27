@@ -552,11 +552,6 @@ flail
 
 A mace with a short chain connecting the head to the haft.
 %%%%
-fustibalus
-
-A length of wood with a reinforced sling at one end, able to fire projectiles
-at high velocity.
-%%%%
 giant club
 
 A giant lump of wood.
@@ -610,6 +605,10 @@ halberd
 A polearm consisting of an axe blade topped with a spike, mounted on a long
 shaft.
 %%%%
+hammer
+
+A blunt striking weapon, essentially equivalent to a mace.
+%%%%
 hand axe
 
 A small axe.
@@ -633,7 +632,7 @@ The horn belonging to Geryon, guardian of the Vestibule of Hell. It has the
 power to call forth demonic beasts. With high Evocations skill, it will call
 greater numbers of beasts, with lower chances of those beasts being hostile.
 %%%%
-hunting sling
+sling
 
 A piece of cloth and leather for launching stones, adequate for hunting small
 game like rabbits or goblins.
@@ -1125,7 +1124,8 @@ those fully immune to such effects.
 %%%%
 scythe
 
-A farm implement, usually only used by untrained mobs in combat.
+A farm implement, usually only used by untrained mobs in combat. In practice,
+it's quite similar to a halberd.
 %%%%
 shortbow
 

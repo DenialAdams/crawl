@@ -770,7 +770,8 @@ bool force_player_cleave(coord_def target)
 
     if (!cleave_targets.empty())
     {
-        const int range = player_equip_unrand(UNRAND_LOCHABER_AXE) ? 2 : 1;
+        // Rift is too funky and hence gets no special treatment.
+        const int range = you.reach_range() == REACH_TWO ? 2 : 1;
         targeter_cleave hitfunc(&you, target, range);
         if (stop_attack_prompt(hitfunc, "attack"))
             return true;
@@ -826,8 +827,7 @@ void get_cleave_targets(const actor &attacker, const coord_def& def,
     if (attack_cleaves(attacker, which_attack))
     {
         const coord_def atk = attacker.pos();
-        const bool lochaber = weap && is_unrandom_artefact(*weap, UNRAND_LOCHABER_AXE);
-        const int cleave_radius = lochaber ? 2 : 1;
+        const int cleave_radius = weap && weapon_reach(*weap) == REACH_TWO ? 2 : 1;
 
         for (distance_iterator di(atk, true, true, cleave_radius); di; ++di)
         {
@@ -868,6 +868,8 @@ void attack_cleave_targets(actor &attacker, list<actor*> &targets,
                            wu_jian_attack_type wu_jian_attack,
                            bool is_projected)
 {
+    if (!attacker.alive())
+        return;
     const item_def* weap = attacker.weapon(attack_number);
     if (attacker.is_player())
     {
@@ -939,8 +941,12 @@ int weapon_min_delay(const item_def &weapon, bool check_speed)
         min_delay = 7;
 
     // ...except crossbows...
-    if (item_attack_skill(weapon) == SK_CROSSBOWS && min_delay < 10)
+    if (is_crossbow(weapon) && min_delay < 10)
         min_delay = 10;
+
+    // ...and longbows...
+    if (weapon.sub_type == WPN_LONGBOW)
+        min_delay = 6;
 
     // ... and unless it would take more than skill 27 to get there.
     // Round up the reduction from skill, so that min delay is rounded down.
@@ -1259,9 +1265,7 @@ bool weapon_uses_strength(skill_type wpn_skill, bool using_weapon)
     {
     case SK_LONG_BLADES:
     case SK_SHORT_BLADES:
-    case SK_CROSSBOWS:
-    case SK_BOWS:
-    case SK_SLINGS:
+    case SK_RANGED_WEAPONS:
         return false;
     default:
         return true;
@@ -1303,4 +1307,11 @@ int apply_fighting_skill(int damage, bool aux, bool random)
     damage /= base * 100;
 
     return damage;
+}
+
+int throwing_base_damage_bonus(const item_def &proj)
+{
+    // Stones get half bonus; everything else gets full bonus.
+    return div_rand_round(you.skill_rdiv(SK_THROWING)
+                          * min(4, property(proj, PWPN_DAMAGE)), 4);
 }

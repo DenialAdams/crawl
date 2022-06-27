@@ -1485,17 +1485,19 @@ mcache_ghost::mcache_ghost(const monster_info& mon)
             m_doll.parts[TILEP_PART_HAND1] = TILEP_HAND1_SPEAR;
         break;
 
-    case SK_BOWS:
+    case SK_RANGED_WEAPONS:
         m_doll.parts[TILEP_PART_HAND1] = TILEP_HAND1_BOW2;
         break;
 
+#if TAG_MAJOR_VERSION == 34
     case SK_CROSSBOWS:
         m_doll.parts[TILEP_PART_HAND1] = TILEP_HAND1_ARBALEST;
         break;
 
     case SK_SLINGS:
-        m_doll.parts[TILEP_PART_HAND1] = TILEP_HAND1_HUNTING_SLING;
+        m_doll.parts[TILEP_PART_HAND1] = TILEP_HAND1_SLING;
         break;
+#endif
 
     case SK_UNARMED_COMBAT:
     default:

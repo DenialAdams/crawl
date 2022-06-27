@@ -1101,13 +1101,12 @@ WEIGHT:  3
 KMONS:   1 = guardian mummy ; randart dire flail ego:chaos | \
              randart great mace ego:chaos | randart battleaxe ego:chaos| \
              randart great sword ego:chaos | randart glaive ego:chaos | \
-             randart scythe ego:chaos | randart dire flail | \
-             randart great mace | randart battleaxe | randart great sword | \
-             randart glaive | randart scythe
-KMONS:   3 = guardian mummy ; randart fustibalus ego:chaos / \
+             randart dire flail | randart great mace | randart battleaxe | \
+             randart great sword | randart glaive
+KMONS:   3 = guardian mummy ; randart hand crossbow ego:chaos / \
              guardian mummy ; randart longbow ego:chaos / \
              guardian mummy ; randart triple crossbow / \
-             guardian mummy ; randart fustibalus / \
+             guardian mummy ; randart hand crossbow / \
              guardian mummy ; randart longbow / \
              guardian mummy ; randart arbalest
 KMONS:   5 = guardian mummy ; any beam wand | scroll of summoning

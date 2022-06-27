@@ -211,7 +211,7 @@ static void _decrement_attraction(int delay)
     if (!you.duration[DUR_ATTRACTIVE])
         return;
 
-    attract_monsters();
+    attract_monsters(delay);
     if (_decrement_a_duration(DUR_ATTRACTIVE, delay))
         mpr("You feel less attractive to monsters.");
 }
@@ -857,8 +857,11 @@ static void _update_equipment_attunement_by_health()
                     item_slot_name(static_cast<equipment_type>(slot)) :
                     "armour");
 
-            if (slot == EQ_GLOVES || slot == EQ_BOOTS)
+            if (slot == EQ_BOOTS && arm.sub_type != ARM_BARDING
+                || slot == EQ_GLOVES)
+            {
                 plural = true;
+            }
             you.activated.set(slot);
         }
     }
@@ -981,7 +984,7 @@ void player_reacts()
 
     if (x_chance_in_y(you.time_taken, 10 * BASELINE_DELAY))
     {
-        const int teleportitis_level = player_teleport();
+        const int teleportitis_level = get_teleportitis_level();
         // this is instantaneous
         if (teleportitis_level > 0 && one_chance_in(100 / teleportitis_level))
             you_teleport_now(false, true, "You feel strangely unstable.");

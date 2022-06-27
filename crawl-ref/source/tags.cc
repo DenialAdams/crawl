@@ -2955,6 +2955,30 @@ static void _tag_read_you(reader &th)
     you.skill_cost_level = 0;
     check_skill_cost_change();
 
+#if TAG_MAJOR_VERSION == 34
+    if (th.getMinorVersion() < TAG_MINOR_MERGE_RANGED)
+    {
+        // should be a check for MUT_DISTRIBUTED_SKILL_TRAINING but
+        // I don't remember if muts have been unmarshalled here.
+        if (you.species != SP_GNOLL)
+        {
+            you.skill_points[SK_RANGED_WEAPONS] += you.skill_points[SK_CROSSBOWS]
+                                                 + you.skill_points[SK_SLINGS];
+        }
+        you.train[SK_RANGED_WEAPONS] = max(you.train[SK_RANGED_WEAPONS],
+                                           max(you.train[SK_CROSSBOWS],
+                                               you.train[SK_SLINGS]));
+        you.train_alt[SK_RANGED_WEAPONS] = max(you.train_alt[SK_RANGED_WEAPONS],
+                                               max(you.train_alt[SK_CROSSBOWS],
+                                                   you.train_alt[SK_SLINGS]));
+        you.training_targets[SK_RANGED_WEAPONS] = max(you.training_targets[SK_RANGED_WEAPONS],
+                                                      max(you.training_targets[SK_CROSSBOWS],
+                                                          you.training_targets[SK_SLINGS]));
+        // fixup_skills is called at the end of loading a character, in
+        // _post_init
+    }
+#endif
+
     EAT_CANARY;
 
     // how many durations?
@@ -3424,6 +3448,15 @@ static void _tag_read_you(reader &th)
             _fixup_species_mutations(MUT_NO_POTION_HEAL);
         else if (you.mutation[MUT_NO_POTION_HEAL] > 2)
             you.mutation[MUT_NO_POTION_HEAL] = 2;
+    }
+
+    if (th.getMinorVersion() < TAG_MINOR_RECOMPRESS_BADMUTS)
+    {
+        if (you.mutation[MUT_BERSERK] > 2)
+            you.mutation[MUT_BERSERK] = 2;
+
+        if (you.mutation[MUT_TELEPORT] > 2)
+            you.mutation[MUT_TELEPORT] = 2;
     }
 
     // fully clean up any removed mutations
@@ -5489,6 +5522,11 @@ void unmarshallItem(reader &th, item_def &item)
 
     if (is_unrandom_artefact(item))
         setup_unrandart(item, false);
+
+#if TAG_MAJOR_VERSION == 34
+    if (item.is_type(OBJ_WEAPONS, WPN_FUSTIBALUS))
+        item.sub_type = WPN_HAND_CROSSBOW;
+#endif
 
     bind_item_tile(item);
 }

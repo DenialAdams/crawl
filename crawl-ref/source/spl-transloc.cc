@@ -852,9 +852,6 @@ static bool _teleport_player(bool wizard_tele, bool teleportitis,
 
     if (player_in_branch(BRANCH_ABYSS) && !wizard_tele)
     {
-        if (teleportitis)
-            return false;
-
         if (!reason.empty())
             mpr(reason);
         abyss_teleport();
@@ -1613,7 +1610,7 @@ static bool _can_move_mons_to(const monster &mons, coord_def pos)
 /**
   * Attempt to pull nearby monsters toward the player.
  */
-void attract_monsters()
+void attract_monsters(int delay)
 {
     vector<monster *> targets;
     for (monster_near_iterator mi(you.pos(), LOS_NO_TRANS); mi; ++mi)
@@ -1633,7 +1630,7 @@ void attract_monsters()
         if (!find_ray(mi->pos(), you.pos(), ray, opc_solid))
             continue;
 
-        const int max_move = 3;
+        const int max_move = div_rand_round(3 * delay, BASELINE_DELAY);
         for (int i = 0; i < max_move && i < orig_dist - 1; i++)
             ray.advance();
 

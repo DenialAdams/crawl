@@ -2060,8 +2060,9 @@ static map<curse_type, curse_data> _ashenzari_curses =
             SK_POLEARMS, SK_STAVES, SK_UNARMED_COMBAT },
     } },
     { CURSE_RANGED, {
+        // XXX: merge with evocations..?
         "Ranged Combat", "Range",
-        { SK_SLINGS, SK_BOWS, SK_CROSSBOWS, SK_THROWING },
+        { SK_RANGED_WEAPONS, SK_THROWING },
     } },
     { CURSE_ELEMENTS, {
         "Elements", "Elem",
@@ -3823,14 +3824,11 @@ static int _piety_for_skill_by_sacrifice(ability_type sacrifice)
     const sacrifice_def &sac_def = _get_sacrifice_def(sacrifice);
 
     piety_gain += _piety_for_skill(sac_def.sacrifice_skill);
-    if (sacrifice == ABIL_RU_SACRIFICE_HAND)
+    if (sacrifice == ABIL_RU_SACRIFICE_HAND
+        && species::size(you.species, PSIZE_TORSO) <= SIZE_SMALL)
     {
         // No one-handed staves for small races.
-        if (species::size(you.species, PSIZE_TORSO) <= SIZE_SMALL)
-            piety_gain += _piety_for_skill(SK_STAVES);
-        // No one-handed bows.
-        if (!you.has_innate_mutation(MUT_QUADRUMANOUS))
-            piety_gain += _piety_for_skill(SK_BOWS);
+        piety_gain += _piety_for_skill(SK_STAVES);
     }
     return piety_gain;
 }
@@ -3957,11 +3955,16 @@ int get_sacrifice_piety(ability_type sac, bool include_skill)
             break;
         // words and drink cut off a lot of options if taken together
         case ABIL_RU_SACRIFICE_DRINK:
-            if (you.get_mutation_level(MUT_READ_SAFETY))
+            // less value if you already have some levels of the mutation
+            piety_gain -= 10 * you.get_mutation_level(MUT_DRINK_SAFETY);
+            // check innate mutation level to see if reading was sacrificed
+            if (you.get_innate_mutation_level(MUT_READ_SAFETY) == 2)
                 piety_gain += 10;
             break;
         case ABIL_RU_SACRIFICE_WORDS:
-            if (you.get_mutation_level(MUT_DRINK_SAFETY))
+            // less value if you already have some levels of the mutation
+            piety_gain -= 10 * you.get_mutation_level(MUT_READ_SAFETY);
+            if (you.get_innate_mutation_level(MUT_DRINK_SAFETY) == 2)
                 piety_gain += 10;
             else if (you.get_mutation_level(MUT_NO_DRINK))
                 piety_gain += 15; // extra bad for mummies
@@ -4223,7 +4226,18 @@ static const string _piety_asterisks(int piety)
 
 static void _apply_ru_sacrifice(mutation_type sacrifice)
 {
-    perma_mutate(sacrifice, 1, "Ru sacrifice");
+    if (sacrifice == MUT_READ_SAFETY || sacrifice == MUT_DRINK_SAFETY)
+    {
+        // get the safety mutation to the cap instead of 1 level higher
+        perma_mutate(sacrifice,
+                    3 - you.get_mutation_level(sacrifice),
+                    "Ru sacrifice");
+    }
+    else
+    {
+        // regular case for other sacrifices
+        perma_mutate(sacrifice, 1, "Ru sacrifice");
+    }
     you.sacrifices[sacrifice] += 1;
 }
 
@@ -4498,14 +4512,11 @@ bool ru_do_sacrifice(ability_type sac)
     // Maybe this should go in _extra_sacrifice_code, but it would be
     // inconsistent for the milestone to have reduced Shields skill
     // but not the others.
-    if (sac == ABIL_RU_SACRIFICE_HAND)
+    if (sac == ABIL_RU_SACRIFICE_HAND
+        && species::size(you.species, PSIZE_TORSO) <= SIZE_SMALL)
     {
         // No one-handed staves for small races.
-        if (species::size(you.species, PSIZE_TORSO) <= SIZE_SMALL)
-            _ru_kill_skill(SK_STAVES);
-        // No one-handed bows.
-        if (!you.has_innate_mutation(MUT_QUADRUMANOUS))
-            _ru_kill_skill(SK_BOWS);
+        _ru_kill_skill(SK_STAVES);
     }
 
     mark_milestone("sacrifice", mile_text);

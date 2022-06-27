@@ -634,8 +634,7 @@ enum weapon_type
     WPN_LONGBOW,
 
 #if TAG_MAJOR_VERSION > 34
-    WPN_HUNTING_SLING,
-    WPN_FUSTIBALUS,
+    WPN_SLING,
 #endif
 
     WPN_DEMON_WHIP,
@@ -647,14 +646,16 @@ enum weapon_type
     WPN_TRIPLE_SWORD,
 
     WPN_DEMON_TRIDENT,
+#if TAG_MAJOR_VERSION == 34
     WPN_SCYTHE,
+#endif
 
     WPN_STAFF,          // Just used for the weapon stats for magical staves.
     WPN_QUARTERSTAFF,
     WPN_LAJATANG,
 
 #if TAG_MAJOR_VERSION == 34
-    WPN_HUNTING_SLING,
+    WPN_SLING,
 
     WPN_BLESSED_FALCHION,
     WPN_BLESSED_LONG_SWORD,

@@ -687,13 +687,18 @@ static void _handle_channeling(int cost)
 
     did_god_conduct(DID_WIZARDLY_ITEM, 10);
 
+    const int skillcheck = you.skill(SK_EVOCATIONS) - cost;
+
     // The chance of backfiring goes down with evo skill and up with cost.
-    if (!one_chance_in(max(you.skill(SK_EVOCATIONS) - cost, 1)))
+    if (!one_chance_in(max(skillcheck, 1)))
     {
         mpr("Magical energy flows into your mind!");
         inc_mp(cost, true);
         return;
     }
+
+    if (skillcheck <= 1)
+        mprf(MSGCH_WARN, "You lack the skill to channel this much energy!");
 
     mpr(random_choose("Weird images run through your mind.",
                       "Your head hurts.",
@@ -2736,6 +2741,16 @@ string spell_damage_string(spell_type spell, bool evoked)
             return desc_cloud_damage(CLOUD_FIRE, false);
         case SPELL_FREEZING_CLOUD:
             return desc_cloud_damage(CLOUD_COLD, false);
+        case SPELL_DISCHARGE:
+        {
+            int max = discharge_max_damage(_spell_power(spell, evoked));
+            return make_stringf("%d-%d/arc", FLAT_DISCHARGE_ARC_DAMAGE, max);
+        }
+        case SPELL_AIRSTRIKE:
+        {
+            int max = airstrike_base_max_damage(_spell_power(spell, evoked));
+            return make_stringf("0-%d+", max);
+        }
         default:
             break;
     }

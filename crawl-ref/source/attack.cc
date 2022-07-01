@@ -942,20 +942,7 @@ void attack::stab_message()
 
     switch (stab_bonus)
     {
-    case 6:     // big melee, monster surrounded/not paying attention
-        if (coinflip())
-        {
-            mprf("You %s %s from a blind spot!",
-                  you.has_mutation(MUT_PAWS) ? "pounce on" : "strike",
-                  defender->name(DESC_THE).c_str());
-        }
-        else
-        {
-            mprf("You catch %s momentarily off-guard.",
-                  defender->name(DESC_THE).c_str());
-        }
-        break;
-    case 4:     // confused/fleeing
+    case 4:     // confused/fleeing/distracted
         if (!one_chance_in(3))
         {
             mprf("You catch %s completely off-guard!",
@@ -968,7 +955,6 @@ void attack::stab_message()
                   defender->name(DESC_THE).c_str());
         }
         break;
-    case 2:
     case 1:
         if (you.has_mutation(MUT_PAWS) && coinflip())
         {
@@ -1708,7 +1694,8 @@ void attack::player_stab_check()
     // so upgrade the stab type for !stab and the Spriggan's Knife here
     if (using_weapon()
         && is_unrandom_artefact(*weapon, UNRAND_SPRIGGANS_KNIFE)
-        && st != STAB_NO_STAB)
+        && st != STAB_NO_STAB
+        && coinflip())
     {
         st = STAB_SLEEPING;
     }

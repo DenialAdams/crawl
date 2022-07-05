@@ -767,6 +767,7 @@ enum wand_type
 #endif
     WAND_LIGHT,
     WAND_QUICKSILVER,
+    WAND_ROOTS,
     NUM_WANDS
 };
 
@@ -804,5 +805,6 @@ enum item_set_type
 {
     ITEM_SET_HEX_WANDS,
     ITEM_SET_BEAM_WANDS,
+    ITEM_SET_BLAST_WANDS,
     NUM_ITEM_SET_TYPES
 };

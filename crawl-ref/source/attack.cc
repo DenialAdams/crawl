@@ -35,6 +35,7 @@
 #include "nearby-danger.h"
 #include "pronoun-type.h"
 #include "religion.h"
+#include "shout.h"
 #include "skills.h"
 #include "spl-util.h"
 #include "state.h"
@@ -478,10 +479,14 @@ bool attack::distortion_affects_defender()
         NONE
     };
 
+    // Don't banish or blink the player during aoops, for sanity.
+    const int banish_weight = crawl_state.player_moving ? 0 : 5;
+    const int blink_weight = crawl_state.player_moving ? 0 : 20;
+
     const disto_effect choice = random_choose_weighted(35, SMALL_DMG,
                                                        25, BIG_DMG,
-                                                       5,  BANISH,
-                                                       20, BLINK,
+                                                       banish_weight, BANISH,
+                                                       blink_weight, BLINK,
                                                        15,  NONE);
 
     if (simu && !(choice == SMALL_DMG || choice == BIG_DMG))
@@ -1511,7 +1516,7 @@ bool attack::apply_damage_brand(const char *what)
                 you.duration[DUR_CONFUSING_TOUCH] = 0;
                 obvious_effect = false;
             }
-            else if (!ench_flavour_affects_monster(beam_temp.flavour, mon)
+            else if (!ench_flavour_affects_monster(attacker, beam_temp.flavour, mon)
                      || mons_invuln_will(*mon))
             {
                 mprf("%s is completely immune to your confusing touch!",
@@ -1713,4 +1718,21 @@ void attack::player_stab_check()
 
     if (stab_attempt)
         count_action(CACT_STAB, orig_st);
+}
+
+void attack::handle_noise(const coord_def & pos)
+{
+    // Successful stabs make no noise.
+    if (stab_attempt)
+        return;
+
+    int loudness = damage_done / 4;
+
+    // All non-stab attacks make some noise.
+    loudness = max(1, loudness);
+
+    // Cap noise at shouting volume.
+    loudness = min(12, loudness);
+
+    noisy(loudness, pos, attacker->mid);
 }

@@ -560,14 +560,14 @@ static const struct spell_desc spelldata[] =
 },
 
 {
-    SPELL_NECROTIZE, "Necrotize",
+    SPELL_NECROTISE, "Necrotise",
     spschool::necromancy,
     spflag::dir_or_target | spflag::needs_tracer | spflag::WL_check,
     1,
     25,
     5, 5,
     1, 0,
-    TILEG_NECROTIZE,
+    TILEG_NECROTISE,
 },
 
 {
@@ -3170,6 +3170,17 @@ static const struct spell_desc spelldata[] =
     6, 6,
     5, 4,
     TILEG_BORGNJORS_VILE_CLUTCH,
+},
+
+{
+    SPELL_FASTROOT, "Fastroot",
+    spschool::hexes | spschool::earth,
+    spflag::dir_or_target | spflag::needs_tracer,
+    5,
+    200,
+    5, 5,
+    5, 0,
+    TILEG_GENERIC_MONSTER_SPELL,
 },
 
 {

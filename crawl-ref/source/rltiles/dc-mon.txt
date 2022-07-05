@@ -1051,7 +1051,7 @@ goblin MONS_GOBLIN
 hobgoblin MONS_HOBGOBLIN
 %rim 0
 gnoll MONS_GNOLL
-gnoll_shaman MONS_BOUDA
+gnoll_shaman MONS_GNOLL_BOUDA
 gnoll_sergeant MONS_GNOLL_SERGEANT
 %rim 1
 boggart MONS_BOGGART
@@ -1219,7 +1219,7 @@ statue_form_humanoid TRAN_STATUE_HUMANOID
 statue_form_palentonga TRAN_STATUE_PALENTONGA
 statue_form_naga TRAN_STATUE_NAGA
 statue_form_octopode TRAN_STATUE_OCTOPODE
-statue_form_djinn TRAN_STATUE_DJINN
+statue_form_djinni TRAN_STATUE_DJINN
 %syn TRAN_STATUE_EQUIP_LAST
 statue_form_felid TRAN_STATUE_FELID
 dragon_form TRAN_DRAGON

@@ -492,7 +492,8 @@ static const map<spell_type, mons_spell_logic> spell_to_logic = {
         {
             const actor* foe = caster.get_foe();
             ASSERT(foe);
-            return ai_action::good_or_impossible(caster.can_constrict(foe, false));
+            return ai_action::good_or_impossible(caster.can_constrict(*foe,
+                                                                      CONSTRICT_ROOTS));
         }, _cast_grasping_roots, } },
     { SPELL_ABJURATION, {
         _mons_will_abjure,
@@ -814,17 +815,7 @@ static void _cast_grasping_roots(monster &caster, mon_spell_slot, bolt&)
                 mons_spellpower(caster, SPELL_GRASPING_ROOTS), 10), 2);
     dprf("Grasping roots turns: %d", turns);
     mpr("Roots burst forth from the earth!");
-    if (foe->is_player())
-    {
-        you.increase_duration(DUR_GRASPING_ROOTS, turns);
-        caster.start_constricting(you);
-        mprf(MSGCH_WARN, "The grasping roots grab you!");
-    }
-    else
-    {
-        foe->as_monster()->add_ench(mon_enchant(ENCH_GRASPING_ROOTS, 0, &caster,
-                    turns * BASELINE_DELAY));
-    }
+    grasp_with_roots(caster, *foe, turns);
 }
 
 /// Is the given full-LOS attack spell worth casting for the given monster?
@@ -1363,6 +1354,7 @@ bolt mons_spell_beam(const monster* mons, spell_type spell_cast, int power,
     case SPELL_DIG:
     case SPELL_CHARMING:
     case SPELL_BOLT_OF_LIGHT:
+    case SPELL_FASTROOT:
     case SPELL_QUICKSILVER_BOLT:
     case SPELL_PRIMAL_WAVE:
     case SPELL_BLINKBOLT:

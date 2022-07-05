@@ -186,15 +186,13 @@ vector<string> fire_target_behaviour::get_monster_desc(const monster_info& mi)
     vector<string> descs;
     item_def* item = active_item();
     item_def fake_proj;
-    if (!item)
+    const item_def *launcher = action.get_launcher();
+    if (launcher && is_range_weapon(*launcher))
     {
-        const item_def *launcher = action.get_launcher();
-        if (!launcher || !is_range_weapon(*launcher))
-            return descs;
         populate_fake_projectile(*launcher, fake_proj);
         item = &fake_proj;
     }
-    if (!targeted() || item->base_type != OBJ_MISSILES)
+    if (!targeted() || !item || item->base_type != OBJ_MISSILES)
         return descs;
 
     ranged_attack attk(&you, nullptr, item, is_pproj_active());
@@ -562,34 +560,27 @@ static void _throw_noise(actor* act, const item_def &ammo)
     if (launcher == nullptr || !is_range_weapon(*launcher))
         return; // moooom, players are tossing their weapons again
 
-    int         level = 0;
     const char* msg   = nullptr;
 
     // XXX: move both sound levels & messages into item-prop.cc?
     switch (launcher->sub_type)
     {
     case WPN_SLING:
-        level = 1;
         msg   = "You hear a whirring sound.";
         break;
     case WPN_SHORTBOW:
-        level = 5;
         msg   = "You hear a twanging sound.";
         break;
     case WPN_LONGBOW:
-        level = 6;
         msg   = "You hear a loud twanging sound.";
         break;
     case WPN_HAND_CROSSBOW:
-        level = 2;
         msg   = "You hear a quiet thunk.";
         break;
     case WPN_ARBALEST:
-        level = 7;
         msg   = "You hear a thunk.";
         break;
     case WPN_TRIPLE_CROSSBOW:
-        level = 9;
         msg   = "You hear a triplet of thunks.";
         break;
 
@@ -601,7 +592,7 @@ static void _throw_noise(actor* act, const item_def &ammo)
     if (act->is_player() || you.can_see(*act))
         msg = nullptr;
 
-    noisy(level, act->pos(), msg, act->mid);
+    noisy(7, act->pos(), msg, act->mid);
 }
 
 // throw_it - handles player throwing/firing only. Monster throwing is handled

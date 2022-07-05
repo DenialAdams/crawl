@@ -908,7 +908,7 @@ bool item_is_worn(int inv_slot)
 }
 
 /**
- * Prompt user for carried armour.
+ * Prompt user for carried armour. Will warn user if wearing/removing the armour is dangerous.
  *
  * @param mesg Title for the prompt
  * @param index[out] the inventory slot of the item chosen; not initialised
@@ -1374,8 +1374,7 @@ bool wear_armour(int item)
     if (to_wear->pos == ITEM_IN_INVENTORY && item_is_worn(to_wear->link))
     {
         if (Options.equip_unequip)
-            // TODO: huh? Why are we inverting the return value?
-            return !takeoff_armour(to_wear->link);
+            return takeoff_armour(to_wear->link);
         else
         {
             mpr("You're already wearing that object!");
@@ -1422,23 +1421,45 @@ bool wear_armour(int item)
     int item_slot = _get_item_slot_maybe_with_move(*to_wear);
 
     start_delay<EquipOnDelay>(ARMOUR_EQUIP_DELAY - (swapping ? 0 : 1),
-                               you.inv[item_slot]);
+                              you.inv[item_slot]);
+
+    return true;
+}
+
+static bool _can_generically_takeoff_armour()
+{
+    if (you.berserk())
+    {
+        canned_msg(MSG_TOO_BERSERK);
+        return false;
+    }
+
+    if (you.has_mutation(MUT_NO_ARMOUR))
+    {
+        mprf("You can't remove your %s, sorry.",
+             species::skin_name(you.species).c_str());
+        return false;
+    }
+
+    if (!form_can_wear())
+    {
+        mpr("You can't wear or remove anything in your present form.");
+        return false;
+    }
 
     return true;
 }
 
 static bool _can_takeoff_armour(int item)
 {
+    if (!_can_generically_takeoff_armour())
+        return false;
+
     item_def& invitem = you.inv[item];
+
     if (invitem.base_type != OBJ_ARMOUR)
     {
-        mpr("You aren't wearing that!");
-        return false;
-    }
-
-    if (you.berserk())
-    {
-        canned_msg(MSG_TOO_BERSERK);
+        mpr("You couldn't even wear that if you tried!");
         return false;
     }
 
@@ -1465,13 +1486,24 @@ static bool _can_takeoff_armour(int item)
     return true;
 }
 
-// TODO: It would be nice if this were made consistent with wear_armour,
-// wield_weapon, puton_ring, etc. in terms of taking a default value of -1,
-// which has the effect of prompting for an item to take off.
-//
-/// noask suppresses the "stat zero" prompt.
+/**
+ * Takes off a given piece of armour.
+ * @param item The item to remove. If -1, the player will be prompted.
+ * @param noask Whether to prompt if removing the item would cause stat-zero.
+ * @return True if the item was removed.
+ */
 bool takeoff_armour(int item, bool noask)
 {
+    // We want to check non-item depedent stuff before prompting for the actual item
+    if (!_can_generically_takeoff_armour())
+        return false;
+
+    if (item == -1
+        && !armour_prompt("Take off which item?", &item, OPER_TAKEOFF))
+    {
+        return false;
+    }
+
     if (!_can_takeoff_armour(item))
         return false;
 
@@ -1482,32 +1514,7 @@ bool takeoff_armour(int item, bool noask)
     if (!noask && !_safe_to_remove_or_wear(invitem, true))
         return false;
 
-    const equipment_type slot = get_armour_slot(invitem);
-
-    // TODO: isn't this check covered above by the call to item_is_worn? The
-    // only way to return false inside this switch would be if the player is
-    // wearing a hat on their feet or something like that.
-    switch (slot)
-    {
-    case EQ_BODY_ARMOUR:
-    case EQ_SHIELD:
-    case EQ_CLOAK:
-    case EQ_HELMET:
-    case EQ_GLOVES:
-    case EQ_BOOTS:
-        if (item != you.equip[slot])
-        {
-            mpr("You aren't wearing that!");
-            return false;
-        }
-        break;
-
-    default:
-        break;
-    }
-
     you.turn_is_over = true;
-
     start_delay<EquipOffDelay>(ARMOUR_EQUIP_DELAY - 1, invitem);
 
     return true;
@@ -1767,7 +1774,7 @@ static bool _safe_to_remove_or_wear(const item_def &item, const item_def
 static bool _safe_to_remove_or_wear(const item_def &item, bool remove,
                                     bool quiet)
 {
-    return _safe_to_remove_or_wear(item, 0, remove, quiet);
+    return _safe_to_remove_or_wear(item, nullptr, remove, quiet);
 }
 
 // Checks whether removing an item would cause flight to end and the
@@ -2062,6 +2069,12 @@ static bool _can_puton_amulet(const item_def &item)
     return true;
 }
 
+/**
+ * Handles the case of putting on a ring where the ring was an amulet; called by puton_ring.
+ * @param item The amulet we're putting on.
+ * @param check_for_inscriptions Whether or not to prompt the player when there are side effects to wearing the amulet.
+ * @return True if the item was put on /or/ taken off.
+ */
 static bool _puton_amulet(item_def &item,
                           bool check_for_inscriptions)
 {
@@ -2069,9 +2082,7 @@ static bool _puton_amulet(item_def &item,
     {
         // "Putting on" an equipped item means taking it off.
         if (Options.equip_unequip)
-            // TODO: why invert the return value here? failing to remove
-            // an amulet is equivalent to successfully putting one on?
-            return !remove_ring(item.link);
+            return remove_ring(item.link);
         mpr("You're already wearing that amulet!");
         return false;
     }
@@ -2118,9 +2129,7 @@ static bool _puton_ring(item_def &item, bool prompt_slot,
             continue;
         // "Putting on" an equipped item means taking it off.
         if (Options.equip_unequip)
-            // TODO: why invert the return value here? failing to remove
-            // a ring is equivalent to successfully putting one on?
-            return !remove_ring(item.link);
+            return remove_ring(item.link);
         mpr("You're already wearing that ring!");
         return false;
     }
@@ -2216,7 +2225,14 @@ static bool _puton_ring(item_def &item, bool prompt_slot,
     return true;
 }
 
-// Put on a ring or amulet. (Most of the work is in _puton_item.)
+/**
+ * Try to put on or take off a ring or amulet. Most of the work is in _puton_item.
+ *
+ * @param allow_prompt If we prompt for a slot if we need to choose.
+ * @param noask Whether or not to prompt a warning when this action will cause
+ *              stat-zero effects.
+ * @return True if the item was put on /or/ taken off.
+ */
 bool puton_ring(item_def &to_puton, bool allow_prompt,
                 bool check_for_inscriptions, bool noask)
 {
@@ -2267,10 +2283,16 @@ bool puton_ring(int slot, bool allow_prompt, bool check_for_inscriptions,
                       noask);
 }
 
-// Remove the ring/amulet at given inventory slot (or, if slot is -1, prompt
-// for which piece of jewellery to remove)
-//
-// noask suppresses the "stat zero" prompt.
+/**
+ * Remove the ring or amulet at the given inventory slot, prompting
+ * if slot is -1 (default).
+ *
+ * @param slot The slot to remove the ring from, or -1 if the player should
+ *             be prompted.
+ * @param announce If the item name should be used in the "It's cursed" message
+ * @param noask Suppresses the "stat zero" prompt
+ * @returns true if the ring was removed
+ */
 bool remove_ring(int slot, bool announce, bool noask)
 {
     equipment_type hand_used = EQ_NONE;
@@ -2317,13 +2339,13 @@ bool remove_ring(int slot, bool announce, bool noask)
     if (hand_used == EQ_NONE)
     {
         const int equipn =
-            (slot == -1)? prompt_invent_item("Remove which piece of jewellery?",
-                                             menu_type::invlist,
-                                             OBJ_JEWELLERY,
-                                             OPER_REMOVE,
-                                             invprompt_flag::no_warning
-                                                | invprompt_flag::hide_known)
-                        : slot;
+            (slot == -1) ? prompt_invent_item("Remove which piece of jewellery?",
+                                              menu_type::invlist,
+                                              OBJ_JEWELLERY,
+                                              OPER_REMOVE,
+                                              invprompt_flag::no_warning
+                                                  | invprompt_flag::hide_known)
+                         : slot;
 
         if (prompt_failed(equipn))
             return false;
@@ -3756,66 +3778,58 @@ void tile_item_use(int idx)
     // Use it
     switch (type)
     {
-        case OBJ_WEAPONS:
-        case OBJ_STAVES:
-        case OBJ_MISCELLANY:
-        case OBJ_WANDS:
-            // Wield any unwielded item of these types.
-            if (!equipped && item_is_wieldable(item))
-            {
-                wield_weapon(true, idx);
-                return;
-            }
-            // Evoke misc. items or wands.
-            if (item_is_evokable(item, false))
-            {
-                evoke_item(idx);
-                return;
-            }
-            // Unwield wielded items.
-            if (equipped)
-                wield_weapon(true, SLOT_BARE_HANDS);
+    case OBJ_WEAPONS:
+    case OBJ_STAVES:
+    case OBJ_MISCELLANY:
+    case OBJ_WANDS:
+        // Wield any unwielded item of these types.
+        if (!equipped && item_is_wieldable(item))
+        {
+            wield_weapon(true, idx);
             return;
+        }
+        // Evoke misc. items or wands.
+        if (item_is_evokable(item, false))
+        {
+            evoke_item(idx);
+            return;
+        }
+        // Unwield wielded items.
+        if (equipped)
+            wield_weapon(true, SLOT_BARE_HANDS);
+        return;
 
-        case OBJ_MISSILES:
-            if (check_warning_inscriptions(item, OPER_FIRE))
-                quiver::slot_to_action(idx)->trigger(); // TODO: anything more interesting?
-            return;
+    case OBJ_MISSILES:
+        if (check_warning_inscriptions(item, OPER_FIRE))
+            quiver::slot_to_action(idx)->trigger(); // TODO: anything more interesting?
+        return;
 
-        case OBJ_ARMOUR:
-            if (!form_can_wear())
-            {
-                mpr("You can't wear or remove anything in your present form.");
-                return;
-            }
-            if (equipped && !equipped_weapon)
-            {
-                if (check_warning_inscriptions(item, OPER_TAKEOFF))
-                    takeoff_armour(idx);
-            }
-            else if (check_warning_inscriptions(item, OPER_WEAR))
-                wear_armour(idx);
-            return;
+    case OBJ_ARMOUR:
+        if (equipped && !equipped_weapon)
+            takeoff_armour(idx);
+        else
+            wear_armour(idx);
+        return;
 
-        case OBJ_SCROLLS:
-            if (check_warning_inscriptions(item, OPER_READ))
-                read(&you.inv[idx]);
-            return;
+    case OBJ_SCROLLS:
+        if (check_warning_inscriptions(item, OPER_READ))
+            read(&you.inv[idx]);
+        return;
 
-        case OBJ_JEWELLERY:
-            if (equipped && !equipped_weapon)
-                remove_ring(idx);
-            else if (check_warning_inscriptions(item, OPER_PUTON))
-                puton_ring(idx);
-            return;
+    case OBJ_JEWELLERY:
+        if (equipped && !equipped_weapon)
+            remove_ring(idx);
+        else
+            puton_ring(idx);
+        return;
 
-        case OBJ_POTIONS:
-            if (check_warning_inscriptions(item, OPER_QUAFF))
-                drink(&you.inv[idx]);
-            return;
+    case OBJ_POTIONS:
+        if (check_warning_inscriptions(item, OPER_QUAFF))
+            drink(&you.inv[idx]);
+        return;
 
-        default:
-            return;
+    default:
+        return;
     }
 }
 #endif

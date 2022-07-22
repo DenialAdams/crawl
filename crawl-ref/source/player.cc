@@ -1849,20 +1849,6 @@ int player_movement_speed()
     return mv;
 }
 
-/**
- * Multiply the power of some evocation per the player's current evocations
- * enhancers.
- *
- * @param power         The base power of the evocation.
- * @param enhancers     Bonus enhancers to evocations (pak device surge).
- * @return              A modified power value.
- */
-int player_adjust_evoc_power(const int power, int enhancers)
-{
-    const int total_enhancers = you.spec_evoke() + enhancers;
-    return stepdown_spellpower(100 *apply_enhancement(power, total_enhancers));
-}
-
 // This function differs from the above in that it's used to set the
 // initial time_taken value for the turn. Everything else (movement,
 // spellcasting, combat) applies a ratio to this value.
@@ -3963,9 +3949,6 @@ bool player_regenerates_mp()
     // Don't let DD use guardian spirit for free HP, since their
     // damage shaving is enough. (due, dpeg)
     if (you.spirit_shield() && you.species == SP_DEEP_DWARF)
-        return false;
-    // Pakellas blocks MP regeneration.
-    if (have_passive(passive_t::no_mp_regen) || player_under_penance(GOD_PAKELLAS))
         return false;
 #endif
     return true;

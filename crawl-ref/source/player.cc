@@ -2348,11 +2348,13 @@ static void _reduce_abyss_xp_timer(int exp)
         max(min((int)exp_needed(you.experience_level+1, 0) / 7,
                 you.experience_level * 425),
             you.experience_level*2 + 15) / 5;
+    // Reduce abyss exit spawns in the Deep Abyss (J:6+) to preserve challenge.
+    const int depth_factor = max(1, you.depth - 4);
 
     if (!you.props.exists(ABYSS_STAIR_XP_KEY))
         you.props[ABYSS_STAIR_XP_KEY] = EXIT_XP_COST;
     const int reqd_xp = you.props[ABYSS_STAIR_XP_KEY].get_int();
-    const int new_req = reqd_xp - div_rand_round(exp, xp_factor);
+    const int new_req = reqd_xp - div_rand_round(exp, xp_factor * depth_factor);
     dprf("reducing xp timer from %d to %d (factor = %d)",
          reqd_xp, new_req, xp_factor);
     you.props[ABYSS_STAIR_XP_KEY].get_int() = new_req;
@@ -3968,7 +3970,7 @@ int get_contamination_level()
         return 4;
     if (glow > 5000)
         return 3;
-    if (glow > 3500) // An indicator that using another contamination-causing
+    if (glow > 3000) // An indicator that using another contamination-causing
         return 2;    // ability might risk causing yellow glow.
     if (glow > 0)
         return 1;
@@ -7079,7 +7081,7 @@ bool player::visible_to(const actor *looker) const
 /**
  * Is the player backlit?
  *
- * @param self_halo If true, ignore the player's self-halo.
+ * @param self_halo If false, ignore the player's self-halo.
  * @param temp If true, include temporary sources of being backlit.
  * @returns True if the player is backlit.
 */

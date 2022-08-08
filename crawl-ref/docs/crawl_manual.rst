@@ -1746,14 +1746,6 @@ Ogres (Og)
   sophisticated forms of missile combat are awkward for them. They are, however,
   good at throwing things, in particular boulders.
 
-Meteorae (Me)
-  Meteorae are the people of the heavens, fallen to earth. They possess exceptional
-  skills, an uncanny sense for the space around them, and the ability to recover
-  health and magic as they explore the dungeon. However, as creatures clearly not
-  native to the world, they are easy prey for the dark forces that hunt adventurers
-  - they have one-tenth as much time as normal before Zot finds them. (See the
-  section on 'Zot' for more.)
-
 Advanced Species
 ================
 
@@ -1886,6 +1878,14 @@ Barachim (Ba)
   allow them to leap great distances. When not leaping, they are somewhat
   slow-moving, and the long sight-lines that their heritage creates can be a
   major disadvantage, but they can master almost any skill.
+
+Meteorae (Me)
+  Meteorae are the people of the heavens, fallen to earth. They possess exceptional
+  skills, an uncanny sense for the space around them, and the ability to recover
+  health and magic as they explore the dungeon. However, as creatures clearly not
+  native to the world, they are easy prey for the dark forces that hunt adventurers
+  - they have one-tenth as much time as normal before Zot finds them. (See the
+  section on 'Zot' for more.)
 
 Mummies (Mu)
   These are undead creatures who travel into the depths in search of revenge,
@@ -2066,7 +2066,7 @@ Arcane Marksmen
   Arcane Marksmen are Hunters who use debilitating spells to assist their ranged
   attacks. They are particularly good at keeping their enemies at a distance.
   They begin the game with a sling, some spells to support its use, a scroll of
-  vulnerability to help those spells, and a robe.
+  poison to keep foes at a distance, and a robe.
 
 Enchanters
   The Enchanter specialises in the subtle art of hexes. Instead of directly

@@ -196,23 +196,35 @@ public:
     SpellMenu()
         : ToggleableMenu(MF_SINGLESELECT | MF_ANYPRINTABLE
             | MF_NO_WRAP_ROWS | MF_ALLOW_FORMATTING
-            | MF_ARROWS_SELECT | MF_INIT_HOVER | MF_PRESELECTED) {}
+            | MF_ARROWS_SELECT | MF_INIT_HOVER) {}
 protected:
-    virtual void select_items(int key, int qty = -1) override
+    bool process_command(command_type c) override
     {
-        // If menu_arrow_control is false, cast the last-cast spell on <enter>
-        if (!(flags & MF_ARROWS_SELECT) && key == CK_ENTER)
+        get_selected(&sel);
+        // if there's a preselected item, and no current selection, select it.
+        // for arrow selection, the hover starts on the preselected item so no
+        // special handling is needed.
+        if (menu_action == ACT_EXECUTE && c == CMD_MENU_SELECT
+            && !(flags & MF_ARROWS_SELECT) && sel.empty())
         {
             for (size_t i = 0; i < items.size(); ++i)
             {
                 if (static_cast<SpellMenuEntry*>(items[i])->preselected)
                 {
-                    select_index(i, qty);
-                    return;
+                    select_index(i, 1);
+                    break;
                 }
             }
         }
-        ToggleableMenu::select_items(key, qty);
+        return ToggleableMenu::process_command(c);
+    }
+
+    bool examine_index(int i) override
+    {
+        ASSERT(i >= 0 && i < static_cast<int>(items.size()));
+        if (items[i]->hotkeys.size())
+            describe_spell(get_spell_by_letter(items[i]->hotkeys[0]), nullptr);
+        return true;
     }
 };
 
@@ -237,19 +249,24 @@ int list_spells(bool toggle_with_I, bool viewing, bool allow_preselect,
     }
     spell_menu.set_highlighter(nullptr);
     spell_menu.set_tag("spell");
-    spell_menu.add_toggle_key('!');
+    // TODO: add toggling to describe mode with `?`, add help string, etc...
+    spell_menu.add_toggle_from_command(CMD_MENU_CYCLE_MODE);
+    spell_menu.add_toggle_from_command(CMD_MENU_CYCLE_MODE_REVERSE);
 
-    string more_str = "<lightgrey>Press '<w>!</w>' ";
+    string more_str = make_stringf("<lightgrey>Select a spell to %s</lightgrey>",
+        (viewing ? "describe" : "cast"));
+    string toggle_desc = menu_keyhelp_cmd(CMD_MENU_CYCLE_MODE);
     if (toggle_with_I)
     {
+        // why `I`?
         spell_menu.add_toggle_key('I');
-        more_str += "or '<w>I</w>' ";
+        toggle_desc += "/[<w>I</w>]";
     }
-    // TODO: should allow toggling between execute and examine
-    if (!viewing)
-        spell_menu.menu_action = Menu::ACT_EXECUTE;
-    more_str += "to toggle spell view.</lightgrey>";
+    toggle_desc += " toggle spell headers";
+    more_str = pad_more_with(more_str, toggle_desc);
     spell_menu.set_more(formatted_string::parse_string(more_str));
+    // TODO: should allow toggling between execute and examine
+    spell_menu.menu_action = viewing ? Menu::ACT_EXAMINE : Menu::ACT_EXECUTE;
 
     int initial_hover = 0;
     for (int i = 0; i < 52; ++i)
@@ -279,19 +296,11 @@ int list_spells(bool toggle_with_I, bool viewing, bool allow_preselect,
     spell_menu.set_hovered(initial_hover);
 
     int choice = 0;
-    spell_menu.on_single_selection = [&choice, &spell_menu](const MenuEntry& item)
+    spell_menu.on_single_selection = [&choice](const MenuEntry& item)
     {
         ASSERT(item.hotkeys.size() == 1);
-        if (spell_menu.menu_action == Menu::ACT_EXAMINE)
-        {
-            describe_spell(get_spell_by_letter(item.hotkeys[0]), nullptr);
-            return true;
-        }
-        else
-        {
-            choice = item.hotkeys[0];
-            return false;
-        }
+        choice = item.hotkeys[0];
+        return false;
     };
 
     spell_menu.show();
@@ -1306,6 +1315,7 @@ unique_ptr<targeter> find_spell_targeter(spell_type spell, int pow, int range)
 
     // LOS radius:
     case SPELL_OZOCUBUS_REFRIGERATION:
+        return make_unique<targeter_refrig>(&you);
     case SPELL_OLGREBS_TOXIC_RADIANCE:
         return make_unique<targeter_maybe_radius>(&you, LOS_NO_TRANS,
                                                   LOS_RADIUS, 0, 1);
@@ -2426,10 +2436,6 @@ static spret _do_cast(spell_type spell, int powc, const dist& spd,
     case SPELL_DRAIN_LIFE:
         return spret::none;
 
-    case SPELL_SANDBLAST:
-        you.time_taken *= 2;
-        break; // fallthrough to zaps
-
     default:
         if (spell_removed(spell))
         {
@@ -2443,8 +2449,12 @@ static spret _do_cast(spell_type spell, int powc, const dist& spd,
     zap_type zap = spell_to_zap(spell);
     if (zap != NUM_ZAPS)
     {
-        return zapping(zap, spell_zap_power(spell, powc), beam, true, nullptr,
-                       fail);
+        const spret zap_effect = zapping(zap, spell_zap_power(spell, powc),
+                                         beam, true, nullptr, fail);
+        if (zap_effect == spret::success && spell == SPELL_SANDBLAST)
+            you.time_taken *= 2;
+
+        return zap_effect;
     }
 
     return spret::none;
@@ -2745,8 +2755,8 @@ string spell_damage_string(spell_type spell, bool evoked)
         }
         case SPELL_AIRSTRIKE:
         {
-            int max = airstrike_base_max_damage(_spell_power(spell, evoked));
-            return make_stringf("0-%d+", max);
+            dice_def dice = base_airstrike_damage(_spell_power(spell, evoked));
+            return describe_airstrike_dam(dice);
         }
         default:
             break;

@@ -336,7 +336,7 @@ bool i_feel_safe(bool announce, bool want_move, bool just_monsters,
     return false;
 }
 
-bool can_rest_here()
+bool can_rest_here(bool announce)
 {
     // XXX: consider doing a check for whether your regen is *ever* inhibited
     // before iterating over each monster.
@@ -356,7 +356,8 @@ bool can_rest_here()
     if (announcement.empty())
         return true;
 
-    _announce_monsters(announcement, visible);
+    if (announce)
+        _announce_monsters(announcement, visible);
     return false;
 }
 
@@ -479,7 +480,7 @@ void revive()
     you.attribute[ATTR_DIVINE_STAMINA] = 0;
     you.attribute[ATTR_DIVINE_SHIELD] = 0;
     if (you.form != transformation::none)
-        untransform();
+        untransform(true);
     you.clear_beholders();
     you.clear_fearmongers();
     you.attribute[ATTR_DIVINE_DEATH_CHANNEL] = 0;

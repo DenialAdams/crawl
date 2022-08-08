@@ -659,7 +659,7 @@ static monsterentry mondata[] =
 // nonbase draconians ('q')
 // Nonbase draconian AC and EV is additive with the base type.
 {
-    MONS_DRACONIAN_STORMCALLER, 'q', BROWN, "draconian stormcaller",
+    MONS_DRACONIAN_STORMCALLER, 'q', WHITE, "draconian stormcaller",
     M_COLD_BLOOD | M_SPEAKS,
     MR_NO_FLAGS,
     10, MONS_DRACONIAN, MONS_DRACONIAN, MH_NATURAL, 40,
@@ -673,7 +673,7 @@ static monsterentry mondata[] =
 },
 
 {
-    MONS_DRACONIAN_MONK, 'q', BLUE, "draconian monk",
+    MONS_DRACONIAN_MONK, 'q', LIGHTGREEN, "draconian monk",
     M_FIGHTER | M_COLD_BLOOD | M_SPEAKS,
     MR_NO_FLAGS,
     10, MONS_DRACONIAN, MONS_DRACONIAN, MH_NATURAL, 40,
@@ -688,7 +688,7 @@ static monsterentry mondata[] =
 },
 
 {
-    MONS_DRACONIAN_SHIFTER, 'q', LIGHTCYAN, "draconian shifter",
+    MONS_DRACONIAN_SHIFTER, 'q', LIGHTMAGENTA, "draconian shifter",
     M_COLD_BLOOD | M_SPEAKS,
     MR_NO_FLAGS,
     10, MONS_DRACONIAN, MONS_DRACONIAN, MH_NATURAL, 40,
@@ -702,7 +702,7 @@ static monsterentry mondata[] =
 },
 
 {
-    MONS_DRACONIAN_ANNIHILATOR, 'q', LIGHTBLUE, "draconian annihilator",
+    MONS_DRACONIAN_ANNIHILATOR, 'q', YELLOW, "draconian annihilator",
     M_COLD_BLOOD | M_SPEAKS,
     MR_NO_FLAGS,
     10, MONS_DRACONIAN, MONS_DRACONIAN, MH_NATURAL, 40,
@@ -716,7 +716,7 @@ static monsterentry mondata[] =
 },
 
 {
-    MONS_DRACONIAN_KNIGHT, 'q', CYAN, "draconian knight",
+    MONS_DRACONIAN_KNIGHT, 'q', LIGHTBLUE, "draconian knight",
     M_FIGHTER | M_COLD_BLOOD | M_SPEAKS,
     MR_NO_FLAGS,
     10, MONS_DRACONIAN, MONS_DRACONIAN, MH_NATURAL, 40,
@@ -4132,7 +4132,7 @@ DUMMY(MONS_MERGED_SLIME_CREATURE, 'J', LIGHTGREEN, "merged slime creature",
     16, 0, MST_STARFLOWER, false, S_GURGLE,
     I_BRAINLESS, HT_LAND, 10, DEFAULT_ENERGY,
     MONUSE_NOTHING, SIZE_MEDIUM, MON_SHAPE_PLANT,
-    {TILEP_MONS_STARFLOWER}, TILE_ERROR
+    {TILEP_MONS_STARFLOWER, TVARY_CYCLE}, TILE_ERROR
 },
 
 {

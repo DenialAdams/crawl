@@ -1178,6 +1178,24 @@ static void _append_skill_target_desc(string &description, skill_type skill,
     }
 }
 
+static int _get_delay(const item_def &item)
+{
+    if (!is_range_weapon(item))
+        return you.attack_delay_with(nullptr, false, &item).expected();
+    item_def fake_proj;
+    populate_fake_projectile(item, fake_proj);
+    return you.attack_delay_with(&fake_proj, false, &item).expected();
+}
+
+static string _desc_attack_delay(const item_def &item)
+{
+    const int base_delay = property(item, PWPN_SPEED);
+    const int cur_delay = _get_delay(item);
+    if (base_delay == cur_delay)
+        return "";
+    return make_stringf("\n    Current attack delay: %.1f.", (float)cur_delay / 10);
+}
+
 static string _describe_brand(brand_type brand)
 {
     switch (brand) {
@@ -1355,7 +1373,10 @@ static void _append_weapon_stats(string &description, const item_def &item)
     }
 
     if (want_player_stats)
+    {
+        description += _desc_attack_delay(item);
         description += _damage_rating(item);
+    }
 }
 
 static string _handedness_string(const item_def &item)
@@ -1904,7 +1925,8 @@ static const char* _item_ego_desc(special_armour_type ego)
                "their magic.";
     case SPARM_LIGHT:
         return "it surrounds the wearer with a glowing halo, revealing "
-               "invisible creatures and reducing evasion.";
+               "invisible creatures and increasing accuracy against all within "
+               "it other than the wearer.";
     case SPARM_RAGE:
         return "it berserks the wearer when making melee attacks (20% chance).";
     case SPARM_MAYHEM:
@@ -4379,12 +4401,8 @@ static string _monster_attacks_description(const monster_info& mi)
         const mon_attack_info &info = attack_count.first;
         const mon_attack_def &attack = info.definition;
 
-        const string weapon_name =
-              info.weapon ? info.weapon->name(DESC_PLAIN).c_str()
-            : ghost_brand_name(special_flavour, mi.type).c_str();
-        const string weapon_note = weapon_name.size() ?
-            make_stringf(" plus %s %s",
-                        mi.pronoun(PRONOUN_POSSESSIVE), weapon_name.c_str())
+        const string weapon_note = info.weapon ?
+            make_stringf(" with %s weapon", mi.pronoun(PRONOUN_POSSESSIVE))
             : "";
 
         const string count_desc =
@@ -4403,14 +4421,26 @@ static string _monster_attacks_description(const monster_info& mi)
         }
 
         int dam = attack.damage;
+        if (info.weapon)
+        {
+            dam += property(*info.weapon, PWPN_DAMAGE);
+            // Enchant is rolled separately, so doesn't change the max.
+            if (info.weapon->plus > 0)
+                dam += info.weapon->plus;
+        }
+
+        const brand_type brand = info.weapon ? get_weapon_brand(*info.weapon)
+                                             : special_flavour;
+        const string brand_desc = _describe_brand(brand);
 
         // Damage is listed in parentheses for attacks with a flavour
         // description, but not for plain attacks.
         bool has_flavour = !_flavour_base_desc(attack.flavour).empty();
         const string damage_desc =
-            make_stringf("%sfor up to %d damage%s%s%s",
+            make_stringf("%sfor up to %d damage%s%s%s%s",
                          has_flavour ? "(" : "",
                          dam,
+                         brand_desc.c_str(),
                          attack_count.second > 1 ? " each" : "",
                          weapon_note.c_str(),
                          has_flavour ? ")" : "");

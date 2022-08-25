@@ -210,6 +210,7 @@ HOST := $(shell sh -c 'cc -dumpmachine || echo unknown')
 ARCH := $(HOST)
 
 ifdef CROSSHOST
+	# XX is there a way of integrating this with mac cross-compiling?
 	ARCH := $(CROSSHOST)
 	ifneq (,$(shell which $(ARCH)-pkg-config 2>/dev/null))
 	  PKGCONFIG = $(ARCH)-pkg-config
@@ -330,6 +331,7 @@ endif
 # Should be the first rule, but must come after $(GAME) is set.
 all: greet check-fonts $(GAME) docs webserver
 
+# XX these are set wrong on mac cross-compiling
 LIBPCRE := contrib/install/$(ARCH)/lib/libpcre.a
 LIBSDL2 := contrib/install/$(ARCH)/lib/libSDL2.a
 LIBPNG := contrib/install/$(ARCH)/lib/libpng.a
@@ -485,12 +487,15 @@ CC += -gcc-name=gcc-$(GCC_VER) -gxx-name=g++-$(GCC_VER)
 CXX += -gcc-name=gcc-$(GCC_VER) -gxx-name=g++-$(GCC_VER)
 endif
 
+ifdef BUILD_OLD_UNIVERSAL
+# XX remove?
 ifndef CROSSHOST
 # Don't need a universal build of host tools, so use DEPCC.
 HOSTCC = $(DEPCC)
 HOSTCXX = $(DEPCXX)
 export HOSTCC
 export HOSTCXX
+endif
 endif
 
 endif # MacOS
@@ -1295,7 +1300,8 @@ TITLEIMGS = denzi_dragon denzi_kitchen_duty denzi_summoner \
             froggy_natasha_and_boris froggy_jiyva_felid \
             froggy_goodgod_tengu_gold Cws_Minotauros nibiki_octopode \
             e_m_fields sastrei_chei anon_octopus_wizard arbituhhh_tesu \
-            kaonedong_ignis_the_dying_flame kaonedong_menkaure_prince_of_dust
+            kaonedong_ignis_the_dying_flame kaonedong_menkaure_prince_of_dust \
+            philosopheropposite_palentonga_paladin
 
 STATICFILES = $(TILEIMAGEFILES:%=webserver/game_data/static/%.png) \
               webserver/static/stone_soup_icon-32x32.png \
@@ -1970,6 +1976,9 @@ package-windows-zips: package-windows-tiles package-windows-console
 # relative to my current knowledge of how this can be done: it requires
 # building binaries for each target and then merging them with the `lipo`
 # utility.
+
+# Note: cross-compiling tiles on mac requires pkg-config and libpng to be
+# installed, e.g. via homebrew
 
 # XX parameterise these in some less dumb way
 # these two targets rely heavily on passing flags to submakes

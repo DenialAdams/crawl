@@ -70,7 +70,8 @@ def handle_new_socket(path, event):
         try:
             process.connect(abspath)
         except ConnectionRefusedError:
-            self.logger.error("Crawl process socket connection refused for %s, socketpath '%s'.",
+            process.logger.error(
+                "Crawl process socket connection refused for %s, socketpath '%s'.",
                 game_info["id"], abspath, exc_info=True)
             del processes[abspath]
             return
@@ -690,6 +691,7 @@ class CrawlProcessHandler(CrawlProcessHandlerBase):
         self._process_hup_timeout = None
         self.handle_process_end()
 
+    @util.note_blocking_fun
     def _find_lock(self):
         for path in os.listdir(self.config_path("inprogress_path")):
             if (path.startswith(self.username + ":") and
@@ -823,8 +825,10 @@ class CrawlProcessHandler(CrawlProcessHandlerBase):
         self.conn = WebtilesSocketConnection(self.socketpath, self.logger)
         self.conn.message_callback = self._on_socket_message
         self.conn.close_callback = self._on_socket_close
+        self.conn.username = self.username
         self.conn.connect(primary)
 
+    @util.note_blocking_fun
     def gen_inprogress_lock(self):
         self.inprogress_lock = os.path.join(self.config_path("inprogress_path"),
                                             self.username + ":" + self.lock_basename)
@@ -835,6 +839,7 @@ class CrawlProcessHandler(CrawlProcessHandlerBase):
         f.write("%s\n%s\n%s\n" % (self.process.pid, lines, cols))
         f.flush()
 
+    @util.note_blocking_fun
     def remove_inprogress_lock(self):
         if self.inprogress_lock_file is None: return
         fcntl.lockf(self.inprogress_lock_file.fileno(), fcntl.LOCK_UN)

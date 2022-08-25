@@ -1563,7 +1563,7 @@ bool Scroller::on_event(const Event& event)
     if (event.type() == Event::Type::KeyDown)
     {
         const auto key = numpad_to_regular(
-                                    static_cast<const KeyEvent&>(event).key());
+                            static_cast<const KeyEvent&>(event).key(), true);
         // TODO: use CMD_MENU bindings here?
         switch (key)
         {
@@ -2171,7 +2171,6 @@ void TextEntry::LineReader::killword()
 
     bool foundwc = false;
     char *word = cur;
-    int ew = 0;
     while (1)
     {
         char *np = prev_glyph(word, buffer);
@@ -2186,7 +2185,6 @@ void TextEntry::LineReader::killword()
             break;
 
         word = np;
-        ew += wcwidth(c);
     }
     memmove(word, cur, strlen(cur) + 1);
     length -= cur - word;

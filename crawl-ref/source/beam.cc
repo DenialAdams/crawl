@@ -186,9 +186,7 @@ static void _zap_animation(int colour, const monster* mon = nullptr,
         view_add_glyph_overlay(p, {dchar_glyph(DCHAR_FIRED_ZAP),
                                    static_cast<unsigned short>(colour)});
 #endif
-        viewwindow(false);
-        update_screen();
-        scaled_delay(50);
+        animation_delay(50, true);
     }
 }
 
@@ -798,16 +796,17 @@ void bolt::draw(const coord_def& p, bool force_refresh)
                                              : element_colour(colour);
     view_add_glyph_overlay(p, {glyph, c});
 #endif
+    // If reduce_animations is set, the redraw is unnecesary and
+    // should be done only once outside the loop calling the bolt::draw
+    if (Options.reduce_animations)
+        return;
+
     // to avoid redraws, set force_refresh = false, and draw_delay = 0. This
     // will still force a refresh if there is a draw_delay regardless of the
     // param, because a delay on drawing is pretty meaningless without a
     // redraw.
     if (force_refresh || draw_delay > 0)
-    {
-        viewwindow(false);
-        update_screen();
-        scaled_delay(draw_delay);
-    }
+        animation_delay(draw_delay, true);
 }
 
 // Bounce a bolt off a solid feature.
@@ -1364,6 +1363,10 @@ void bolt::do_fire()
     // Tracers need nothing further.
     if (is_tracer || affects_nothing)
         return;
+
+    // final delay for any draws that happened in the above loop
+    if (animate && Options.reduce_animations)
+        animation_delay(15 + draw_delay, true);
 
     // Canned msg for enchantments that affected no-one, but only if the
     // enchantment is yours (and it wasn't a chaos beam, since with chaos
@@ -2597,6 +2600,7 @@ void bolt::affect_ground()
         return;
 
     affect_place_clouds();
+
 }
 
 bool bolt::is_fiery() const
@@ -2664,9 +2668,9 @@ void bolt::affect_place_clouds()
     // Is there already a cloud here?
     if (cloud_struct* cloud = cloud_at(p))
     {
+        const bool hot_beam = flavour == BEAM_FIRE || flavour == BEAM_LAVA;
         // fire cancelling cold & vice versa
-        if ((cloud->type == CLOUD_COLD
-             && (flavour == BEAM_FIRE || flavour == BEAM_LAVA))
+        if ((cloud->type == CLOUD_COLD && hot_beam)
             || (cloud->type == CLOUD_FIRE && flavour == BEAM_COLD))
         {
             if (player_can_hear(p))
@@ -2674,7 +2678,11 @@ void bolt::affect_place_clouds()
 
             delete_cloud(p);
             extra_range_used += 5;
+            return;
         }
+        // blastspark explosions
+        if (cloud->type == CLOUD_BLASTSPARKS && hot_beam)
+            explode_blastsparks_at(p);
         return;
     }
 
@@ -2746,8 +2754,8 @@ void bolt::affect_place_explosion_clouds()
         const coord_def center = (aimed_at_feet ? source : ray.pos());
         if (p == center || x_chance_in_y(125 + ench_power, 225))
         {
-            place_cloud(CLOUD_MEPHITIC, p, roll_dice(2, 3 + ench_power / 20),
-                        agent());
+            place_cloud(CLOUD_MEPHITIC, p, roll_dice(2,
+                        2 + div_rand_round(ench_power, 20)), agent());
         }
     }
 
@@ -3124,7 +3132,8 @@ bool bolt::misses_player()
         return true;
 
     if ((is_explosion || auto_hit || aimed_at_feet)
-        && origin_spell != SPELL_CALL_DOWN_LIGHTNING)
+        && origin_spell != SPELL_CALL_DOWN_LIGHTNING
+        && origin_spell != SPELL_MOMENTUM_STRIKE)
     {
         return false;
     }
@@ -5600,9 +5609,12 @@ mon_resist_type bolt::apply_enchantment_to_monster(monster* mon)
         return MON_UNAFFECTED;
 
     case BEAM_SLOW:
-        obvious_effect = do_slow_monster(*mon, agent(),
-                                         ench_power * BASELINE_DELAY);
+    {
+        const int dur = 1 + div_rand_round(ench_power, 2)
+                          + random2(1 + ench_power);
+        obvious_effect = do_slow_monster(*mon, agent(), dur * BASELINE_DELAY);
         return MON_AFFECTED;
+    }
 
     case BEAM_HASTE:
         if (YOU_KILL(thrower))
@@ -5932,7 +5944,8 @@ mon_resist_type bolt::apply_enchantment_to_monster(monster* mon)
 
     case BEAM_INFESTATION:
     {
-        const int dur = (5 + random2avg(ench_power / 2, 2)) * BASELINE_DELAY;
+        const int dur = (5 + random2avg(div_rand_round(ench_power,2), 2))
+                            * BASELINE_DELAY;
         mon->add_ench(mon_enchant(ENCH_INFESTATION, 0, &you, dur));
         if (simple_monster_message(*mon, " is infested!"))
             obvious_effect = true;
@@ -6070,6 +6083,10 @@ const map<spell_type, explosion_sfx> spell_explosions = {
     { SPELL_FASTROOT, {
         "The roots erupt in riotous growth!",
         "creaking and crackling",
+    } },
+    { SPELL_BLASTSPARK, {
+        "The cloud of blastsparks explodes!",
+        "a concussive explosion",
     } },
 };
 
@@ -6280,11 +6297,7 @@ bool bolt::explode(bool show_more, bool hole_in_the_middle)
             // redraw for an entire explosion block, so redraw_per_cell is not
             // relevant
             if (pass_visible)
-            {
-                viewwindow(false);
-                update_screen();
-                scaled_delay(explode_delay);
-            }
+                animation_delay(explode_delay, !Options.reduce_animations);
         }
     }
 
@@ -6312,7 +6325,7 @@ bool bolt::explode(bool show_more, bool hole_in_the_middle)
 
     // Delay after entire explosion has been drawn.
     if (!is_tracer && cells_seen > 0 && show_more && animate)
-        scaled_delay(explode_delay * 3);
+        animation_delay(explode_delay * 3, Options.reduce_animations);
 
     return cells_seen > 0;
 }
@@ -6857,11 +6870,13 @@ int ench_power_stepdown(int pow)
     return stepdown(pow, 35);
 }
 
-/// Translate a given ench power to a duration, in aut.
+/// Translate a given ench power to a duration, in aut, and randomize it.
 int _ench_pow_to_dur(int pow)
 {
     // ~15 turns at 25 pow, ~21 turns at 50 pow, ~27 turns at 100 pow
-    return stepdown(pow * BASELINE_DELAY, 70);
+    int base_dur = stepdown(pow * BASELINE_DELAY, 70);
+
+    return div_rand_round(base_dur, 2) + random2(1 + base_dur);
 }
 
 // Do all beams skip past a particular monster?

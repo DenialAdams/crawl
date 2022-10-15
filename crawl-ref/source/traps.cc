@@ -1022,9 +1022,10 @@ dungeon_feature_type trap_feature(trap_type type)
 /***
  * Can a shaft be placed on the current level?
  *
+ * @param respect_brflags Whether brflag::no_shafts should be factored in.
  * @returns true if such a shaft can be placed.
  */
-bool is_valid_shaft_level()
+bool is_valid_shaft_level(bool respect_brflags)
 {
     // Important: We are sometimes called before the level has been loaded
     // or generated, so should not depend on properties of the level itself,
@@ -1038,17 +1039,22 @@ bool is_valid_shaft_level()
 
     const Branch &branch = branches[place.branch];
 
-    if (branch.branch_flags & brflag::no_shafts)
+    if (respect_brflags && branch.branch_flags & brflag::no_shafts)
         return false;
 
     // Don't allow shafts from the bottom of a branch.
     return (brdepth[place.branch] - place.depth) >= 1;
 }
 
-///
 static bool& _shafted_in(const Branch &branch)
 {
     return you.props[make_stringf("shafted_in_%s", branch.abbrevname)].get_bool();
+}
+
+/// Mark the player as having been shafted in the current branch.
+void set_shafted()
+{
+    _shafted_in(branches[you.where_are_you]) = true;
 }
 
 /**
@@ -1120,7 +1126,7 @@ void do_trap_effects()
             dprf("Attempting to shaft player.");
             _print_malev();
             if (you.do_shaft(false))
-                _shafted_in(branches[you.where_are_you]) = true;
+                set_shafted();
             break;
 
         case TRAP_ALARM:

@@ -37,6 +37,8 @@ static pair<spell_type, zap_type> _spl_zaps[] =
     { SPELL_MINDBURST, ZAP_MINDBURST },
     { SPELL_THROW_ICICLE, ZAP_THROW_ICICLE },
     { SPELL_VAMPIRIC_DRAINING, ZAP_VAMPIRIC_DRAINING },
+    { SPELL_BLASTSPARK, ZAP_BLASTSPARK },
+    { SPELL_KISS_OF_DEATH, ZAP_KISS_OF_DEATH },
     // Wizard mode only.
     { SPELL_PORKALATOR, ZAP_PORKALATOR },
     { SPELL_HURL_DAMNATION, ZAP_HURL_DAMNATION },
@@ -73,6 +75,7 @@ static pair<spell_type, zap_type> _spl_zaps[] =
     { SPELL_NECROTISE, ZAP_NECROTISE },
     { SPELL_BOLT_OF_LIGHT, ZAP_BOLT_OF_LIGHT },
     { SPELL_FASTROOT, ZAP_FASTROOT },
+    { SPELL_MOMENTUM_STRIKE, ZAP_MOMENTUM_STRIKE },
 
     // monster-specific
     { SPELL_SLUG_DART, ZAP_SLUG_DART },
@@ -180,8 +183,6 @@ int spell_zap_power(spell_type spell, int pow)
 {
     switch (spell)
     {
-    case SPELL_HIBERNATION:
-        return stepdown_value(pow * 9 / 10, 5, 35, 45, 50);
     default:
         return pow;
     }

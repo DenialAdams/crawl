@@ -640,7 +640,7 @@ monster_info::monster_info(const monster* m, int milev)
         // Applies to both friendlies and hostiles
         if (mons_is_fleeing(*m))
             mb.set(MB_FLEEING);
-        else if (mons_is_wandering(*m) && !mons_is_batty(*m))
+        else if (m->behaviour == BEH_WANDER)
         {
             if (m->is_stationary())
                 mb.set(MB_UNAWARE);
@@ -648,7 +648,7 @@ monster_info::monster_info(const monster* m, int milev)
                 mb.set(MB_WANDERING);
         }
         else if (m->foe == MHITNOT
-                 && !mons_is_batty(*m)
+                 && m->behaviour != BEH_BATTY
                  && m->attitude == ATT_HOSTILE)
         {
             mb.set(MB_UNAWARE);
@@ -721,6 +721,8 @@ monster_info::monster_info(const monster* m, int milev)
     }
     if (m->has_ghost_brand())
         props[SPECIAL_WEAPON_KEY] = m->ghost_brand();
+
+    ghost_colour = m->ghost ? m->ghost->colour : COLOUR_INHERIT;
 
     // book loading for player ghost and vault monsters
     spells.clear();

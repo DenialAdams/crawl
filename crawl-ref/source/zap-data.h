@@ -447,7 +447,7 @@ static const zap_info zap_data[] =
     "",
     100,
     nullptr,
-    new tohit_calculator<0, 3, 2>,
+    nullptr,
     nullptr,
     new tohit_calculator<0, 1, 3>,
     BLACK,
@@ -637,6 +637,23 @@ _mon_hex_zap(ZAP_TUKIMAS_DANCE, BEAM_TUKIMAS_DANCE, 100),
     0 // Noise comes from explosion
 },
 
+{
+    ZAP_BLASTSPARK,
+    "concussive blast",
+    50,
+    new calcdice_calculator<2, 20, 1, 3>,
+    new tohit_calculator<40>,
+    nullptr,
+    nullptr,
+    RED,
+    false,
+    BEAM_FIRE,
+    DCHAR_FIRED_ZAP,
+    false,
+    true,
+    0 // Noise comes from explosion
+},
+
 
 {
     ZAP_FLAME_WAVE,
@@ -738,6 +755,23 @@ _mon_hex_zap(ZAP_POLYMORPH, BEAM_POLYMORPH),
     BEAM_NEG,
     DCHAR_FIRED_ZAP,
     true,
+    false,
+    0 // Draining is soundless
+},
+
+{
+    ZAP_KISS_OF_DEATH,
+    "negative energy",
+    25,
+    new calcdice_calculator<2, 11, 3, 5>, // caps at 2d13... spooky
+    new tohit_calculator<AUTOMATIC_HIT>, // XXX: should we let this miss?
+    nullptr,
+    nullptr,
+    DARKGREY,
+    false,
+    BEAM_NEG,
+    DCHAR_FIRED_ZAP,
+    false,
     false,
     0 // Draining is soundless
 },
@@ -1278,6 +1312,23 @@ _mon_hex_zap(ZAP_HIBERNATION, BEAM_HIBERNATION),
 },
 
 {
+    ZAP_MOMENTUM_STRIKE,
+    "concentrated momentum",
+    50,
+    new calcdice_calculator<3, 24, 1, 6>,
+    new tohit_calculator<9, 1, 12>,
+    nullptr,
+    nullptr,
+    CYAN,
+    false,
+    BEAM_MMISSILE,
+    DCHAR_FIRED_ZAP,
+    false,
+    false,
+    4
+},
+
+{
     ZAP_POISON_ARROW,
     "poison arrow",
     200,
@@ -1753,7 +1804,7 @@ _mon_hex_zap(ZAP_DRAIN_MAGIC, BEAM_DRAIN_MAGIC),
     "hail",
     100,
     new calcdice_calculator<3, 10, 1, 2>,
-    new tohit_calculator<AUTOMATIC_HIT>,
+    new tohit_calculator<9, 1, 10>,
     nullptr,
     nullptr,
     ETC_ICE,

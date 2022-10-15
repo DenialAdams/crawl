@@ -1410,6 +1410,7 @@ bool vehumet_supports_spell(spell_type spell)
         || spell == SPELL_OLGREBS_TOXIC_RADIANCE
         || spell == SPELL_VIOLENT_UNRAVELLING
         || spell == SPELL_INNER_FLAME
+        || spell == SPELL_BLASTSPARK
         || spell == SPELL_IGNITION
         || spell == SPELL_FROZEN_RAMPARTS
         || spell == SPELL_MAXWELLS_COUPLING
@@ -1985,26 +1986,18 @@ static void _run_time_step()
 // to the player safely.
 void cheibriados_temporal_distortion()
 {
-    const coord_def old_pos = you.pos();
-
     you.duration[DUR_TIME_STEP] = 3 + random2(3);
-    you.moveto(coord_def(0, 0));
 
-    _run_time_step();
-
-    you.los_noise_level = 0;
-    you.los_noise_last_turn = 0;
-
-    if (monster *mon = monster_at(old_pos))
     {
-        mon->props[FAKE_BLINK_KEY].get_bool() = true;
-        mon->blink();
-        mon->props.erase(FAKE_BLINK_KEY);
-        if (monster *stubborn = monster_at(old_pos))
-            monster_teleport(stubborn, true, true);
+        player_vanishes absent;
+
+        _run_time_step();
+
+        // why only here and not for step from time?
+        you.los_noise_level = 0;
+        you.los_noise_last_turn = 0;
     }
 
-    you.moveto(old_pos);
     you.duration[DUR_TIME_STEP] = 0;
 
     mpr("You warp the flow of time around you!");
@@ -2012,32 +2005,22 @@ void cheibriados_temporal_distortion()
 
 void cheibriados_time_step(int pow) // pow is the number of turns to skip
 {
-    const coord_def old_pos = you.pos();
-
     mpr("You step out of the flow of time.");
     flash_view(UA_PLAYER, LIGHTBLUE);
     you.duration[DUR_TIME_STEP] = pow;
-    you.moveto(coord_def(0, 0));
+    {
+        player_vanishes absent(true);
 
-    you.time_taken = 10;
-    _run_time_step();
-    // Update corpses, etc.
-    update_level(pow * 10);
+        you.time_taken = 10;
+        _run_time_step();
+        // Update corpses, etc.
+        update_level(pow * 10);
 
 #ifndef USE_TILE_LOCAL
-    scaled_delay(1000);
+        scaled_delay(1000);
 #endif
 
-    if (monster *mon = monster_at(old_pos))
-    {
-        mon->props[FAKE_BLINK_KEY].get_bool() = true;
-        mon->blink();
-        mon->props.erase(FAKE_BLINK_KEY);
-        if (monster *stubborn = monster_at(old_pos))
-            monster_teleport(stubborn, true, true);
     }
-
-    you.moveto(old_pos);
     you.duration[DUR_TIME_STEP] = 0;
 
     flash_view(UA_PLAYER, 0);
@@ -3297,14 +3280,12 @@ spret qazlal_upheaval(coord_def target, bool quiet, bool fail, dist *player_targ
     for (coord_def pos : affected)
         beam.draw(pos, false);
 
+    // When `quiet`, refresh the view after each complete draw pass. Add a bit
+    // of delay even for this, otherwise it goes by too quickly.
     if (quiet)
     {
-        // When `quiet`, refresh the view after each complete draw pass.
-        // why this call dance to refresh? I just copied it from bolt::draw
-        viewwindow(false);
-        update_screen();
-        scaled_delay(50); // add some delay per upheaval draw, otherwise it all
-                          // goes by too fast.
+        if (!Options.reduce_animations)
+            animation_delay(50, true);
     }
     else
     {
@@ -3497,7 +3478,9 @@ spret qazlal_disaster_area(bool fail)
         targets.erase(targets.begin() + which);
         weights.erase(weights.begin() + which);
     }
-    scaled_delay(200);
+    // possibly this delay should be slightly increased if reduce_animations is
+    // true?
+    animation_delay(200, Options.reduce_animations);
 
     return spret::success;
 }
@@ -5602,7 +5585,7 @@ bool wu_jian_can_wall_jump_in_principle(const coord_def& target)
 {
     if (!have_passive(passive_t::wu_jian_wall_jump)
         || !feat_can_wall_jump_against(env.grid(target))
-        || you.is_stationary()
+        || !you.is_motile()
         || you.digging)
     {
         return false;

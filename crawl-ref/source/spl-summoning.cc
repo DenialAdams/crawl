@@ -268,7 +268,7 @@ spret cast_summon_hydra(actor *caster, int pow, god_type god, bool fail)
     // Power determines number of heads. Minimum 4 heads, maximum 12.
     // Rare to get more than 8.
     const int maxheads = one_chance_in(6) ? 12 : 8;
-    const int heads = max(4, min(random2(pow) / 6, maxheads));
+    const int heads = max(4, min(div_rand_round(random2(1 + pow), 6), maxheads));
 
     // Duration is always very short - just 1.
     mgen_data mg = _summon_data(*caster, MONS_HYDRA, 1, god,
@@ -316,7 +316,8 @@ spret cast_dragon_call(int pow, bool fail)
     mpr("You call out to the draconic realm, and the dragon horde roars back!");
     noisy(spell_effect_noise(SPELL_DRAGON_CALL), you.pos());
 
-    you.duration[DUR_DRAGON_CALL] = (15 + pow / 5 + random2(15)) * BASELINE_DELAY;
+    you.duration[DUR_DRAGON_CALL] = (15 + div_rand_round(pow, 5) + random2(15))
+                                    * BASELINE_DELAY;
     you.props[DRAGON_CALL_POWER_KEY].get_int() = pow;
 
     return spret::success;
@@ -1064,9 +1065,12 @@ spret summon_butterflies()
     }
 
     // XXX: dedup with Xom, or change number?
-    const int how_many = random_range(10, 20);
+
+    // place some in a tight cluster, distance 2. Max 24 squares, so this is
+    // always at least 2/3 density.
+    const int how_many_inner = random_range(16, 22);
     bool success = false;
-    for (int i = 0; i < how_many; ++i)
+    for (int i = 0; i < how_many_inner; ++i)
     {
         mgen_data butterfly(MONS_BUTTERFLY, BEH_FRIENDLY, you.pos(), MHITYOU,
                             MG_AUTOFOE);
@@ -1075,6 +1079,24 @@ spret summon_butterflies()
         if (create_monster(butterfly))
             success = true;
     }
+    // place another set more sparsely. These will try to find a placement
+    // within range 3 of the player. If that place is already filled, they will
+    // go as far as 2 from that original spot. This can backfill the inner
+    // zone.
+    const int how_many_outer = random_range(12, 28);
+    for (int i = 0; i < how_many_outer; ++i)
+    {
+        coord_def pos(-1,-1);
+        if (!find_habitable_spot_near(you.pos(), MONS_BUTTERFLY, 3, false, pos))
+            break;
+        mgen_data butterfly(MONS_BUTTERFLY, BEH_FRIENDLY, pos, MHITYOU,
+                            MG_AUTOFOE);
+        butterfly.set_summoned(&you, 3, MON_SUMM_BUTTERFLIES);
+
+        if (create_monster(butterfly))
+            success = true;
+    }
+
 
     if (!success)
         canned_msg(MSG_NOTHING_HAPPENS);
@@ -1471,6 +1493,7 @@ static spell_type servitor_spells[] =
     SPELL_BOLT_OF_COLD, // left in for frederick
     SPELL_LIGHTNING_BOLT,
     SPELL_FIREBALL,
+    SPELL_ARCJOLT,
     SPELL_STONE_ARROW,
     SPELL_LRD,
     SPELL_AIRSTRIKE,
@@ -1651,8 +1674,9 @@ spret cast_battlesphere(actor* agent, int pow, god_type god, bool fail)
         battlesphere->battlecharge = min(20, (int) battlesphere->battlecharge
                                               + 4 + random2(pow + 10) / 10);
 
-        // Increase duration
+        // Increase duration and update HD
         mon_enchant abj = battlesphere->get_ench(ENCH_FAKE_ABJURATION);
+        battlesphere->set_hit_dice(_battlesphere_hd(pow));
         abj.duration = min(abj.duration + (7 + roll_dice(2, pow)) * 10, 500);
         battlesphere->update_ench(abj);
     }
@@ -2533,9 +2557,9 @@ spret fedhas_grow_oklob(const coord_def& target, bool fail)
 
 void kiku_unearth_wretches()
 {
-    const int pow = you.skill(SK_NECROMANCY, 6);
-    const int min_wretches = 2;
-    const int max_wretches = min_wretches + div_rand_round(pow, 27); // 8 max
+    const int pow = you.skill(SK_NECROMANCY, 5);
+    const int min_wretches = 1 + random2(2);
+    const int max_wretches = min_wretches + div_rand_round(pow, 27); // 7 max
     const int wretches = random_range(min_wretches, max_wretches);
     bool created = false;
     for (int i = 0; i < wretches; ++i)

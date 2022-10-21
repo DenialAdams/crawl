@@ -2755,7 +2755,7 @@ static void _rebrand_weapon(item_def& wpn)
         {
             new_brand = random_choose_weighted(3, SPWPN_FLAMING,
                                                3, SPWPN_FREEZING,
-                                               3, SPWPN_VENOM,
+                                               3, SPWPN_DRAINING,
                                                3, SPWPN_VORPAL,
                                                1, SPWPN_ELECTROCUTION,
                                                1, SPWPN_CHAOS);
@@ -3573,7 +3573,8 @@ void read(item_def* scroll, dist *target)
     // For cancellable scrolls leave printing this message to their
     // respective functions.
     const string pre_succ_msg =
-            make_stringf("As you read the %s, it crumbles to dust.",
+            make_stringf("As you%s read the %s, it crumbles to dust.",
+                         you.has_mutation(MUT_AWKWARD_TONGUE) ? " slowly" : "",
                           scroll->name(DESC_QUALNAME).c_str());
     if (!_is_cancellable_scroll(which_scroll))
     {

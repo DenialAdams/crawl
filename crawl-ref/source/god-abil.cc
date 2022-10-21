@@ -1848,23 +1848,6 @@ bool fedhas_passthrough(const monster_info* target)
                || target->attitude != ATT_HOSTILE);
 }
 
-static bool _lugonu_warp_monster(monster& mon)
-{
-    // XXX: should this ignore mon.no_tele(), as with the player?
-    if (mon.wont_attack() || mon.no_tele() || coinflip())
-        return false;
-
-    mon.blink();
-    return true;
-}
-
-void lugonu_bend_space()
-{
-    mpr("Space bends violently around you!");
-    uncontrolled_blink(true);
-    apply_monsters_around_square(_lugonu_warp_monster, you.pos());
-}
-
 void cheibriados_time_bend(int pow)
 {
     mpr("The flow of time bends around you.");
@@ -4029,7 +4012,7 @@ static void _ru_expire_sacrifices()
         you.props[key].get_vector().clear();
     }
 
-    // Clear out stored sacrfiice values.
+    // Clear out stored sacrifice values.
     for (int i = 0; i < NUM_ABILITIES; ++i)
         you.sacrifice_piety[i] = 0;
 }
@@ -4553,7 +4536,7 @@ bool ru_reject_sacrifices(bool forced_rejection)
         return false;
     }
 
-    ru_reset_sacrifice_timer(false, true);
+    ru_reset_sacrifice_timer(false, forced_rejection);
     _ru_expire_sacrifices();
     simple_god_message(" will take longer to evaluate your readiness.");
     return true;
@@ -4607,7 +4590,11 @@ void ru_reset_sacrifice_timer(bool clear_timer, bool faith_penalty)
         }
     }
 
-    delay = div_rand_round((delay + added_delay) * (3 - you.faith()), 3);
+    // No faith reduction if this is due to abandoning Ru.
+    if (!you_worship(GOD_RU))
+        delay += added_delay;
+    else
+        delay = div_rand_round((delay + added_delay) * (3 - you.faith()), 3);
     if (crawl_state.game_is_sprint())
         delay /= SPRINT_MULTIPLIER;
 

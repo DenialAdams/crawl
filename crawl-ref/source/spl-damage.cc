@@ -1058,9 +1058,10 @@ spret cast_momentum_strike(int pow, coord_def target, bool fail)
     return spret::success;
 }
 
-dice_def base_fragmentation_damage(int pow)
+dice_def base_fragmentation_damage(int pow, bool random)
 {
-    return dice_def(3, 5 + pow / 5);
+    return dice_def(3, random ? 4 + div_rand_round(pow, 5)
+                              : 4 + pow / 5);
 }
 
 enum class frag_damage_type
@@ -1308,7 +1309,7 @@ bool setup_fragmentation_beam(bolt &beam, int pow, const actor *caster,
     else
         beam.aux_source = effect.name;
 
-    beam.damage  = base_fragmentation_damage(pow);
+    beam.damage  = base_fragmentation_damage(pow, caster->is_player());
     beam.flavour = BEAM_FRAG;
     beam.ex_size = 1;
     switch (effect.damage)
@@ -2719,6 +2720,8 @@ spret cast_arcjolt(int pow, const actor &agent, bool fail)
                 print_wounds(*mon);
         }
     }
+    if (Options.use_animations & UA_BEAM)
+        animation_delay(100, Options.reduce_animations);
 
     return spret::success;
 }
@@ -3059,7 +3062,8 @@ spret cast_toxic_radiance(actor *agent, int pow, bool fail, bool mon_tracer)
         else
             mpr("Your toxic radiance grows in intensity.");
 
-        you.increase_duration(DUR_TOXIC_RADIANCE, 2 + random2(pow/20), 15);
+        you.increase_duration(DUR_TOXIC_RADIANCE,
+                              2 + random2(1 + div_rand_round(pow, 25)), 15);
         you.props[TOXIC_RADIANCE_POWER_KEY].get_int() = pow;
         toxic_radiance_effect(&you, 10, true);
 
@@ -3127,7 +3131,8 @@ void toxic_radiance_effect(actor* agent, int mult, bool on_cast)
         if (agent->is_monster() && mons_aligned(agent, *ai))
             continue;
 
-        int dam = roll_dice(1, 1 + pow / 20) * div_rand_round(mult, BASELINE_DELAY);
+        int dam = roll_dice(1, 1 + div_rand_round(pow, 20))
+                            * div_rand_round(mult, BASELINE_DELAY);
         dam = resist_adjust_damage(*ai, BEAM_POISON, dam);
 
         if (ai->is_player())

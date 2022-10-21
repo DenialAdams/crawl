@@ -933,6 +933,13 @@ void bolt::burn_wall_effect()
         return;
     }
 
+    if (have_passive(passive_t::shoot_through_plants))
+    {
+        emit_message("Fedhas protects the tree from harm.");
+        finish_beam();
+        return;
+    }
+
     // Destroy the wall.
     destroy_wall(pos());
     if (you.see_cell(pos()))
@@ -982,31 +989,6 @@ void bolt::affect_wall()
     {
         if (!in_bounds(pos()) || !can_affect_wall(pos(), true))
             finish_beam();
-
-        // potentially warn about offending your god by burning trees
-        const bool god_relevant = you.religion == GOD_FEDHAS
-                                  && can_burn_trees();
-        const bool vetoed =
-            !feat_is_flammable(env.grid(pos())) &&
-            env.markers.property_at(pos(), MAT_ANY, "veto_destroy") == "veto";
-
-        if (god_relevant && feat_is_tree(env.map_knowledge(pos()).feat())
-            && !vetoed && !is_targeting && YOU_KILL(thrower)
-            && !dont_stop_trees)
-        {
-            const string prompt =
-                make_stringf("Are you sure you want to burn %s?",
-                             feature_description_at(pos(), false, DESC_THE).c_str());
-
-            if (yesno(prompt.c_str(), false, 'n'))
-                dont_stop_trees = true;
-            else
-            {
-                canned_msg(MSG_OK);
-                beam_cancelled = true;
-                finish_beam();
-            }
-        }
 
         // The only thing that doesn't stop at walls.
         if (flavour != BEAM_DIGGING)
@@ -1702,6 +1684,13 @@ static bool _monster_resists_mass_enchantment(monster* mons,
     // of "is unaffected" messages. --Eino
     if (mons_is_firewood(*mons))
         return true;
+    // Placeholder for J offering full protection for slimes.
+    if (mons_is_slime(*mons)
+        && have_passive(passive_t::neutral_slimes)
+        && mons->wont_attack())
+    {
+        return true;
+    }
     switch (wh_enchant)
     {
     case ENCH_FEAR:
@@ -4458,6 +4447,10 @@ void bolt::enchantment_affect_monster(monster* mon)
                                    mon->resist_margin_phrase(res_margin).c_str()))
             {
                 msg_generated = true;
+                // Hack: assume that BEAM_BANISH comes from Lugonu's Banishment
+                // and hence causes malmutation on resist.
+                if (real_flavour == BEAM_BANISH && agent() && agent()->is_player())
+                    mon->malmutate("");
             }
             break;
         case MON_UNAFFECTED:
@@ -6296,8 +6289,8 @@ bool bolt::explode(bool show_more, bool hole_in_the_middle)
             }
             // redraw for an entire explosion block, so redraw_per_cell is not
             // relevant
-            if (pass_visible)
-                animation_delay(explode_delay, !Options.reduce_animations);
+            if (pass_visible && !Options.reduce_animations)
+                animation_delay(explode_delay, true);
         }
     }
 

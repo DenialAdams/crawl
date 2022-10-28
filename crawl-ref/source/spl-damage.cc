@@ -2719,6 +2719,8 @@ spret cast_arcjolt(int pow, const actor &agent, bool fail)
             if (post_resist_dam && you.can_see(*mon))
                 print_wounds(*mon);
         }
+
+        noisy(spell_effect_noise(SPELL_ARCJOLT), t);
     }
     if (Options.use_animations & UA_BEAM)
         animation_delay(100, Options.reduce_animations);
@@ -2791,6 +2793,7 @@ spret cast_thunderbolt(actor *caster, int pow, coord_def aim, bool fail)
     beam.range             = 1;
     beam.hit               = AUTOMATIC_HIT;
     beam.ac_rule           = ac_type::proportional;
+    beam.loudness          = spell_effect_noise(SPELL_THUNDERBOLT);
     beam.set_agent(caster);
 #ifdef USE_TILE
     beam.tile_beam = -1;
@@ -2832,6 +2835,8 @@ spret cast_thunderbolt(actor *caster, int pow, coord_def aim, bool fail)
                                div_rand_round(30 + pow / 6, arc + 2));
         beam.fire();
     }
+
+    noisy(spell_effect_noise(SPELL_THUNDERBOLT), caster->pos());
 
     _set_thundervolt_last_aim(caster, aim);
 

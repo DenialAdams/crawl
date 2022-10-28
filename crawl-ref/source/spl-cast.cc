@@ -232,13 +232,13 @@ protected:
 // to certain criteria. Currently used for Tiles to distinguish
 // spells targeted on player vs. spells targeted on monsters.
 int list_spells(bool toggle_with_I, bool viewing, bool allow_preselect,
-                const string &title)
+                const string &action)
 {
     if (toggle_with_I && get_spell_by_letter('I') != SPELL_NO_SPELL)
         toggle_with_I = false;
 
     SpellMenu spell_menu;
-    string titlestring = make_stringf("%-25.25s", title.c_str());
+    string titlestring = make_stringf("%-25.25s", "Your spells");
     {
         ToggleableMenuEntry* me =
             new ToggleableMenuEntry(
@@ -254,7 +254,7 @@ int list_spells(bool toggle_with_I, bool viewing, bool allow_preselect,
     spell_menu.add_toggle_from_command(CMD_MENU_CYCLE_MODE_REVERSE);
 
     string more_str = make_stringf("<lightgrey>Select a spell to %s</lightgrey>",
-        (viewing ? "describe" : "cast"));
+        (viewing ? "describe" : action.c_str()));
     string toggle_desc = menu_keyhelp_cmd(CMD_MENU_CYCLE_MODE);
     if (toggle_with_I)
     {
@@ -874,7 +874,7 @@ spret cast_a_spell(bool check_range, spell_type spell, dist *_target,
                                        "? or * to list all spells.");
                 }
 
-                keyin = get_ch();
+                keyin = numpad_to_regular(get_ch());
             }
 
             if (keyin == '?' || keyin == '*' || Options.spell_menu)
@@ -1929,10 +1929,21 @@ spret your_spells(spell_type spell, int powc, bool actual_spell,
            && (target->fire_context // force static targeters when called in
                                     // "fire" mode
                || Options.always_use_static_spell_targeters
-               || Options.force_spell_targeter.count(spell) > 0)
-           && spell != SPELL_ELECTRIC_CHARGE; // hack
+               || Options.force_spell_targeter.count(spell) > 0);
 
-    if (use_targeter)
+    if (use_targeter && spell == SPELL_ELECTRIC_CHARGE)
+    {
+        // would be nice to do away with this special casing, can this be
+        // rolled into more generic code?
+        vector<coord_def> target_path; // unused here
+        if (!find_charge_target(target_path, range, hitfunc.get(), *target))
+            return spret::abort;
+        ASSERT(target->isValid);
+        // code dup with spell_direction...
+        beam.set_target(*target);
+        beam.source = you.pos();
+    }
+    else if (use_targeter)
     {
         const targ_mode_type targ =
               testbits(flags, spflag::neutral)    ? TARG_ANY :
@@ -2486,7 +2497,7 @@ static spret _do_cast(spell_type spell, int powc, const dist& spd,
         return blinkbolt(powc, beam, fail);
 
     case SPELL_ELECTRIC_CHARGE:
-        return electric_charge(powc, fail); // hack - should take beam
+        return electric_charge(powc, fail, beam.target); // hack - should take beam?
 
     case SPELL_STARBURST:
         return cast_starburst(powc, fail);
@@ -2693,13 +2704,6 @@ string spell_noise_string(spell_type spell, int chop_wiz_display_width)
 {
     const int casting_noise = spell_noise(spell);
     int effect_noise = spell_effect_noise(spell);
-    zap_type zap = spell_to_zap(spell);
-    if (effect_noise == 0 && zap != NUM_ZAPS)
-    {
-        bolt beem;
-        zappy(zap, 0, false, beem);
-        effect_noise = beem.loudness;
-    }
 
     // A typical amount of noise.
     if (spell == SPELL_POLAR_VORTEX)

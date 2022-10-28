@@ -66,17 +66,10 @@ struct spell_desc
     int min_range;
     int max_range;
 
-    // Noise made directly by casting this spell.
-    // Noise used to be based directly on spell level:
-    //  * for conjurations: spell level
-    //  * for non-conj pois/air: spell level / 2 (rounded up)
-    //  * for others: spell level * 3/4 (rounded up)
-    // These are probably good guidelines for new spells.
-    int noise;
-
     // Some spells have a noise at their place of effect, in addition
-    // to at the place of casting. effect_noise handles that, and is also
-    // used even if the spell is not casted directly (by Xom, for instance).
+    // to their casting noise.
+    // For zap-based spells, effect_noise is used automatically (if it exists)
+    // on hit. For all other spells, it needs to be called manually.
     int effect_noise;
 
     /// Icon for the spell in e.g. spellbooks, casting menus, etc.
@@ -1053,7 +1046,12 @@ int spell_range(spell_type spell, int pow,
  */
 int spell_noise(spell_type spell)
 {
-    return _seekspell(spell)->noise;
+    const spell_flags flags = get_spell_flags(spell);
+
+    if (testbits(flags, spflag::silent))
+        return 0;
+
+    return spell_difficulty(spell);
 }
 
 /**

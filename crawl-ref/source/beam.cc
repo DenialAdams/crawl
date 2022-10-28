@@ -261,13 +261,6 @@ spret zapping(zap_type ztype, int power, bolt &pbolt,
     if (msg)
         mpr(msg);
 
-    if (ztype == ZAP_LIGHTNING_BOLT)
-    {
-        noisy(spell_effect_noise(SPELL_LIGHTNING_BOLT),
-               you.pos(), "You hear a mighty clap of thunder!");
-        pbolt.heard = true;
-    }
-
     if (ztype == ZAP_DIG)
         pbolt.aimed_at_spot = false;
 
@@ -415,7 +408,6 @@ struct zap_info
     dungeon_char_type glyph;
     bool can_beam;
     bool is_explosion;
-    int hit_loudness;
 };
 
 #include "zap-data.h"
@@ -510,6 +502,26 @@ int zap_ench_power(zap_type z_type, int pow, bool is_monster)
         return pow;
 }
 
+static int _zap_loudness(zap_type zap, spell_type spell)
+{
+    const zap_info* zinfo = _seek_zap(zap);
+    const int noise = spell_effect_noise(spell);
+    const spell_flags flags = get_spell_flags(spell);
+
+    // Explosions have noise handled separately.
+    if (zinfo->is_explosion || testbits(flags, spflag::silent))
+        return 0;
+    else if (noise > 0)
+        return noise;
+    // Enchantments are (usually) silent.
+    else if (zinfo->is_enchantment)
+        return 0;
+    else if (spell != SPELL_NO_SPELL)
+        return spell_difficulty(spell);
+
+    return 0;
+}
+
 void zappy(zap_type z_type, int power, bool is_monster, bolt &pbolt)
 {
     const zap_info* zinfo = _seek_zap(z_type);
@@ -548,7 +560,7 @@ void zappy(zap_type z_type, int power, bool is_monster, bolt &pbolt)
         pbolt.origin_spell = zap_to_spell(z_type);
 
     if (pbolt.loudness == 0)
-        pbolt.loudness = zinfo->hit_loudness;
+        pbolt.loudness = _zap_loudness(z_type, pbolt.origin_spell);
 }
 
 bool bolt::can_affect_actor(const actor *act) const
@@ -2148,7 +2160,8 @@ void bolt_parent_init(const bolt &parent, bolt &child)
     child.source_name    = parent.source_name;
     child.attitude       = parent.attitude;
 
-    child.pierce         = parent.pierce ;
+    child.loudness       = parent.loudness;
+    child.pierce         = parent.pierce;
     child.aimed_at_spot  = parent.aimed_at_spot;
     child.is_explosion   = parent.is_explosion;
     child.ex_size        = parent.ex_size;
@@ -2431,15 +2444,10 @@ void bolt::affect_endpoint()
     case SPELL_PRIMAL_WAVE:
     {
         if (you.see_cell(pos()))
-        {
             mpr("The wave splashes down.");
-            noisy(spell_effect_noise(SPELL_PRIMAL_WAVE), pos());
-        }
         else
-        {
-            noisy(spell_effect_noise(SPELL_PRIMAL_WAVE),
-                  pos(), "You hear a splash.");
-        }
+            mpr("You hear a splash.");
+
         const bool is_player = agent() && agent()->is_player();
         const int num = is_player ? div_rand_round(ench_power * 3, 20) + 3 + random2(7)
                                   : random_range(3, 12, 2);
@@ -3848,6 +3856,12 @@ void bolt::affect_player()
     if (misses_player())
         return;
 
+    if (!is_explosion && !noise_generated)
+    {
+        heard = noisy(loudness, pos(), source_id) || heard;
+        noise_generated = true;
+    }
+
     const bool engulfs = is_explosion || is_big_cloud();
 
     if (is_enchantment())
@@ -3888,10 +3902,9 @@ void bolt::affect_player()
 
     pre_res_dam = max(0, pre_res_dam);
 
-    // If the beam is an actual missile or of the MMISSILE type (Earth magic)
-    // we might bleed on the floor.
-    if (!engulfs
-        && (flavour == BEAM_MISSILE || flavour == BEAM_MMISSILE))
+    // If the beam is of the MMISSILE type (Earth magic) we might bleed on the
+    // floor.
+    if (!engulfs && flavour == BEAM_MMISSILE)
     {
         // assumes DVORP_PIERCING, factor: 0.5
         int blood = min(you.hp, pre_res_dam / 2);
@@ -3948,40 +3961,6 @@ void bolt::affect_player()
 
     if (flavour == BEAM_UNRAVELLED_MAGIC)
         affect_player_enchantment();
-
-    // handling of missiles
-    if (item && item->base_type == OBJ_MISSILES)
-    {
-        if (item->sub_type == MI_THROWING_NET)
-        {
-            if (player_caught_in_net())
-            {
-                if (monster_by_mid(source_id))
-                    xom_is_stimulated(50);
-                was_affected = true;
-            }
-        }
-        else if (item->brand == SPMSL_CURARE)
-        {
-            if (x_chance_in_y(90 - 3 * you.armour_class(), 100))
-            {
-                curare_actor(agent(), (actor*) &you, 2, name, source_name);
-                was_affected = true;
-            }
-        }
-
-        if (you.has_mutation(MUT_JELLY_MISSILE)
-            && you.hp < you.hp_max
-            && !you.duration[DUR_DEATHS_DOOR]
-            && item_is_jelly_edible(*item)
-            && coinflip())
-        {
-            mprf("Your attached jelly eats %s!", item->name(DESC_THE).c_str());
-            inc_hp(random2(final_dam / 2));
-            canned_msg(MSG_GAIN_HEALTH);
-            drop_item = false;
-        }
-    }
 
     // Sticky flame.
     if (origin_spell == SPELL_STICKY_FLAME
@@ -4548,18 +4527,10 @@ void bolt::monster_post_hit(monster* mon, int dmg)
     // did no damage. Hostiles will still take umbrage.
     if (dmg > 0 || !mon->wont_attack() || !YOU_KILL(thrower))
     {
-        special_missile_type m_brand = SPMSL_FORBID_BRAND;
-        if (item && item->base_type == OBJ_MISSILES)
-            m_brand = get_ammo_brand(*item);
-
-        // Don't immediately turn insane monsters hostile.
-        if (m_brand != SPMSL_FRENZY)
-        {
-            behaviour_event(mon, ME_ANNOY, agent());
-            // behaviour_event can make a monster leave the level or vanish.
-            if (!mon->alive())
-                return;
-        }
+        behaviour_event(mon, ME_ANNOY, agent());
+        // behaviour_event can make a monster leave the level or vanish.
+        if (!mon->alive())
+            return;
     }
 
     if (YOU_KILL(thrower) && !mon->wont_attack() && !mons_is_firewood(*mon))
@@ -4569,15 +4540,8 @@ void bolt::monster_post_hit(monster* mon, int dmg)
     if (origin_spell == SPELL_STICKY_FLAME
         || origin_spell == SPELL_STICKY_FLAME_RANGE)
     {
-        const int levels = min(4, 1 + random2(dmg) / 2);
+        const int levels = min(4, 1 + div_rand_round(random2(dmg), 2));
         napalm_monster(mon, agent(), levels);
-    }
-
-    // Handle missile effects.
-    if (item && item->base_type == OBJ_MISSILES
-        && item->brand == SPMSL_CURARE && ench_power == AUTOMATIC_HIT)
-    {
-        curare_actor(agent(), mon, 2, name, source_name);
     }
 
     // purple draconian breath
@@ -5009,7 +4973,7 @@ void bolt::affect_monster(monster* mon)
     if (!engulfs && !_test_beam_hit(beam_hit, rand_ev, pierce, repel, r))
     {
         // If the PLAYER cannot see the monster, don't tell them anything!
-        if (mon->observable() && name != "burst of metal fragments")
+        if (mon->observable())
         {
             // if it would have hit otherwise...
             if (_test_beam_hit(beam_hit, rand_ev, pierce, 0, r))
@@ -5066,13 +5030,6 @@ void bolt::affect_monster(monster* mon)
     }
     else if (heard && !hit_noise_msg.empty())
         mprf(MSGCH_SOUND, "%s", hit_noise_msg.c_str());
-    // The player might hear something, if _they_ fired a missile
-    // (not magic beam).
-    else if (!silenced(you.pos()) && flavour == BEAM_MISSILE
-             && YOU_KILL(thrower))
-    {
-        mprf(MSGCH_SOUND, "The %s hits something.", name.c_str());
-    }
 
     // Spell vampirism
     if (agent() && agent()->is_player() && is_player_book_spell(origin_spell))
@@ -5084,11 +5041,9 @@ void bolt::affect_monster(monster* mon)
     // mons_adjust_flavoured may kill the monster directly.
     if (mon->alive())
     {
-        // If the beam is an actual missile or of the MMISSILE type
-        // (Earth magic) we might bleed on the floor.
-        if (!engulfs
-            && (flavour == BEAM_MISSILE || flavour == BEAM_MMISSILE)
-            && !mon->is_summoned())
+        // If the beam is of the MMISSILE type (Earth magic) we might bleed on
+        // the floor.
+        if (!engulfs && flavour == BEAM_MMISSILE && !mon->is_summoned())
         {
             // Using raw_damage instead of the flavoured one!
             // assumes DVORP_PIERCING, factor: 0.5
@@ -6250,7 +6205,6 @@ bool bolt::explode(bool show_more, bool hole_in_the_middle)
         // gas leak).
         if (name == "blast of putrescent gases")
             loudness = loudness * 2 / 3;
-        // TODO: flame wave
 
         // Lee's Rapid Deconstruction can target the tiles on the map
         // boundary.

@@ -1336,7 +1336,8 @@ spret cast_summon_forest(actor* caster, int pow, god_type god, bool fail, bool t
     if (test)
         return spret::success;
 
-    const int duration = random_range(120 + pow, 200 + pow * 3 / 2);
+    const int duration = random_range(120 + pow,
+                                      200 + div_rand_round(pow * 3, 2));
 
     // Hm, should dryads have rPois?
     if (stop_summoning_prompt(MR_NO_FLAGS, "summon a forest"))
@@ -1448,8 +1449,7 @@ spret cast_haunt(int pow, const coord_def& where, god_type god, bool fail)
 
     bool friendly = true;
     int success = 0;
-    int to_summon = stepdown_value(2 + (random2(pow) / 10) + (random2(pow) / 10),
-                                   2, 2, 6, -1);
+    int to_summon = min(6, 2 + random2avg(1 + div_rand_round(pow, 18), 2));
 
     while (to_summon--)
     {

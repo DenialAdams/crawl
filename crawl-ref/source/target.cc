@@ -727,7 +727,11 @@ bool targeter_inner_flame::valid_aim(coord_def a)
 {
     if (!targeter_smite::valid_aim(a))
         return false;
-    return mons_inner_flame_immune_reason(monster_at(a)).empty();
+
+    if (!mons_inner_flame_immune_reason(monster_at(a)).empty())
+        return notify_fail(mons_inner_flame_immune_reason(monster_at(a)));
+
+    return true;
 }
 
 targeter_simulacrum::targeter_simulacrum(const actor* act, int r) :
@@ -739,7 +743,11 @@ bool targeter_simulacrum::valid_aim(coord_def a)
 {
     if (!targeter_smite::valid_aim(a))
         return false;
-    return mons_simulacrum_immune_reason(monster_at(a)).empty();
+
+    if (!mons_simulacrum_immune_reason(monster_at(a)).empty())
+        return notify_fail(mons_simulacrum_immune_reason(monster_at(a)));
+
+    return true;
 }
 
 targeter_unravelling::targeter_unravelling()
@@ -2132,4 +2140,29 @@ bool targeter_anguish::affects_monster(const monster_info& mon)
         && mon.willpower() != WILL_INVULN
         && !mons_atts_aligned(agent->temp_attitude(), mon.attitude)
         && !mon.is(MB_ANGUISH);
+}
+
+targeter_poisonous_vapours::targeter_poisonous_vapours(const actor* act, int r)
+    : targeter_smite(act, r, 0, 0, false, nullptr)
+{
+}
+
+bool targeter_poisonous_vapours::affects_monster(const monster_info& mon)
+{
+    return get_resist(mon.resists(), MR_RES_POISON) <= 0;
+}
+
+bool targeter_poisonous_vapours::valid_aim(coord_def a)
+{
+    if (!targeter_smite::valid_aim(a))
+        return false;
+
+    const monster_info *mon = env.map_knowledge(a).monsterinfo();
+    if (mon && !affects_monster(*mon))
+    {
+        return notify_fail(mon->full_name(DESC_THE) + " cannot be affected by "
+                           "poisonous vapours.");
+    }
+
+    return true;
 }

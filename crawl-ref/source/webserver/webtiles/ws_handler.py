@@ -349,12 +349,14 @@ class CrawlWebSocket(tornado.websocket.WebSocketHandler):
         if not user_info:
             self.send_message("admin_pw_reset_done", error="Invalid user")
             return
-        ok, msg = userdb.generate_forgot_password(username)
+        ok, msg = userdb.generate_forgot_password(user_info.username)
         if not ok:
             self.send_message("admin_pw_reset_done", error=msg)
         else:
-            self.logger.info("Admin user '%s' set a password token on account '%s'", self.username, username)
-            self.send_message("admin_pw_reset_done", email_body=msg, username=username, email=user_info[1])
+            self.logger.info("Admin user '%s' set a password token on account '%s'",
+                self.username, user_info.username)
+            self.send_message("admin_pw_reset_done", email_body=msg,
+                username=user_info.username, email=user_info.email)
 
     @admin_required
     def admin_pw_reset_clear(self, username):
@@ -478,68 +480,104 @@ class CrawlWebSocket(tornado.websocket.WebSocketHandler):
                     self.save_info[g] = None
         self.save_info[slot] = None
 
+    def update_save_info(self, binary_key, data):
+        try:
+            data = json_decode(data)
+        except Exception:
+            # JSON error. It can also happen under some dgamelaunch-config
+            # setups if escape codes are incorrectly inserted into
+            # the output for some calls. See:
+            # https://github.com/crawl/dgamelaunch-config/commit/6ad788ceb5614b3c83d65b61bf26a122e592b98d
+            # should this case warn? It probably means a misconfiguration.
+            for g in config.binaries_to_games[binary_key]:
+                self.save_info[g] = ""
+                return
+
+        # data is now a dict of game mode to game descriptions. If game modes
+        # share a save slot, then they will map to the same game.
+        for g in config.binaries_to_games[binary_key]:
+            if (not config.game_modes[g] in data
+                        or not config.games[g].get("show_save_info", False)):
+                self.save_info[g] = ""
+                continue
+            save_dict = data[config.game_modes[g]]
+            if not save_dict["loadable"]:
+                # the save in this slot is in use.
+                self.save_info[g] = "[playing]" # TODO: something better??
+            elif config.game_modes[g] == save_dict["game_type"]:
+                # save in the slot matches the game type we are
+                # checking.
+                self.save_info[g] = "[%s]" % save_dict["short_desc"]
+            else:
+                # There is a save, but it has a different game type.
+                # This happens if multiple game types share a slot.
+                self.save_info[g] = "[slot full]"
+
     # collect save info for the player from all binaries that support save
     # info json. Cached on self.save_info. This is asynchronously done using
-    # a somewhat involved callback chain.
+    # a somewhat involved callback chain; each check requires a subprocess
+    # call on which we don't want to block.
+    # this code would be much simpler if refactored using async
     @util.note_blocking_fun
     def collect_save_info(self, final_callback):
         if not self.username:
             return
 
-        # this code would be much simpler refactored using async
-        @util.note_blocking_fun
-        def build_callback(game_key, call, next_callback):
-            @util.note_blocking_fun
-            def update_save_info(data, returncode):
-                global sockets
-                if not self in sockets:
-                    return
-                if returncode == 0:
-                    try:
-                        save_dict = json_decode(data)[config.game_modes[game_key]]
-                        if not save_dict["loadable"]:
-                            # the save in this slot is in use.
-                            self.save_info[game_key] = "[playing]" # TODO: something better??
-                        elif config.game_modes[game_key] == save_dict["game_type"]:
-                            # save in the slot matches the game type we are
-                            # checking.
-                            self.save_info[game_key] = "[" + save_dict["short_desc"] + "]"
-                        else:
-                            # There is a save, but it has a different game type.
-                            # This happens if multiple game types share a slot.
-                            self.save_info[game_key] = "[slot full]"
-                    except Exception:
-                        # game key missing (or other error). This will mainly
-                        # happen if there are no saves at all for the player
-                        # name. It can also happen under some dgamelaunch-config
-                        # setups if escape codes are incorrectly inserted into
-                        # the output for some calls. See:
-                        # https://github.com/crawl/dgamelaunch-config/commit/6ad788ceb5614b3c83d65b61bf26a122e592b98d
-                        self.save_info[game_key] = ""
-                else:
-                    # error in the subprocess: this will happen if the binary
-                    # does not support `-save-json`. Print a warning so that
-                    # the admin can see that they have save info enabled
-                    # incorrectly for this binary.
-                    logging.warn("Save info check for '%s' failed" % game_key)
-                    self.save_info[game_key] = ""
-                next_callback()
-            return lambda: checkoutput.check_output(call, update_save_info)
-
-        callback = final_callback
-        for g in config.games:
-            if not config.game_param(g, "show_save_info", default=False):
-                self.save_info[g] = ""
+        # Tally up the calls we need in order to check relevant save info.
+        # For each distinct binary (going by binary keys, cached in
+        # `binaries_to_games`), if that binary has modes that should show and
+        # update save info, add a call to the list.
+        check_calls = []
+        for b in config.binaries_to_games:
+            games = config.binaries_to_games[b]
+            if not games:
                 continue
-            if self.save_info.get(g, None) is None:
-                # cache for g is invalid, add a callback for it to the callback
-                # chain
-                call = [config.game_param(g, "crawl_binary")]
-                if "pre_options" in config.games[g]:
-                    call += config.game_param(g, "pre_options")
-                call += ["-save-json", self.username]
-                callback = build_callback(g, call, callback)
+            if not config.game_modes[games[0]]:
+                continue # no game mode info for this game
+            if not any([config.games[g].get("show_save_info", False) for g in games]):
+                # no games modes for this binary have enabled save info
+                for g in games:
+                    self.save_info[g] = ""
+                continue
+            if not any([self.save_info.get(g, None) is None for g in games]):
+                # no invalid caches for this binary
+                continue
+            # doesn't matter which element of games we use
+            call = config.games[games[0]].get_call_base()
+            call += ["-save-json", self.username]
+            check_calls.append([b, call])
 
+        # next we need to turn the list of calls into a sequence of non-blocking
+        # callbacks
+
+        def build_callback(b, call, next_callback):
+            # build a callback that:
+            # a. calls check_output with the call info (nonblocking subprocess)
+            # b. passes the output to update_save_info, and
+            # c. calls next_callback
+            @util.note_blocking_fun
+            def do_update(data, returncode):
+                if returncode != 0:
+                    # Binary doesn't support save info, print a warning so that
+                    # the admin can see there is a misconfiguration
+                    # XX it should be possible to check for this case on startup
+                    logging.warning("Save info check for '%s' failed" % b)
+                    data = None # force error case in update_save_info call
+
+                self.update_save_info(b, data)
+                next_callback()
+
+            # the check_output call is non-blocking, e.g. will yield to other
+            # IOLoop stuff:
+            return lambda: checkoutput.check_output(call, do_update)
+
+        # sequence the calls into a chain of callbacks that end with
+        # final_callback
+        callback = final_callback
+        for l in check_calls:
+            callback = build_callback(l[0], l[1], callback)
+
+        # finally, kick things off
         callback()
 
     @util.note_blocking_fun
@@ -612,11 +650,17 @@ class CrawlWebSocket(tornado.websocket.WebSocketHandler):
             self.reset_timeout()
 
     def update_db_info(self):
+        """update self's user info from the user database, including updating
+        any flag changes that may have happened in the db."""
         if not self.username:
             return True # caller needs to check for anon if necessary
         # won't detect a change in hold state on first login...
         old_restriction = self.user_flags is not None and self.account_restricted()
-        self.user_id, self.user_email, self.user_flags = userdb.get_user_info(self.username)
+        u = userdb.get_user_info(self.username)
+        self.username = u.username # canonicalize
+        self.user_id = u.id
+        self.email = u.email
+        self.user_flags = u.flags
         self.logger.extra["username"] = self.username
         if userdb.dgl_is_banned(self.user_flags):
             return False
@@ -913,10 +957,7 @@ class CrawlWebSocket(tornado.websocket.WebSocketHandler):
         if "send_json_options" in game and not game["send_json_options"]:
             return
 
-        call = [game.templated("crawl_binary", username=self.username)]
-
-        if "pre_options" in game:
-            call += game.templated("pre_options", username=self.username)
+        call = game.get_call_base()
 
         call += ["-name", player_name,
                  "-rc", self.rcfile_path(game_id)]

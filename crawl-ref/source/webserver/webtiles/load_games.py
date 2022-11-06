@@ -214,6 +214,12 @@ def validate_game_dict(game):
     string_array = ('options', 'pre_options')
     string_dict = ('env', )
 
+    # values where %n can't be expanded
+    # XX not sure this list gets everything
+    username_invalid = ('pre_options', 'crawl_binary', 'socket_path')
+    # XX should %v be validated here too? Currently handled in
+    # GameConfig.validate_game
+
     allow_none = {'morgue_url'}
     for prop in required:
         if prop not in game:
@@ -246,6 +252,11 @@ def validate_game_dict(game):
                     logging.warn(
                       "Item '%s' in property '%s' should be a string in game '%s'",
                       item, prop, game['id'])
+            if prop in username_invalid and " ".join(value).find("%n") >= 0:
+                found_errors = True
+                logging.warn(
+                    "'%%n' will not be expanded in %s (game %s): '%s'" % (
+                                    rop, game['id'], repr(value)))
         elif prop in string_dict:
             if not isinstance(value, dict):
                 found_errors = True
@@ -264,51 +275,47 @@ def validate_game_dict(game):
                     logging.warn("Item value '%s' of key '%s' in property '%s'"
                                  " should be a string in game '%s'",
                                  item_value, item_key, prop, game['id'])
+                if prop in username_invalid and item_value.find("%n") >= 0:
+                    found_errors = True
+                    logging.warn(
+                        "'%%n' will not be expanded in %s.%s (game %s): '%s'" % (
+                                    prop, item_key, game['id'], repr(value)))
         else:
             # String property
             if not isinstance(value, str):
                 found_errors = True
                 logging.warn("Property '%s' value should be string in game '%s'",
                              prop, game['id'])
+            if prop in username_invalid and value.find("%n") >= 0:
+                found_errors = True
+                logging.warn(
+                    "'%%n' will not be expanded in %s (game %s): '%s'" % (
+                                    prop, game['id'], repr(value)))
     return not found_errors
 
 
-
-# A key that uniquely determines the crawl binary called if `g` is started.
-# This can be messed up by launcher scripts if they do something other than
-# the one case handled here.
-def binary_key(g):
-    import webtiles.config
-    k = webtiles.config.game_param(g, "crawl_binary")
-    # On dgamelaunch-config servers, `pre_options` is used to pass a
-    # version to the launcher script, which underlyingly calls different
-    # binaries. To accommodate this we need to also use pre_options in
-    # the key for organizing binaries. (sigh...)
-    if "pre_options" in webtiles.config.games[g]:
-        k += " " + " ".join(webtiles.config.game_param(g, "pre_options"))
-    return k
-
+binaries = {}
 def collect_game_modes():
     import webtiles.config
     # figure out what game modes are associated with which game in the config.
     # Basically: try to line up options in the game config with game types
     # reported by the binary. If the binary doesn't support `-gametypes-json`
-    # then the type will by `None`. This is unfortunately fairly post-hoc, and
+    # then the type will be `None`. This is unfortunately fairly post-hoc, and
     # there would be much better ways of doing this if I weren't aiming for
     # backwards compatibility.
     #
     # This is very much a blocking call, especially with many binaries.
-    # XX it might be better to cache some of this across HUPs, right now it
-    # can block for >1s on CAO
-    binaries = {}
+    # Changing crawl binaries in a way that affects this will require a restart
+    # to get accurate save info.
+    global binaries
     for g in webtiles.config.games:
-        key = binary_key(g)
+        key = webtiles.config.games[g].get_binary_key()
         if not webtiles.config.games[g].get("show_save_info", False):
             binaries[key] = None
             continue
-        call = [webtiles.config.game_param(g, "crawl_binary")]
-        if "pre_options" in webtiles.config.games[g]:
-            call += webtiles.config.game_param(g, "pre_options")
+        if key in binaries and binaries[key]:
+            continue
+        call = webtiles.config.games[g].get_call_base()
 
         # "dummy" is here for the sake of the dgamelaunch-config launcher
         # scripts, which choke badly if there is no second argument. The actual
@@ -324,20 +331,42 @@ def collect_game_modes():
             logging.warn("JSON error with output '%s'", repr(m_json))
             binaries[key] = None
 
+    # Example output of this call:
+    # {"normal":"","tutorial":"-tutorial","arena":"-arena","sprint":"-sprint","seeded":"-seed"}
+    # we want to take the options specified in this map and reconstruct the
+    # game modes as defined in the game configs.
+
     game_modes = {}
     for g in webtiles.config.games:
-        key = binary_key(g)
-        mode_found = False
+        key = webtiles.config.games[g].get_binary_key()
         if binaries[key] is None:
-            # binary does not support game mode json
+            # this binary either has no enabled save infos, opr does not
+            # support -gamemode-json, so we know nothing about its game modes.
+            # (Pre-0.24 dcss.)
+            # XX should we always try to collect game modes?
             game_modes[g] = None
             continue
+
+        # A gametype may specify "" as the options string (e.g. "normal"). We
+        # can't look directly for this, since there could be other options.
+        # So first find the relevant mode if any, and then use it as a fallback
+        # for any calls where no modes are found.
+        no_options_mode = None
+        for m in binaries[key]:
+            if binaries[key][m] == "":
+                no_options_mode = m
+                break
+
+        mode_found = False
         for mode in binaries[key]:
-            for opt in webtiles.config.game_param(g, "options", default=[""]):
+            for opt in webtiles.config.game_param(g, "options", default=[]):
                 if opt == binaries[key][mode]:
                     game_modes[g] = mode
                     mode_found = True
                     break
             if mode_found:
                 break
+        if not mode_found and no_options_mode is not None:
+            game_modes[g] = no_options_mode
+
     return game_modes

@@ -53,6 +53,7 @@ class MainHandler(tornado.web.RequestHandler):
             base = ""
         return base + "/crawl/" + static_handler_class.make_static_url(self.settings, path)
 
+    @util.note_blocking_fun
     def get(self):
         host = self.request.host
         if self.request.protocol == "https" or self.request.headers.get("x-forwarded-proto") == "https":

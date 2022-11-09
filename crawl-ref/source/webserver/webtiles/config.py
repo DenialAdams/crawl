@@ -89,6 +89,7 @@ defaults = {
     'live_debug': False,
     'lobby_update_rate': 2,
     'load_logging_rate': 0,
+    'milestone_interval': 1000, # ms
     'slow_callback_alert': None,
     'games': collections.OrderedDict([]),
     'templates': collections.OrderedDict([]),
@@ -123,17 +124,21 @@ class ConfigModuleWrapper(object):
             override_data = yaml.safe_load(f)
             if not isinstance(override_data, dict):
                 raise ValueError("'%s' must be a map" % path)
+            early_log("Loading config overrides from: '%s'" % path)
             for key, value in override_data.items():
                 if key == 'games':
-                    # not sure why this should be disallowed
-                    raise ValueError("Can't override 'games' in %s. Use games.d/ instead." % path)
+                    # right now this completely overwrites anything set in the
+                    # module, so issue a warning
+                    if self.get('games', {}):
+                        early_log("Warning: overriding `games` with value from " + path)
+                    # fallthrough
                 elif key == 'banned':
                     # we probably don't want to overwrite any ban lists set
                     # in the config module
                     add_ban_list(value)
-                else:
-                    setattr(self.module, key, value)
-            early_log("Loading config overrides from: '%s'" % path)
+                    continue
+
+                setattr(self.module, key, value)
 
     def get(self, key, default):
         return getattr(self.module, key, default)

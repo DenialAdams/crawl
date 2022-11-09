@@ -197,11 +197,25 @@ def bind_server():
     if config.get('no_cache', False):
         settings["static_handler_class"] = NoCacheHandler
 
-    application = tornado.web.Application([
+    handlers = [
             (r"/", MainHandler),
             (r"/socket", ws_handler.CrawlWebSocket),
-            (r"/gamedata/([0-9a-f]*\/.*)", game_data_handler.GameDataHandler)
-            ], gzip=config.get('use_gzip'), **settings)
+            (r"/gamedata/([0-9a-f]*\/.*)", game_data_handler.GameDataHandler)]
+
+    try:
+        # this is somewhat atrocious; the point is so that tornado slow
+        # callback logging actually shows the class name for whatever handler
+        # it is that causes a callback; Otherwise you just get the useless
+        # `RequestHandler._execute`. It would probably be better to explicitly
+        # override `_execute`, but that requires assuming asyncio tornado, and
+        # unfortunately I don't think we're quite there yet.
+        for p in handlers:
+            p[1]._execute.__qualname__ = "%s._execute" % (p[1].__qualname__)
+    except:
+        pass
+
+    application = tornado.web.Application(handlers,
+                                    gzip=config.get('use_gzip'), **settings)
 
     kwargs = {}
     if config.get('http_connection_timeout') is not None:
@@ -356,6 +370,10 @@ def parse_args_main():
 
 # override config with any arguments supplied on the command line
 def export_args_to_config(args):
+    if config.get('live_debug'):
+        config.server_config._load_override_file(os.path.join(
+                            config.get("server_path", ""), "debug-config.yml"))
+        config.do_early_logging() # sigh
     if args.port:
         config.set('bind_nonsecure', True)
         config.set('bind_address', "")  # TODO: ??

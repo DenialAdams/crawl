@@ -155,7 +155,7 @@ def global_announce(text):
 
 _dgl_dir_check = False
 
-@util.note_blocking_fun
+
 def write_dgl_status_file():
     process_info = ["%s#%s#%s#0x0#%s#%s#" %
                             (socket.username, socket.game_id,
@@ -175,23 +175,24 @@ def write_dgl_status_file():
                 os.makedirs(status_dir)
                 logging.warning("Creating dgl status file location '%s'", status_dir)
             _dgl_dir_check = True
-        with open(status_target, "w") as f:
-            f.write("\n".join(process_info))
+        with util.SlowWarning("Slow IO: write '%s'" % status_target):
+            with open(status_target, "w") as f:
+                f.write("\n".join(process_info))
     except (OSError, IOError) as e:
         logging.warning("Could not write dgl status file: %s", e)
+
 
 def status_file_timeout():
     write_dgl_status_file()
     IOLoop.current().add_timeout(time.time() + config.get('status_file_update_rate'),
                                  status_file_timeout)
-    # prevent false positives from janky block detection code; because this
-    # runs on a timeout it's a common source of them
-    util.last_blocking_description = "None"
+
 
 def find_user_sockets(username):
     for socket in list(sockets):
         if socket.username and socket.username.lower() == username.lower():
             yield socket
+
 
 def find_running_game(charname, start):
     from webtiles.process_handler import processes
@@ -276,7 +277,6 @@ def admin_only(f):
 
 
 class CrawlWebSocket(tornado.websocket.WebSocketHandler):
-    @util.note_blocking_fun
     def __init__(self, app, req, **kwargs):
         tornado.websocket.WebSocketHandler.__init__(self, app, req, **kwargs)
         self.username = None
@@ -345,6 +345,8 @@ class CrawlWebSocket(tornado.websocket.WebSocketHandler):
 
     @admin_only
     def send_socket_stats(self):
+        import webtiles.server
+        self.send_message("admin_log", text=webtiles.server.version())
         self.send_message("admin_log", text=describe_sockets(True))
 
     @admin_required
@@ -391,7 +393,6 @@ class CrawlWebSocket(tornado.websocket.WebSocketHandler):
             return "no-compression"
         return None
 
-    @util.note_blocking_fun
     def open(self):
         compression = "on"
         if isinstance(self.ws_connection, getattr(tornado.websocket, "WebSocketProtocol76", ())):
@@ -448,7 +449,6 @@ class CrawlWebSocket(tornado.websocket.WebSocketHandler):
             self.queue_message("lobby_entry", **process.lobby_entry())
         self.send_message("lobby_complete")
 
-    @util.note_blocking_fun
     def send_lobby(self):
         self.send_lobby_data()
         self.send_lobby_html()
@@ -522,7 +522,6 @@ class CrawlWebSocket(tornado.websocket.WebSocketHandler):
     # a somewhat involved callback chain; each check requires a subprocess
     # call on which we don't want to block.
     # this code would be much simpler if refactored using async
-    @util.note_blocking_fun
     def collect_save_info(self, final_callback):
         if not self.username:
             return
@@ -559,7 +558,6 @@ class CrawlWebSocket(tornado.websocket.WebSocketHandler):
             # a. calls check_output with the call info (nonblocking subprocess)
             # b. passes the output to update_save_info, and
             # c. calls next_callback
-            @util.note_blocking_fun
             def do_update(data, returncode):
                 if returncode != 0:
                     # Binary doesn't support save info, print a warning so that
@@ -584,7 +582,6 @@ class CrawlWebSocket(tornado.websocket.WebSocketHandler):
         # finally, kick things off
         callback()
 
-    @util.note_blocking_fun
     def send_lobby_html(self):
         # Rerender Banner
         # TODO: don't really need to do this every time the lobby is loaded?
@@ -596,7 +593,6 @@ class CrawlWebSocket(tornado.websocket.WebSocketHandler):
             return
         def disable_check(s):
             return s == "[slot full]"
-        @util.note_blocking_fun
         def send_game_links():
             global sockets
             if not self in sockets:
@@ -685,7 +681,6 @@ class CrawlWebSocket(tornado.websocket.WebSocketHandler):
         # start.
         return "allowed_with_hold" not in game or game["allowed_with_hold"]
 
-    @util.note_blocking_fun
     def start_crawl(self, game_id):
         if config.get('dgl_mode') and game_id not in config.games:
             self.go_lobby()
@@ -698,7 +693,6 @@ class CrawlWebSocket(tornado.websocket.WebSocketHandler):
                 self.send_message("login_required",
                     game=config.games[game_id].templated("name", username=self.username))
                 return
-            util.annotate_blocking_note(" user: " + self.username)
 
         if self.process:
             # ignore multiple requests for the same game, can happen when
@@ -753,7 +747,6 @@ class CrawlWebSocket(tornado.websocket.WebSocketHandler):
                     update_all_lobbys(self.process)
                 update_global_status()
 
-    @util.note_blocking_fun
     def _on_crawl_end(self):
         if config.get('dgl_mode'):
             remove_in_lobbys(self.process)
@@ -789,7 +782,6 @@ class CrawlWebSocket(tornado.websocket.WebSocketHandler):
             # The last crawl process has ended, now we can go
             IOLoop.current().stop()
 
-    @util.note_blocking_fun
     def init_user(self, callback):
         # this would be more cleanly implemented with wait_for_exit, but I
         # can't get code for that to work in a way that supports all currently
@@ -830,10 +822,8 @@ class CrawlWebSocket(tornado.websocket.WebSocketHandler):
         if self.is_running():
             self.process.stop()
 
-    @util.note_blocking_fun
     def do_login(self, username):
         self.username = username
-        util.annotate_blocking_note(" user: " + self.username)
         self.user_flags = None
         if not self.update_db_info():
             # XX consolidate with other ban check / login fail code somehow.
@@ -844,7 +834,6 @@ class CrawlWebSocket(tornado.websocket.WebSocketHandler):
             self.send_message("login_fail", reason=fail_reason)
             return
 
-        @util.note_blocking_fun
         def login_callback(result):
             success = result == 0
             if not success:
@@ -890,10 +879,12 @@ class CrawlWebSocket(tornado.websocket.WebSocketHandler):
         username, ok = auth.check_login_cookie(cookie)
         if ok:
             auth.forget_login_cookie(cookie)
-            self.logger.info("User %s logging in (via token).", username)
+            self.logger.info("User %s logging in from %s (via token).",
+                username, self.request.remote_ip)
             self.do_login(username)
         else:
-            self.logger.warning("Wrong login token for user %s.", username)
+            self.logger.warning("Wrong login token for user %s. (IP: %s)",
+                username, self.request.remote_ip)
             self.send_message("login_fail")
 
     def set_login_cookie(self):
@@ -982,6 +973,12 @@ class CrawlWebSocket(tornado.websocket.WebSocketHandler):
         if self.username and self.account_restricted():
             self.send_message("auth_error",
                         reason="Account restricted; spectating unavailable")
+            self.go_lobby()
+            return
+
+        if not self.username and not config.get('allow_anon_spectate'):
+            self.send_message("auth_error",
+                        reason="Anonymous spectating disabled")
             self.go_lobby()
             return
 
@@ -1163,20 +1160,21 @@ class CrawlWebSocket(tornado.websocket.WebSocketHandler):
         if game_id not in config.games: return
         path = self.rcfile_path(game_id)
         try:
-            with open(path, 'r') as f:
-                contents = f.read()
+            with util.SlowWarning("Slow IO: read rc '%s'" % path):
+                with open(path, 'r') as f:
+                    contents = f.read()
         # Handle RC file not existing. IOError for py2, OSError for py3
         except (OSError, IOError):
             contents = ''
         self.send_message("rcfile_contents", contents = contents)
 
-    @util.note_blocking_fun
     def set_rc(self, game_id, contents):
         rcfile_path = self.rcfile_path(game_id)
         try:
-            with open(rcfile_path, 'wb') as f:
-                # TODO: is binary + encode necessary in py 3?
-                f.write(utf8(contents))
+            with util.SlowWarning("Slow IO: write rc '%s'" % rcfile_path):
+                with open(rcfile_path, 'wb') as f:
+                    # TODO: is binary + encode necessary in py 3?
+                    f.write(utf8(contents))
         except Exception:
             self.logger.warning(
                     "Couldn't save rcfile for %s!",
@@ -1227,7 +1225,6 @@ class CrawlWebSocket(tornado.websocket.WebSocketHandler):
                                 excerpt, trunc,
                                 exc_info=True)
 
-    @util.note_blocking_fun
     def flush_messages(self):
         # type: () -> bool
         if self.client_closed or len(self.message_queue) == 0:

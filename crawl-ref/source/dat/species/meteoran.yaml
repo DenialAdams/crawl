@@ -3,7 +3,7 @@ monster: MONS_METEORAN
 name: "Meteoran"
 short_name: "Me"
 adjective: "Meteoric"
-difficulty: Advanced
+difficulty: False
 difficulty_priority: 30
 aptitudes:
   xp: 2

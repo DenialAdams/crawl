@@ -3,7 +3,7 @@ monster: MONS_BARACHI
 name: "Barachi"
 adjective: "Barachian"
 genus: "Frog"
-difficulty: Intermediate
+difficulty: False
 difficulty_priority: 20
 species_flags:
   - SPF_NO_HAIR

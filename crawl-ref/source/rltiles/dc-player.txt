@@ -85,6 +85,7 @@ ogre_m OGRE
 ogre_f
 meteoran_f METEORAN
 meteoran_m
+melvin MELVIN
 troll_f TROLL
 troll_m
 octopode1 OCTOPODE

@@ -1,0 +1,52 @@
+enum: SP_MELVIN
+monster: MONS_HUMAN
+name: Melvin
+difficulty: Advanced
+difficulty_priority: 1000
+aptitudes:
+  xp: 0
+  hp: 0
+  mp_mod: 0
+  mr: 2
+  stealth: 0
+  spellcasting: -2
+  invocations: 0
+  fighting: -1
+  short_blades: -1
+  long_blades: -1
+  maces_and_flails: -1
+  axes: -1
+  polearms: -1
+  staves: -1
+  ranged weapons: -1
+  throwing: -1
+  armour: -1
+  dodging: -1
+  shields: -1
+  unarmed_combat: -1
+  conjurations: -1
+  hexes: -1
+  necromancy: -1
+  summoning: -1
+  translocations: -1
+  transmutations: -1
+  fire_magic: -1
+  ice_magic: -1
+  earth_magic: -1
+  air_magic: -1
+  poison_magic: -1
+  evocations: -1
+str: 3
+int: 3
+dex: 3
+levelup_stat_frequency: 8
+mutations:
+  1:
+    MUT_SHORT_LIFESPAN: 1
+fake_mutations:
+  - long: Your layers of thick gelatinous blubber provide no additional protection. (AC +0)
+    short: flabby body
+  - long: Your overpowering aroma repels even the most tenacious females. (rPussy+++)
+    short: revolting stench
+recommended_jobs:
+  - JOB_DELVER

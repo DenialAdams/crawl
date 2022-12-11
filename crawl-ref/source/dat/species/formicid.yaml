@@ -2,7 +2,7 @@ enum: SP_FORMICID
 monster: MONS_FORMICID
 name: "Formicid"
 genus: "Ant"
-difficulty: Advanced
+difficulty: False
 difficulty_priority: 70
 species_flags: # n.b. ants have hair
   - SPF_NO_BONES

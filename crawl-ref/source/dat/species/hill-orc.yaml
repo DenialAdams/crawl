@@ -2,7 +2,7 @@ enum: SP_HILL_ORC
 monster: MONS_ORC
 name: Hill Orc
 short_name: HO
-difficulty: Simple
+difficulty: False
 difficulty_priority: 100
 aptitudes:
   xp: 0

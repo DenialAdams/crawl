@@ -1,7 +1,7 @@
 enum: SP_NAGA
 monster: MONS_NAGA
 name: Naga
-difficulty: Advanced
+difficulty: False
 difficulty_priority: 60
 species_flags:
   - SPF_SMALL_TORSO

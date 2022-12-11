@@ -1,7 +1,7 @@
 enum: SP_MINOTAUR
 monster: MONS_MINOTAUR
 name: Minotaur
-difficulty: Simple
+difficulty: False
 difficulty_priority: 90
 aptitudes:
   xp: -1

@@ -2547,6 +2547,9 @@ bool delete_temp_mutation()
 /// Not to be confused with mutation_desc().
 string get_mutation_desc(mutation_type mut)
 {
+    if (mut == MUT_SHORT_LIFESPAN && you.species == SP_MELVIN) {
+        return "Merry crawlsmas";
+    }
     const char* const name = mutation_name(mut);
     const string key = make_stringf("%s mutation", name);
     string lookup = getLongDescription(key);
@@ -2683,6 +2686,10 @@ int mutation_max_levels(mutation_type mut)
 string mutation_desc(mutation_type mut, int level, bool colour,
         bool is_sacrifice)
 {
+    if (mut == MUT_SHORT_LIFESPAN && you.species == SP_MELVIN) {
+        return "Gotta play fast, your tendies are almost done! (Clock---)";
+    }
+
     // Ignore the player's forms, etc.
     const bool ignore_player = (level != -1);
 

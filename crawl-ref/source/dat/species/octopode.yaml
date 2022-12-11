@@ -4,7 +4,7 @@ name: "Octopode"
 short_name: "Op"
 adjective: "Octopoid"
 genus: "Octopus"
-difficulty: Advanced
+difficulty: False
 difficulty_priority: 50
 aptitudes:
   xp: 0

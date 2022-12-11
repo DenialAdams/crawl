@@ -345,6 +345,10 @@ base/octopode1 SP_RECOMMENDED_OCTOPODE
 %compose base/meteoran_f
 %compose body/animal_skin
 %finish SP_RECOMMENDED_METEORAN
+%start
+%compose base/melvin
+%compose body/animal_skin
+%finish SP_RECOMMENDED_MELVIN
 %syn LAST_RECOMMENDED_SPECIES
 
 %sdir gui/backgrounds
@@ -376,4 +380,5 @@ enum:SP_RECOMMENDED_VAMPIRE SP_VAMPIRE
 enum:SP_RECOMMENDED_VINE_STALKER SP_VINE_STALKER
 enum:SP_RECOMMENDED_DJINNI SP_DJINNI
 enum:SP_RECOMMENDED_METEORAN SP_METEORAN
+enum:SP_RECOMMENDED_MELVIN SP_MELVIN
 %syn LAST_SPECIES

@@ -635,6 +635,8 @@ tileidx_t tilep_species_to_base_tile(int sp, int level)
         return TILEP_BASE_ARMATAUR;
     case SP_METEORAN:
         return TILEP_BASE_METEORAN;
+    case SP_MELVIN:
+        return TILEP_BASE_MELVIN;
     case SP_DEMIGOD:
         return TILEP_BASE_DEMIGOD;
     case SP_SPRIGGAN:

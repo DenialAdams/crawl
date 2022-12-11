@@ -20,6 +20,10 @@
 
 static bool _banned_combination(job_type job, species_type species)
 {
+    if (species == SP_MELVIN && job != JOB_DELVER) {
+        return true;
+    }
+
     if (species::mutation_level(species, MUT_NO_GRASPING)
         && (job == JOB_GLADIATOR
             || job == JOB_BRIGAND

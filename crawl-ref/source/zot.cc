@@ -88,6 +88,9 @@ int turns_until_zot()
 
 static int _zot_lifespan_div()
 {
+    if (you.species == SP_MELVIN) {
+        return 30;
+    }
     return you.has_mutation(MUT_SHORT_LIFESPAN) ? 10 : 1;
 }
 
@@ -146,10 +149,17 @@ void decr_zot_clock(bool extra_life)
         // old branch, new floor
         if (bezotted())
         {
-            if (extra_life)
-                mpr("As you die, Zot loses track of you.");
-            else
-                mpr("As you enter the new level, Zot loses track of you.");
+            if (you.species == SP_MELVIN) {
+                if (extra_life)
+                    mpr("As you die, Melvin has a gamer moment and forgets about his tendies temporarily.");
+                else
+                    mpr("As you enter the new level, Melvin gets distracted.");
+            } else {
+                if (extra_life)
+                    mpr("As you die, Zot loses track of you.");
+                else
+                    mpr("As you enter the new level, Zot loses track of you.");
+            }
         }
         zot = max(0, zot - ZOT_CLOCK_PER_FLOOR / div);
     }
@@ -176,10 +186,18 @@ void incr_zot_clock()
 
     if (_zot_clock() >= MAX_ZOT_CLOCK)
     {
-        mpr("Zot's power touches on you...");
+        if (you.species == SP_MELVIN) {
+            mpr("The smell of fresh baked tendies overwhelms you...");
+        } else {
+            mpr("Zot's power touches on you...");
+        }
+
         // Take the note before decrementing max HP, so the notes have the
         // cause before the effect.
         take_note(Note(NOTE_MESSAGE, 0, 0, "Touched by the power of Zot."));
+        if (you.species == SP_MELVIN) {
+            ouch(INSTANT_DEATH, KILLED_BY_ZOT);
+        }
         dec_max_hp(min(3 + you.hp_max / 6, you.hp_max - 1));
         interrupt_activity(activity_interrupt::force);
 
@@ -190,17 +208,32 @@ void incr_zot_clock()
     if (old_lvl >= lvl)
         return;
 
-    switch (lvl)
-    {
-        case 1:
-            mprf("You have lingered too long. Zot senses you. Dive deeper or flee this branch before you suffer!");
-            break;
-        case 2:
-            mpr("Zot draws nearer. Dive deeper or flee this branch before you suffer!");
-            break;
-        case 3:
-            mprf("Zot has nearly found you. Suffering is imminent. Descend or flee this branch!");
-            break;
+    if (you.species == SP_MELVIN) {
+        switch (lvl)
+        {
+            case 1:
+                mprf("You have lingered too long. Melvin hungers for tendies. Dive deeper or flee this branch to distract Melvin!");
+                break;
+            case 2:
+                mpr("The oven clock is getting low. Dive deeper or flee this branch before Melvin goes to get his tendies!");
+                break;
+            case 3:
+                mprf("The oven clock has nearly expired. Tendies are imminent. Descend or flee this branch!");
+                break;
+        }
+    } else {
+        switch (lvl)
+        {
+            case 1:
+                mprf("You have lingered too long. Zot senses you. Dive deeper or flee this branch before you suffer!");
+                break;
+            case 2:
+                mpr("Zot draws nearer. Dive deeper or flee this branch before you suffer!");
+                break;
+            case 3:
+                mprf("Zot has nearly found you. Suffering is imminent. Descend or flee this branch!");
+                break;
+        }
     }
 
     if (you.species == SP_METEORAN)

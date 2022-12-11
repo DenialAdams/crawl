@@ -3,7 +3,7 @@ monster: MONS_MERFOLK
 name: Merfolk
 short_name: Mf
 adjective: Merfolkian
-difficulty: Simple
+difficulty: False
 difficulty_priority: 80
 aptitudes:
   xp: 0

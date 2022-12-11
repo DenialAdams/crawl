@@ -107,7 +107,7 @@ class Species(MutableMapping):
             raise ValueError('fake_mutations must be a list')
         self.starting_species = s.get('difficulty') != False
         has_recommended_jobs = bool(s.get('recommended_jobs'))
-        if self.starting_species != has_recommended_jobs:
+        if self.starting_species and not has_recommended_jobs:
             raise ValueError('recommended_jobs must not be empty (or'
                                                 ' difficulty must be False)')
 

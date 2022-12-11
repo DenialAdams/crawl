@@ -2,7 +2,7 @@ enum: SP_ARMATAUR
 monster: MONS_ARMATAUR
 name: "Armataur"
 short_name: "At"
-difficulty: Simple
+difficulty: False
 difficulty_priority: 60
 species_flags:
   - SPF_SMALL_TORSO

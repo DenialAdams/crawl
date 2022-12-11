@@ -338,7 +338,7 @@ bool ranged_attack::using_weapon() const
 
 bool ranged_attack::clumsy_throwing() const
 {
-    return projectile->base_type != OBJ_MISSILES;
+    return throwing() && !is_throwable(attacker, *projectile);
 }
 
 int ranged_attack::weapon_damage()

@@ -721,11 +721,7 @@ void bolt::initialise_fire()
     if (reflections > 0)
         nightvision = can_see_invis = true;
     else
-    {
-        // XXX: Should non-agents count as seeing invisible?
-        nightvision = agent() && agent()->nightvision();
-        can_see_invis = agent() && agent()->can_see_invisible();
-    }
+        precalc_agent_properties();
 
 #ifdef DEBUG_DIAGNOSTICS
     // Not a "real" tracer, merely a range/reachability check.
@@ -745,6 +741,15 @@ void bolt::initialise_fire()
           hit, damage.num, damage.size,
           range);
 #endif
+}
+
+void bolt::precalc_agent_properties()
+{
+    const actor* a = agent();
+    // XXX: Should non-agents count as seeing invisible?
+    if (!a) return;
+    nightvision = a->nightvision();
+    can_see_invis = a->can_see_invisible();
 }
 
 void bolt::apply_beam_conducts()
@@ -965,10 +970,6 @@ void bolt::burn_wall_effect()
     }
     else if (you.can_smell())
         emit_message("You smell burning wood.");
-    if (whose_kill() == KC_YOU)
-        did_god_conduct(DID_KILL_PLANT, 1, god_cares());
-    else if (whose_kill() == KC_FRIENDLY && !crawl_state.game_is_arena())
-        did_god_conduct(DID_KILL_PLANT, 1, god_cares());
 
     if (feat == DNGN_TREE)
         place_cloud(CLOUD_FOREST_FIRE, pos(), random2(30)+25, agent());
@@ -2080,6 +2081,7 @@ void fire_tracer(const monster* mons, bolt &pbolt, bool explode_only,
     pbolt.source        = mons->pos();
     pbolt.source_id     = mons->mid;
     pbolt.attitude      = mons_attitude(*mons);
+    pbolt.precalc_agent_properties();
 
     // Init tracer variables.
     pbolt.foe_info.reset();
@@ -5527,11 +5529,18 @@ mon_resist_type bolt::apply_enchantment_to_monster(monster* mon)
         const int dam = damage.roll();
         if (you.see_cell(mon->pos()))
         {
-            const bool plural = mon->heads() > 1;
-            mprf("%s mind%s blasted%s",
-                 mon->name(DESC_ITS).c_str(),
-                 plural ? "s are" : " is",
-                 attack_strength_punctuation(dam).c_str());
+            if (mon->type == MONS_GLOWING_ORANGE_BRAIN)
+            {
+                mprf("%s is blasted smooth%s",
+                     mon->name(DESC_THE).c_str(),
+                     attack_strength_punctuation(dam).c_str());
+            } else {
+                const bool plural = mon->heads() > 1;
+                mprf("%s mind%s blasted%s",
+                     mon->name(DESC_ITS).c_str(),
+                     plural ? "s are" : " is",
+                     attack_strength_punctuation(dam).c_str());
+            }
             obvious_effect = true;
         }
         mon->hurt(agent(), dam, flavour);
@@ -5572,7 +5581,6 @@ mon_resist_type bolt::apply_enchantment_to_monster(monster* mon)
             return MON_AFFECTED;
 
         if (!mon->has_ench(ENCH_HASTE)
-            && !mon->is_stationary()
             && mon->add_ench(ENCH_HASTE))
         {
             if (!mons_is_immotile(*mon)
@@ -5585,7 +5593,7 @@ mon_resist_type bolt::apply_enchantment_to_monster(monster* mon)
 
     case BEAM_MIGHT:
         if (!mon->has_ench(ENCH_MIGHT)
-            && !mon->is_stationary()
+            && mons_has_attacks(*mon)
             && mon->add_ench(ENCH_MIGHT))
         {
             if (simple_monster_message(*mon, " seems to grow stronger."))

@@ -553,25 +553,13 @@ static inline int get_resistible_fraction(beam_type flavour)
 {
     switch (flavour)
     {
-    // Drowning damage from water is resistible by being a water thing, or
-    // otherwise asphyx resistant.
     case BEAM_WATER:
-        return 40;
-
-    // Assume ice storm and throw icicle are mostly solid.
     case BEAM_ICE:
-        return 40;
-
-    // 50/50 split of elec and sonic damage.
     case BEAM_THUNDER:
-        return 50;
-
     case BEAM_LAVA:
-        return 55;
-
+        return 50;
     case BEAM_POISON_ARROW:
         return 70;
-
     default:
         return 100;
     }
@@ -1023,6 +1011,11 @@ bool bad_attack(const monster *mon, string& adj, string& suffix,
 
     if (mon->friendly())
     {
+        // There's not really any harm in attacking your own spectral weapon.
+        // It won't share damage, and it'll go away anyway.
+        if (mon->type == MONS_SPECTRAL_WEAPON)
+            return false;
+
         if (god_hates_attacking_friend(you.religion, *mon))
         {
             adj = "your ally ";

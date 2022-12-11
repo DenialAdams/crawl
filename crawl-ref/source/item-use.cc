@@ -247,6 +247,16 @@ bool UseItemMenu::cycle_mode(bool forward)
     return true;
 }
 
+class TempUselessnessHighlighter : public MenuHighlighter
+{
+public:
+    int entry_colour(const MenuEntry *entry) const override
+    {
+        return entry->colour != MENU_ITEM_STOCK_COLOUR ? entry->colour
+               : entry->highlight_colour(true);
+    }
+};
+
 UseItemMenu::UseItemMenu(operation_types _oper, int item_type=OSEL_ANY,
                                     const char* prompt=nullptr)
     : InvMenu(MF_SINGLESELECT | MF_ARROWS_SELECT | MF_INIT_HOVER | MF_ALLOW_FORMATTING),
@@ -255,6 +265,7 @@ UseItemMenu::UseItemMenu(operation_types _oper, int item_type=OSEL_ANY,
       inv_header(nullptr), floor_header(nullptr)
 {
     set_tag("use_item");
+    set_highlighter(new TempUselessnessHighlighter()); // pointer managed by Menu
     menu_action = ACT_EXECUTE;
     if (prompt)
         set_title(prompt);
@@ -3194,6 +3205,17 @@ string cannot_read_item_reason(const item_def *item)
                 return "You cannot coerce anything to answer your summons.";
             return "";
 
+        case SCR_FOG:
+        case SCR_POISON:
+            if (env.level_state & LSTATE_STILL_WINDS)
+                return "The air is too still for clouds to form.";
+            return "";
+
+        case SCR_MAGIC_MAPPING:
+            if (!is_map_persistent())
+                return "It would have no effect in this place.";
+            return "";
+
 #if TAG_MAJOR_VERSION == 34
         case SCR_CURSE_WEAPON:
             if (!you.weapon())
@@ -3650,12 +3672,6 @@ void read(item_def* scroll, dist *target)
 
     case SCR_FOG:
     {
-        if (alreadyknown && (env.level_state & LSTATE_STILL_WINDS))
-        {
-            mpr("The air is too still for clouds to form.");
-            cancel_scroll = true;
-            break;
-        }
         mpr("The scroll dissolves into smoke.");
         auto smoke = random_smoke_type();
         big_cloud(smoke, &you, you.pos(), 50, 8 + random2(8));
@@ -3663,12 +3679,6 @@ void read(item_def* scroll, dist *target)
     }
 
     case SCR_MAGIC_MAPPING:
-        if (alreadyknown && !is_map_persistent())
-        {
-            cancel_scroll = true;
-            mpr("It would have no effect in this place.");
-            break;
-        }
         mpr(pre_succ_msg);
         magic_mapping(500, 100, false);
         break;

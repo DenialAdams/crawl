@@ -180,7 +180,26 @@ class CrawlProcessHandlerBase(object):
         for receiver in self._receivers:
             receiver.flush_messages()
 
-    def write_to_all(self, msg, send): # type: (str, bool) -> None
+    def _is_full_map_msg(self, msg):
+        # heuristic: map bundles can be very large (100k+), so we don't want to
+        # decode. But the crawl process is guaranteed to put some key info
+        # first. Use some brute force regexes to check it.
+        tocheck = msg[0:50]
+        return (re.search(r'"msg" *: *"map"', tocheck)
+                and re.search(r'"clear" *: *true', tocheck))
+
+    def handle_process_message(self, msg, send): # type: (str, bool) -> None
+        # special handling for map messages on a new spectator: these can be
+        # massive, and the deflate time adds up, so only send it to new
+        # spectators. This is all a bit heuristic, and probably could use
+        # a new control message instead...
+        # TODO: if multiple spectators join at the same time, it's probably
+        # possible for this heuristic to fail and send a full map to everyone
+        if self._fresh_watchers and self._is_full_map_msg(msg):
+            for w in self._fresh_watchers:
+                w.append_message(msg, send)
+            self._fresh_watchers = set()
+            return
         for receiver in self._receivers:
             receiver.append_message(msg, send)
 
@@ -296,7 +315,9 @@ class CrawlProcessHandlerBase(object):
                 watcher.send_message("game_ended", reason = self.exit_reason,
                                      message = self.exit_message,
                                      dump = self.exit_dump_url)
-                watcher.go_lobby()
+                # these are individually ok, but with a lot of spectators,
+                # doing them in a big loop can easily add up to 100s of ms
+                IOLoop.current().add_callback(watcher.go_lobby)
 
         if self.end_callback:
             self.end_callback()
@@ -627,6 +648,8 @@ class CrawlProcessHandler(CrawlProcessHandlerBase):
         self._purging_timer = None
         self._process_hup_timeout = None
 
+        self._fresh_watchers = set()
+
     def start(self):
         self._purge_locks_and_start(True)
 
@@ -894,6 +917,7 @@ class CrawlProcessHandler(CrawlProcessHandlerBase):
         super(CrawlProcessHandler, self).add_watcher(watcher)
 
         if self.conn and self.conn.open:
+            self._fresh_watchers.add(watcher)
             self.conn.send_message('{"msg":"spectator_joined"}')
 
     def handle_input(self, msg): # type: (str) -> None
@@ -951,19 +975,32 @@ class CrawlProcessHandler(CrawlProcessHandlerBase):
 
     def _on_process_error(self, line): # type: (str) -> None
         morgue_url = self.game_params.templated("morgue_url", username=self.username)
+        # The msg this is parsing can be found in dbg-asrt.cc:do_crash_dump
+        # this is run line-by-line, so multi-line errors (the norm) may trigger
+        # this call more than once
         if line.startswith("ERROR"):
+            # header line, e.g. `ERROR in 'wizard.cc' at line 79: Intentional crash`
             self.exit_reason = "crash"
             if line.rfind(":") != -1:
                 self.exit_message = line[line.rfind(":") + 1:].strip()
+        elif line.find("crash report: ") >= 0:
+            self.exit_reason = "crash"
+            if morgue_url:
+                match = re.search(r"crash report: (.*)", line)
+                if match is not None and match.group(1):
+                    self.exit_dump_url = morgue_url
+                    self.exit_dump_url += os.path.splitext(os.path.basename(match.group(1)))[0]
         elif line.startswith("We crashed!"):
+            # before 0.19-a0-1226-g81ff5c4599 everything was on one line; this
+            # line prefix is still present but the match below fails.
             self.exit_reason = "crash"
             if morgue_url:
                 match = re.search(r"\(([^)]+)\)", line)
                 if match is not None:
                     self.exit_dump_url = morgue_url
                     self.exit_dump_url += os.path.splitext(os.path.basename(match.group(1)))[0]
-                    print(self.exit_dump_url)
-        elif line.startswith("Writing crash info to"): # before 0.15-b1-84-gded71f8
+        elif line.startswith("Writing crash info to"):
+            # before 0.15-b1-84-gded71f8 the message was very minimal
             self.exit_reason = "crash"
             if morgue_url:
                 url = None
@@ -995,6 +1032,7 @@ class CrawlProcessHandler(CrawlProcessHandlerBase):
                     self.send_client_to_all()
             elif msgobj["msg"] == "flush_messages":
                 # only queue, once we know the crawl process asks for flushes
+                # note: every version since 0.13 supports this
                 self.queue_messages = True;
                 self.flush_messages_to_all()
             elif msgobj["msg"] == "dump":
@@ -1029,7 +1067,7 @@ class CrawlProcessHandler(CrawlProcessHandlerBase):
                 # want that to reset idle time.
                 self.note_activity()
 
-            self.write_to_all(msg, not self.queue_messages)
+            self.handle_process_message(msg, not self.queue_messages)
 
 
 

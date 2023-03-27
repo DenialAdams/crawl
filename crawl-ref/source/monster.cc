@@ -5,6 +5,7 @@
 
 #include "AppHdr.h"
 
+#include <cmath>
 #include <algorithm>
 #include <functional>
 #include <queue>
@@ -405,9 +406,7 @@ random_var monster::attack_delay(const item_def *projectile,
     if (!weap || (projectile && is_throwable(this, *projectile)))
         return random_var(10);
 
-    random_var delay(10);
-    if (get_weapon_brand(*weap) == SPWPN_SPEED)
-        delay = div_rand_round(delay * 2, 3);
+    random_var delay(weapon_adjust_delay(*weap, 10));
     return delay;
 }
 
@@ -1381,7 +1380,6 @@ static int _ego_damage_bonus(item_def &item)
     switch (get_weapon_brand(item))
     {
     case SPWPN_NORMAL:      return 0;
-    case SPWPN_VORPAL:      // deliberate fall through
     case SPWPN_PROTECTION:  return 1;
     default:                return 2;
     }
@@ -2001,7 +1999,7 @@ bool monster::pickup_item(item_def &item, bool msg, bool force)
 
 void monster::swap_weapons(maybe_bool maybe_msg)
 {
-    const bool msg = tobool(maybe_msg, observable());
+    const bool msg = maybe_msg.to_bool(observable());
 
     item_def *weap = mslot_item(MSLOT_WEAPON);
     item_def *alt  = mslot_item(MSLOT_ALT_WEAPON);
@@ -2055,7 +2053,11 @@ item_def *monster::mslot_item(mon_inv_type mslot) const
 
 item_def *monster::shield() const
 {
-    return mslot_item(MSLOT_SHIELD);
+    item_def *shield = mslot_item(MSLOT_SHIELD);
+
+    if (shield && shield->sub_type != ARM_ORB)
+        return shield;
+    return nullptr;
 }
 
 /**
@@ -2948,6 +2950,8 @@ int monster::off_level_regen_rate() const
 
     if (type == MONS_PARGHIT)
         return 2700; // whoosh
+    if (type == MONS_DEMONIC_CRAWLER)
+        return 600; // zoom
     if (mons_class_fast_regen(type) || type == MONS_PLAYER_GHOST)
         return 100;
     // Capped at 0.1 hp/turn.
@@ -3022,9 +3026,9 @@ int monster::shield_block_penalty() const
     return 4 * shield_blocks * shield_blocks;
 }
 
-void monster::shield_block_succeeded()
+void monster::shield_block_succeeded(actor *attacker)
 {
-    actor::shield_block_succeeded();
+    actor::shield_block_succeeded(attacker);
 
     ++shield_blocks;
 }
@@ -3192,6 +3196,9 @@ int monster::armour_class() const
         ac += jewellery_plus;
     }
 
+    // armour from artefacts
+    ac += scan_artefacts(ARTP_AC);
+
     // various enchantments
     if (has_ench(ENCH_IDEALISED))
         ac += 4 + get_hit_dice() / 3;
@@ -3298,6 +3305,9 @@ int monster::evasion(bool ignore_helpless, const actor* /*act*/) const
         ASSERT(abs(jewellery_plus) < 30); // sanity check
         ev += jewellery_plus;
     }
+
+    // evasion from artefacts
+    ev += scan_artefacts(ARTP_EVASION);
 
     if (has_ench(ENCH_AGILE))
         ev += AGILITY_BONUS;
@@ -4139,7 +4149,7 @@ bool monster::corrode_equipment(const char* corrosion_source, int degree)
 /**
  * Attempts to apply corrosion to a monster.
  */
-void monster::splash_with_acid(actor* evildoer, int acid_strength)
+void monster::splash_with_acid(actor* evildoer)
 {
     // Splashing with acid shouldn't do anything to immune targets
     if (res_acid() == 3)
@@ -4154,7 +4164,7 @@ void monster::splash_with_acid(actor* evildoer, int acid_strength)
              attack_strength_punctuation(post_res_dam).c_str());
     }
 
-    acid_corrode(acid_strength);
+    acid_corrode(3);
 
     if (post_res_dam > 0)
         hurt(evildoer, post_res_dam, BEAM_ACID, KILLED_BY_ACID);
@@ -4209,15 +4219,15 @@ int monster::hurt(const actor *agent, int amount, beam_type flavour,
         else if (amount <= 0 && hit_points <= max_hit_points)
             return 0;
 
-        // Apply damage multipliers for scarf of harm
+        // Apply damage multipliers for harm
         if (amount != INSTANT_DEATH)
         {
-            // +30% damage when the opponent has harm
+            // +30% damage if opp has one level of harm, +45% with two
             if (agent && agent->extra_harm())
-                amount = amount * 13 / 10;
-            // +20% damage when self has harm
+                amount = amount * (100 + 15 * (agent->extra_harm() + 1)) / 100;
+            // +20% damage if you have one level of harm, +30% with two
             else if (extra_harm())
-                amount = amount * 6 / 5;
+                amount = amount * (10 + extra_harm() + 1) / 10;
         }
 
         // Apply damage multipliers for quad damage
@@ -4253,6 +4263,7 @@ int monster::hurt(const actor *agent, int amount, beam_type flavour,
         if (agent && agent->is_player()
             && mons_class_gives_xp(type)
             && (temp_attitude() == ATT_HOSTILE || has_ench(ENCH_INSANE))
+            && type != MONS_NAMELESS // hack - no usk piety for miscasts
             && flavour != BEAM_SHARED_PAIN
             && flavour != BEAM_STICKY_FLAME
             && kill_type != KILLED_BY_POISON
@@ -4824,10 +4835,7 @@ int monster::foe_distance() const
                 : INFINITE_DISTANCE;
 }
 
-/**
- * Can the monster suffer ENCH_INSANE?
- */
-bool monster::can_go_frenzy() const
+bool monster::can_get_mad() const
 {
     if (mons_is_tentacle_or_tentacle_segment(type))
         return false;
@@ -4843,8 +4851,15 @@ bool monster::can_go_frenzy() const
     if (berserk_or_insane() || has_ench(ENCH_FATIGUE))
         return false;
 
-    // If we have no melee attack, going berserk is pointless.
-    if (!mons_has_attacks(*this))
+    return true;
+}
+
+/**
+ * Can the monster suffer ENCH_INSANE?
+ */
+bool monster::can_go_frenzy() const
+{
+    if (!can_get_mad())
         return false;
 
     // These allies have a special loyalty
@@ -4860,7 +4875,8 @@ bool monster::can_go_frenzy() const
 bool monster::can_go_berserk() const
 {
     return bool(holiness() & (MH_NATURAL | MH_DEMONIC | MH_HOLY))
-           && can_go_frenzy();
+           && mons_has_attacks(*this)
+           && can_get_mad();
 }
 
 bool monster::berserk() const
@@ -5696,9 +5712,9 @@ void monster::react_to_damage(const actor *oppressor, int damage,
         {
             // we intentionally allow harming the oppressor in this case,
             // so need to cast off its constness
-            shock_serpent_discharge_fineff::schedule(this,
-                                                     const_cast<actor&>(*oppressor),
-                                                     pos(), pow);
+            shock_discharge_fineff::schedule(this,
+                                             const_cast<actor&>(*oppressor),
+                                             pos(), pow, "electric aura");
         }
     }
 

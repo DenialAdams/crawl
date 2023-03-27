@@ -80,8 +80,6 @@
 #endif
 #include "tiles-build-specific.h"
 
-
-
 // For finding the executable's path
 #ifdef TARGET_OS_WINDOWS
 #define WIN32_LEAN_AND_MEAN
@@ -95,6 +93,10 @@ extern char **NXArgv;
 #endif
 #elif defined(UNIX) || defined(TARGET_COMPILER_MINGW)
 #include <unistd.h>
+#endif
+
+#ifdef __ANDROID__
+#include "SDL_system.h"
 #endif
 
 #ifdef __HAIKU__
@@ -129,14 +131,6 @@ static bool _first_greater(const pair<int, int> &l, const pair<int, int> &r)
 
 const vector<GameOption*> game_options::build_options_list()
 {
-#ifndef DEBUG
-    const bool USING_TOUCH =
-#if defined(TOUCH_UI)
-        true;
-#else
-        false;
-#endif
-#endif
     const bool USING_DGL =
 #if defined(DGAMELAUNCH)
         true;
@@ -197,9 +191,9 @@ const vector<GameOption*> game_options::build_options_list()
         new BoolGameOption(SIMPLE_NAME(blink_brightens_background), false),
         new MultipleChoiceGameOption<maybe_bool>(
             SIMPLE_NAME(bold_brightens_foreground),
-            MB_FALSE, {{"false", MB_FALSE},
-                       {"true", MB_MAYBE},
-                       {"force", MB_TRUE}}, true),
+            false, {{"false", false},
+                    {"true", maybe_bool::maybe},
+                    {"force", true}}, true),
         new MultipleChoiceGameOption<char_set_type>(
             SIMPLE_NAME(char_set),
             CSET_DEFAULT,
@@ -216,7 +210,9 @@ const vector<GameOption*> game_options::build_options_list()
         new BoolGameOption(SIMPLE_NAME(animate_equip_bar), false),
         new BoolGameOption(SIMPLE_NAME(mouse_input), false),
         new BoolGameOption(SIMPLE_NAME(menu_arrow_control), true),
-        new BoolGameOption(SIMPLE_NAME(mlist_allow_alternate_layout), false),
+        new BoolGameOption(mlist_allow_alternate_layout,
+                           {"mlist_allow_alternative_layout",
+                            "mlist_allow_alternate_layout"}, false),
         new BoolGameOption(SIMPLE_NAME(monster_item_view_coordinates), false),
         new ListGameOption<text_pattern>(SIMPLE_NAME(monster_item_view_features)),
         new BoolGameOption(SIMPLE_NAME(messages_at_top), false),
@@ -236,17 +232,17 @@ const vector<GameOption*> game_options::build_options_list()
 #ifdef DEBUG
         new BoolGameOption(SIMPLE_NAME(show_more), false),
 #else
-        new BoolGameOption(SIMPLE_NAME(show_more), !USING_TOUCH),
+        new BoolGameOption(SIMPLE_NAME(show_more), true),
 #endif
         new BoolGameOption(SIMPLE_NAME(small_more), false),
         new BoolGameOption(SIMPLE_NAME(pickup_thrown), true),
         new MultipleChoiceGameOption<maybe_bool>(
             SIMPLE_NAME(show_god_gift),
-            MB_MAYBE, {{"false", MB_FALSE},
-                       {"unid", MB_MAYBE},
-                       {"unident", MB_MAYBE},
-                       {"unidentified", MB_MAYBE},
-                       {"true", MB_TRUE}}, true),
+            maybe_bool::maybe, {{"false", false},
+                                {"unid", maybe_bool::maybe},
+                                {"unident", maybe_bool::maybe},
+                                {"unidentified", maybe_bool::maybe},
+                                {"true", true}}, true),
         new BoolGameOption(SIMPLE_NAME(show_travel_trail), USING_DGL),
         new BoolGameOption(SIMPLE_NAME(use_fake_cursor), USING_UNIX ),
         new BoolGameOption(SIMPLE_NAME(use_fake_player_cursor), true),
@@ -395,6 +391,7 @@ const vector<GameOption*> game_options::build_options_list()
              {"classic", level_gen_type::classic},
              {"false", level_gen_type::classic}
             }, true),
+        new BoolGameOption(SIMPLE_NAME(single_column_item_menus), true),
 
 #ifdef DGL_SIMPLE_MESSAGING
         new BoolGameOption(SIMPLE_NAME(messaging), true),
@@ -417,6 +414,7 @@ const vector<GameOption*> game_options::build_options_list()
         new BoolGameOption(SIMPLE_NAME(tile_show_minihealthbar), true),
         new BoolGameOption(SIMPLE_NAME(tile_show_minimagicbar), true),
         new BoolGameOption(SIMPLE_NAME(tile_show_demon_tier), false),
+        new BoolGameOption(SIMPLE_NAME(tile_grinch), false),
         new StringGameOption(SIMPLE_NAME(tile_show_threat_levels), "nasty"),
         new StringGameOption(SIMPLE_NAME(tile_show_items), "!?/=([)}:|"),
         // disabled by default due to performance issues
@@ -429,7 +427,11 @@ const vector<GameOption*> game_options::build_options_list()
         new IntGameOption(SIMPLE_NAME(tile_font_lbl_size), 0, 0, INT_MAX),
         new IntGameOption(SIMPLE_NAME(tile_cell_pixels), 32, 1, INT_MAX),
         new IntGameOption(SIMPLE_NAME(tile_map_pixels), 0, 0, INT_MAX),
+#ifndef __ANDROID__
         new IntGameOption(SIMPLE_NAME(tile_tooltip_ms), 500, 0, INT_MAX),
+#else
+        new IntGameOption(SIMPLE_NAME(tile_tooltip_ms), 0, 0, INT_MAX),
+#endif
         new IntGameOption(SIMPLE_NAME(tile_update_rate), 1000, 50, INT_MAX),
         new IntGameOption(SIMPLE_NAME(tile_runrest_rate), 100, 0, INT_MAX),
         // minimap colours
@@ -466,26 +468,23 @@ const vector<GameOption*> game_options::build_options_list()
              {"glyphs", "glyphs"},
              {"hybrid", "hybrid"}}),
         new ListGameOption<string>(SIMPLE_NAME(tile_layout_priority),
-#ifdef TOUCH_UI
-            split_string(",", "minimap, command, inventory, "
-                              "command2, spell, ability, monster")),
-#else
             split_string(",", "minimap, inventory, command, "
                               "spell, ability, monster")),
 #endif
-#endif
 #ifdef USE_TILE_LOCAL
+# ifndef __ANDROID__
         new IntGameOption(SIMPLE_NAME(game_scale), 1, 1, 8),
+# endif
         new IntGameOption(SIMPLE_NAME(tile_key_repeat_delay), 200, 0, INT_MAX),
         new IntGameOption(SIMPLE_NAME(tile_window_width), -90, INT_MIN, INT_MAX),
         new IntGameOption(SIMPLE_NAME(tile_window_height), -90, INT_MIN, INT_MAX),
         new IntGameOption(SIMPLE_NAME(tile_window_ratio), 1618, INT_MIN, INT_MAX),
+        new BoolGameOption(SIMPLE_NAME(tile_window_limit_size), true),
         new StringGameOption(SIMPLE_NAME(tile_font_crt_file), MONOSPACED_FONT),
         new StringGameOption(SIMPLE_NAME(tile_font_msg_file), MONOSPACED_FONT),
         new StringGameOption(SIMPLE_NAME(tile_font_stat_file), MONOSPACED_FONT),
         new StringGameOption(SIMPLE_NAME(tile_font_tip_file), MONOSPACED_FONT),
         new StringGameOption(SIMPLE_NAME(tile_font_lbl_file), PROPORTIONAL_FONT),
-        new BoolGameOption(SIMPLE_NAME(tile_single_column_menus), true),
         new IntGameOption(SIMPLE_NAME(tile_sidebar_pixels), 32, 1, INT_MAX),
         new MultipleChoiceGameOption<screen_mode>(
             SIMPLE_NAME(tile_full_screen),
@@ -496,18 +495,11 @@ const vector<GameOption*> game_options::build_options_list()
              {"auto", SCREENMODE_AUTO}}, true),
         new MultipleChoiceGameOption<maybe_bool>(
             SIMPLE_NAME(tile_use_small_layout),
-            MB_MAYBE,
-#ifdef TOUCH_UI
-            {{"true", MB_TRUE},
-             {"false", MB_FALSE},
-             {"maybe", MB_MAYBE},
-             {"auto", MB_MAYBE}}, true
-#else
-            // this option is unsupported, undocumented, and fairly crashy.
-            // XX do something about this.
-            {}
-#endif
-            ),
+            maybe_bool::maybe,
+            {{"true", true},
+             {"false", false},
+             {"maybe", maybe_bool::maybe},
+             {"auto", maybe_bool::maybe}}, true),
 #endif
 #ifdef USE_TILE_WEB
         new BoolGameOption(SIMPLE_NAME(tile_realtime_anim), false),
@@ -559,18 +551,10 @@ const vector<GameOption*> game_options::build_options_list()
              true),
         new MultipleChoiceGameOption<wizard_option_type>(
             SIMPLE_NAME(explore_mode),
-#if defined(DGAMELAUNCH) || !defined(WIZARD)
-            WIZ_NEVER,
-#else
             WIZ_NO,
-#endif
-#if defined(DGAMELAUNCH) || !defined(WIZARD)
-            {}, // setting in rc is disabled
-#else
             {{"true", WIZ_YES},
              {"false", WIZ_NO},
              {"never", WIZ_NEVER}},
-#endif
              true),
 
 #ifdef WIZARD
@@ -663,7 +647,7 @@ static msg_colour_type _str_to_channel_colour(const string &str)
             ret = MSGCOL_PLAIN;
         else if (str == "default" || str == "on")
             ret = MSGCOL_DEFAULT;
-        else if (str == "alternate")
+        else if (str == "alternative" || str == "alternate")
             ret = MSGCOL_ALTERNATE;
     }
     else
@@ -1274,7 +1258,8 @@ void game_options::reset_options()
         { SPELL_HAILSTORM, SPELL_STARBURST, SPELL_FROZEN_RAMPARTS,
           SPELL_IGNITION, SPELL_NOXIOUS_BOG, SPELL_ANGUISH,
           SPELL_CAUSE_FEAR, SPELL_INTOXICATE, SPELL_DISCORD, SPELL_DISPERSAL,
-          SPELL_ENGLACIATION, SPELL_DAZZLING_FLASH, SPELL_FLAME_WAVE };
+          SPELL_ENGLACIATION, SPELL_DAZZLING_FLASH, SPELL_FLAME_WAVE,
+          SPELL_PLASMA_BEAM };
     always_use_static_spell_targeters = false;
 
     force_ability_targeter =
@@ -1287,19 +1272,24 @@ void game_options::reset_options()
 
 #ifdef DGAMELAUNCH
     // not settable via rc on DGL, so no Options object to initialize them
-    restart_after_game = MB_FALSE;
+    restart_after_game = false;
     restart_after_save = false;
     newgame_after_quit = false;
     name_bypasses_menu = true;
 #else
 #ifdef USE_TILE_LOCAL
-    restart_after_game = MB_TRUE;
+    restart_after_game = true;
 #else
-    restart_after_game = MB_MAYBE;
+    restart_after_game = maybe_bool::maybe;
 #endif
 #endif
 
     terp_files.clear();
+
+#ifdef USE_TILE_LOCAL
+    // window layout
+    tile_use_small_layout = maybe_bool::maybe;
+#endif
 
 #ifdef USE_TILE
     // XXX: arena may now be chosen after options are read.
@@ -1312,8 +1302,14 @@ void game_options::reset_options()
     tile_weapon_offsets.second = INT_MAX;
     tile_shield_offsets.first  = INT_MAX;
     tile_shield_offsets.second = INT_MAX;
+# ifndef __ANDROID__
     tile_viewport_scale = 100;
     tile_map_scale      = 60;
+# else
+    tile_viewport_scale = 0;
+    tile_map_scale      = 0;
+# endif
+
 #endif
 
 #ifdef USE_TILE_WEB
@@ -2220,6 +2216,7 @@ void game_options::reset_aliases(bool clear)
     Options.add_alias("heap_brand", "heap_highlight");
     Options.add_alias("feature_item_brand", "feature_item_highlight");
     Options.add_alias("trap_item_brand", "trap_item_highlight");
+    Options.add_alias("tile_single_column_menus", "single_column_item_menus");
 
 }
 
@@ -3826,10 +3823,10 @@ void game_options::read_option_line(const string &str, bool runscript)
             report_error(possible_error.c_str(), orig_field.c_str());
     }
 #ifdef USE_TILE
-#ifdef TOUCH_UI
+#ifdef USE_TILE_LOCAL
     else if (key == "tile_use_small_layout")
         tile_use_small_layout = read_maybe_bool(field);
-#endif
+#endif // USE_TILE_LOCAL
     else if (key == "tile_show_player_species" && field == "true")
     {
         field = "playermons";
@@ -4263,6 +4260,14 @@ void get_system_environment()
         SysEnv.crawl_dir = SAVE_DIR_PATH;
 #endif
 
+#ifdef __ANDROID__
+    if (SysEnv.crawl_dir.empty())
+    {
+        SysEnv.crawl_dir = SDL_AndroidGetExternalStoragePath();
+        chdir(SysEnv.crawl_dir.c_str());
+    }
+#endif
+
 #ifdef DGL_SIMPLE_MESSAGING
     // Enable DGL_SIMPLE_MESSAGING only if SIMPLEMAIL and MAIL are set.
     const char *simplemail = getenv("SIMPLEMAIL");
@@ -4343,6 +4348,9 @@ enum commandline_option_type
     CLO_SAVE_JSON,
     CLO_GAMETYPES_JSON,
     CLO_EDIT_BONES,
+#if defined(UNIX) || defined(USE_TILE_LOCAL)
+    CLO_HEADLESS,
+#endif
 #ifdef USE_TILE_WEB
     CLO_WEBTILES_SOCKET,
     CLO_AWAIT_CONNECTION,
@@ -4350,6 +4358,35 @@ enum commandline_option_type
 #endif
 
     CLO_NOPS
+};
+
+// CLOs that will work ok in headless mode.
+static set<commandline_option_type> clo_headless_ok = {
+// ok in all builds
+    CLO_SCORES,
+    CLO_BUILDDB,
+    CLO_HELP,
+    CLO_VERSION,
+    CLO_PLAYABLE_JSON, // JSON metadata for species, jobs, combos.
+    CLO_BRANCHES_JSON, // JSON metadata for branches.
+    CLO_EDIT_BONES,
+    CLO_MAPSTAT,
+    CLO_MAPSTAT_DUMP_DISCONNECT,
+    CLO_OBJSTAT,
+#ifndef USE_TILE_LOCAL
+// TODO: still too crashy in local tiles to enable
+    CLO_RC,
+#endif
+    CLO_ARENA,
+    CLO_TEST,
+    CLO_SCRIPT,
+#ifdef USE_TILE_WEB
+    CLO_WEBTILES_SOCKET,
+    CLO_AWAIT_CONNECTION,
+    CLO_PRINT_WEBTILES_OPTIONS,
+    CLO_SAVE_JSON,
+    CLO_GAMETYPES_JSON,
+#endif
 };
 
 static const char *cmd_ops[] =
@@ -4362,6 +4399,9 @@ static const char *cmd_ops[] =
     "print-charset", "tutorial", "wizard", "explore", "no-save",
     "no-player-bones", "gdb", "no-gdb", "nogdb", "throttle", "no-throttle",
     "playable-json", "branches-json", "save-json", "gametypes-json", "bones",
+#if defined(UNIX) || defined(USE_TILE_LOCAL)
+    "headless",
+#endif
 #ifdef USE_TILE_WEB
     "webtiles-socket", "await-connection", "print-webtiles-options",
 #endif
@@ -5181,6 +5221,8 @@ bool parse_args(int argc, char **argv, bool rc_only)
             SysEnv.cmd_args.emplace_back(argv[i]);
     }
 
+    bool seen_headless_ok = false;
+
     while (current < argc)
     {
         // get argument
@@ -5251,6 +5293,9 @@ bool parse_args(int argc, char **argv, bool rc_only)
             next_is_param = true;
         }
 
+        if (clo_headless_ok.count(static_cast<commandline_option_type>(o)) > 0)
+            seen_headless_ok = true;
+
         // Take action according to the cmd chosen.
         switch (o)
         {
@@ -5291,9 +5336,7 @@ bool parse_args(int argc, char **argv, bool rc_only)
                 crawl_state.map_stat_gen = true;
             else
                 crawl_state.obj_stat_gen = true;
-#ifdef USE_TILE_LOCAL
-            crawl_state.tiles_disabled = true;
-#endif
+            enter_headless_mode();
 
             if (!SysEnv.map_gen_iters)
                 SysEnv.map_gen_iters = 100;
@@ -5357,7 +5400,7 @@ bool parse_args(int argc, char **argv, bool rc_only)
             if (!rc_only)
             {
                 Options.game.type = GAME_TYPE_ARENA;
-                Options.restart_after_game = MB_FALSE;
+                Options.restart_after_game = false;
             }
             if (next_is_param)
             {
@@ -5380,6 +5423,9 @@ bool parse_args(int argc, char **argv, bool rc_only)
             end(0);
 
         case CLO_TEST:
+            // TODO: are there any tests/scripts that make sense without
+            // headless mode in console?
+            enter_headless_mode();
             crawl_state.test = true;
             if (next_is_param)
             {
@@ -5389,7 +5435,25 @@ bool parse_args(int argc, char **argv, bool rc_only)
             }
             break;
 
+#if defined(UNIX) || defined(USE_TILE_LOCAL)
+        case CLO_HEADLESS:
+            enter_headless_mode();
+#ifdef USE_TILE_LOCAL
+            break;
+#else
+            if (!next_is_param)
+                break;
+            // intentional fallthrough: let -headless optionally take a script
+            // name (for non-local-tiles)
+            seen_headless_ok = true;
+#endif
+#endif
+
         case CLO_SCRIPT:
+            // TODO: are there any tests/scripts that make sense without
+            // headless mode in console?
+            enter_headless_mode();
+
             crawl_state.test   = true;
             crawl_state.script = true;
             crawl_state.script_args.clear();
@@ -5402,6 +5466,7 @@ bool parse_args(int argc, char **argv, bool rc_only)
             }
             else
             {
+                // should be unreachable for CLO_HEADLESS
                 end(1, false,
                     "-script must specify comma-separated script names");
             }
@@ -5411,9 +5476,7 @@ bool parse_args(int argc, char **argv, bool rc_only)
             if (next_is_param)
                 return false;
             crawl_state.build_db = true;
-#ifdef USE_TILE_LOCAL
-            crawl_state.tiles_disabled = true;
-#endif
+            enter_headless_mode();
             break;
 
         case CLO_GDB:
@@ -5666,8 +5729,7 @@ bool parse_args(int argc, char **argv, bool rc_only)
         if (nextUsed)
             current++;
     }
-
-    return true;
+    return !in_headless_mode() || seen_headless_ok;
 }
 
 ///////////////////////////////////////////////////////////////////////

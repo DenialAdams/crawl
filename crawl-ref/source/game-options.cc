@@ -48,19 +48,19 @@ maybe_bool read_maybe_bool(const string &field)
 {
     // TODO: check for "maybe" explicitly or something?
     if (field == "true" || field == "1" || field == "yes")
-        return MB_TRUE;
+        return true;
 
     if (field == "false" || field == "0" || field == "no")
-        return MB_FALSE;
+        return false;
 
-    return MB_MAYBE;
+    return maybe_bool::maybe;
 }
 
 bool read_bool(const string &field, bool def_value)
 {
     const maybe_bool result = read_maybe_bool(field);
-    if (result != MB_MAYBE)
-        return tobool(result, false);
+    if (result.is_bool())
+        return bool(result);
 
     Options.report_error("Bad boolean: %s (should be true or false)", field.c_str());
     return def_value;
@@ -71,13 +71,13 @@ string BoolGameOption::loadFromString(const string &field, rc_line_type ltyp)
 {
     string error;
     const maybe_bool result = read_maybe_bool(field);
-    if (result == MB_MAYBE)
+    if (!result.is_bool())
     {
         return make_stringf("Bad %s value: %s (should be true or false)",
                             name().c_str(), field.c_str());
     }
 
-    value = tobool(result, false);
+    value = bool(result);
     return GameOption::loadFromString(field, ltyp);
 }
 
@@ -157,6 +157,7 @@ string ColourThresholdOption::loadFromString(const string &field,
                 remove_matching(value, entry);
             break;
         default:
+            // XX should this really be a die?
             die("Unknown rc line type for %s: %d!", name().c_str(), ltyp);
     }
     return GameOption::loadFromString(field, ltyp);
@@ -176,6 +177,8 @@ colour_thresholds
             const string failure = make_stringf("Bad %s pair: '%s'",
                                                 name().c_str(),
                                                 pair_str.c_str());
+            // XX should this really be a `die`? I *think* it can only be
+            // triggered by someone setting a bad default in this file...
             if (!error)
                 die("%s", failure.c_str());
             *error = failure;
@@ -191,6 +194,7 @@ colour_thresholds
             const string failure = make_stringf("Bad %s: '%s'",
                                                 name().c_str(),
                                                 colstr.c_str());
+            // see note above
             if (!error)
                 die("%s", failure.c_str());
             *error = failure;

@@ -33,6 +33,7 @@
 #include "english.h"       // For apostrophise
 #include "exercise.h"      // For practise_evoking
 #include "fight.h"
+#include "fineff.h"        // For the Storm Queen's Shield
 #include "god-conduct.h"   // did_god_conduct
 #include "mgen-data.h"     // For Sceptre of Asmodeus evoke
 #include "melee-attack.h"  // For autumn katana
@@ -43,6 +44,7 @@
 #include "nearby-danger.h" // For Zhor
 #include "output.h"
 #include "player.h"
+#include "player-reacts.h" // For the consecrated labrys
 #include "player-stats.h"
 #include "showsymb.h"      // For Cigotuvi's Embrace
 #include "spl-cast.h"      // For evokes
@@ -303,6 +305,20 @@ static void _POWER_melee_effects(item_def* /*weapon*/, actor* attacker,
 
 ////////////////////////////////////////////////////
 
+static void _HOLY_AXE_world_reacts(item_def *item)
+{
+    const int horror_level = current_horror_level();
+    // Caps at the obsidian axe's base enchant.
+    const int plus = min(horror_level * 3 + 4, 16);
+    if (item->plus == plus)
+        return;
+
+    item->plus = plus;
+    you.wield_change = true;
+}
+
+////////////////////////////////////////////////////
+
 static void _SINGING_SWORD_equip(item_def *item, bool *show_msgs, bool /*unmeld*/)
 {
     bool def_show = true;
@@ -509,6 +525,24 @@ static void _GONG_melee_effects(item_def* /*item*/, actor* wearer,
     mprf(MSGCH_SOUND, "%s", msg.c_str());
 
     noisy(40, wearer->pos());
+}
+
+///////////////////////////////////////////////////
+
+static void _STORM_QUEEN_melee_effects(item_def* /*item*/, actor* wearer,
+                                       actor* attacker, bool /*dummy*/,
+                                       int /*dam*/)
+{
+    // Discharge does 3d(4 + pow*3/2) damage, so each point of power does
+    // an average of another 9/4 points of retaliation damage (~2).
+    // Let's try 3d7 damage at 1/3 chance. This is broadly comparable to
+    // elec brand - same average damage per trigger, higher trigger chance,
+    // but checks (half) AC - and triggers on block instead of attack :)
+    if (!attacker || !one_chance_in(3)) return;
+    shock_discharge_fineff::schedule(wearer, *attacker,
+                                     wearer->pos(), 3,
+                                     "shield");
+
 }
 
 ///////////////////////////////////////////////////
@@ -1013,6 +1047,17 @@ static void _FIRESTARTER_melee_effects(item_def* /*weapon*/, actor* attacker,
     }
 }
 
+////////////////////////////////////////////////////
+static void _FORCE_LANCE_melee_effects(item_def* /*weapon*/, actor* attacker,
+                                       actor* defender, bool mondied, int dam)
+{
+    if (mondied || !dam || !one_chance_in(3)) return;
+    // max power around a !!! hit (ie ~2d11 on collide from a 34+ damage hit)
+    // no real justification for this, just vibes
+    const int collide_power = min(100, dam * 3);
+    defender->knockback(*attacker, 1, collide_power, "blow");
+}
+
 ///////////////////////////////////////////////////
 
 #if TAG_MAJOR_VERSION == 34
@@ -1376,7 +1421,7 @@ static void _BATTLE_world_reacts(item_def */*item*/)
         && there_are_monsters_nearby(true, true, false)
         && stop_summoning_reason(MR_RES_POISON, M_FLIES).empty())
     {
-        cast_battlesphere(&you, calc_spell_power(SPELL_BATTLESPHERE, true),
+        cast_battlesphere(&you, calc_spell_power(SPELL_BATTLESPHERE),
                           GOD_NO_GOD, false);
         did_god_conduct(DID_WIZARDLY_ITEM, 10);
     }
@@ -1665,6 +1710,7 @@ static void _AUTUMN_KATANA_melee_effects(item_def* /*weapon*/, actor* attacker,
 }
 
 ///////////////////////////////////////////////////
+
 static void _VITALITY_world_reacts(item_def */*item*/)
 {
     // once it starts regenerating you, you're doin evil
@@ -1672,5 +1718,73 @@ static void _VITALITY_world_reacts(item_def */*item*/)
         || you.activated[EQ_AMULET])
     {
         did_god_conduct(DID_EVIL, 1);
+    }
+}
+
+///////////////////////////////////////////////////
+
+static void _reset_victory_stats(item_def *item)
+{
+    int &bonus_stats = item->props[VICTORY_STAT_KEY].get_int();
+    if (bonus_stats > 0)
+    {
+        bonus_stats = 0;
+        item->plus = get_unrand_entry(item->unrand_idx)->plus;
+        artefact_set_property(*item, ARTP_SLAYING, bonus_stats);
+        artefact_set_property(*item, ARTP_INTELLIGENCE, bonus_stats);
+        mprf(MSGCH_WARN, "%s stops glowing.", item->name(DESC_THE, false, true,
+                                                         false).c_str());
+
+        you.redraw_armour_class = true;
+        notify_stat_change();
+    }
+}
+
+static void _VICTORY_unequip(item_def *item, bool */*show_msgs*/)
+{
+    _reset_victory_stats(item);
+}
+
+#define VICTORY_STAT_CAP 7
+
+static void _VICTORY_death_effects(item_def *item, monster* mons,
+                                   killer_type killer)
+{
+    // No bonus for killing friendlies, neutrals, summons, etc.
+    if (killer != KILL_YOU && killer != KILL_YOU_MISSILE
+        || !mons_gives_xp(*mons, you))
+    {
+        return;
+    }
+
+    const mon_threat_level_type threat = mons_threat_level(*mons);
+
+    // Increased chance of victory bonus from more dangerous mons.
+    // Using threat for this is kludgy, but easily visible to players.
+    if (threat == MTHRT_NASTY || (threat == MTHRT_TOUGH && x_chance_in_y(1, 4)))
+    {
+        int &bonus_stats = item->props[VICTORY_STAT_KEY].get_int();
+        if (bonus_stats < VICTORY_STAT_CAP)
+        {
+            bonus_stats++;
+            item->plus = bonus_stats;
+            artefact_set_property(*item, ARTP_SLAYING, bonus_stats);
+            artefact_set_property(*item, ARTP_INTELLIGENCE, bonus_stats);
+            mprf(MSGCH_GOD, GOD_OKAWARU, "%s glows%s.",
+                 item->name(DESC_THE, false, true, false).c_str(),
+                 bonus_stats == VICTORY_STAT_CAP ? " brightly" : "");
+
+            you.redraw_armour_class = true;
+            notify_stat_change();
+        }
+    }
+}
+
+static void _VICTORY_world_reacts(item_def *item)
+{
+    if (you.props.exists(VICTORY_CONDUCT_KEY))
+    {
+        _reset_victory_stats(item);
+        you.props.erase(VICTORY_CONDUCT_KEY);
     }
 }

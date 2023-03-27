@@ -149,6 +149,7 @@ lajatang2
 lajatang3
 
 staff_mummy WPN_STAFF_MUMMY
+xmas-scythe WPN_XMAS_SCYTHE
 %rim 1
 
 
@@ -194,7 +195,7 @@ i-venom BRAND_VENOM
 i-protection BRAND_PROTECTION
 i-draining BRAND_DRAINING
 i-speed BRAND_SPEED
-i-vorpal BRAND_VORPAL
+i-heavy BRAND_HEAVY
 # start TAG_MAJOR_VERSION == 34
 i-flaming BRAND_FLAME
 i-freezing BRAND_FROST
@@ -459,6 +460,7 @@ elven_leather_helm THELM_CAP
 cap_jester THELM_CAP_JESTER
 hat_explorer THELM_HAT_EXPLORER
 hat_explorer2 THELM_HAT_EXPLORER2
+santa_hat THELM_HAT_SANTA
 
 %rim 0
 hat1 THELM_HAT THELM_HAT_FIRST
@@ -1022,6 +1024,15 @@ staff06
 staff07
 staff08
 staff09
+%rim 0
+staff-artefact1 STAFF_RANDART_OFFSET
+staff-artefact2
+staff-artefact3
+staff-artefact4
+staff-artefact5
+staff-artefact6
+staff-artefact7
+%rim 1
 
 # These must be in the same order as the enum in item-prop-enum.h!
 # start TAG_MAJOR_VERSION == 34

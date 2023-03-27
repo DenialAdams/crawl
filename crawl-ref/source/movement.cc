@@ -208,21 +208,6 @@ void remove_ice_movement()
     }
 }
 
-string water_hold_substance()
-{
-    return you.props[WATER_HOLD_SUBSTANCE_KEY].get_string();
-}
-
-void remove_water_hold()
-{
-    if (you.duration[DUR_WATER_HOLD])
-    {
-        mprf("You slip free of the %s engulfing you.",
-             water_hold_substance().c_str());
-        you.clear_far_engulf();
-    }
-}
-
 static void _clear_constriction_data()
 {
     you.stop_directly_constricting_all(true);
@@ -260,6 +245,9 @@ static void _trigger_opportunity_attacks(coord_def new_pos)
             || !mon->can_see(you)
             // only let monsters attack if they might follow you
             || !mon->may_have_action_energy() || mon->is_stationary()
+            // if you're swapping with a pal or moving off a fedhas plant,
+            // you can't be followed, so no aoops
+            || monster_at(you.pos())
             // Zin protects!
             || is_sanctuary(mon->pos())
             // creates some weird bugs
@@ -771,13 +759,13 @@ static spret _rampage_forward(coord_def move)
     }
 
     // First, apply any necessary pre-move effects:
-    remove_water_hold();
     _clear_constriction_data();
     // (But not opportunity attacks - messy codewise, and no design benefit.)
 
     // stepped = true, we're flavouring this as movement, not a blink.
     move_player_to_grid(beam.target, true);
 
+    you.clear_far_engulf(false, true);
     // No full-LOS stabbing.
     if (enhanced)
         behaviour_event(valid_target, ME_ALERT, &you, you.pos());
@@ -785,6 +773,7 @@ static spret _rampage_forward(coord_def move)
     // Lastly, apply post-move effects unhandled by move_player_to_grid().
     apply_barbs_damage(true);
     remove_ice_movement();
+    you.clear_far_engulf(false, true);
     apply_cloud_trail(old_pos);
 
     // If there is somehow an active run delay here, update the travel trail.
@@ -1104,6 +1093,13 @@ void move_player_action(coord_def move)
             return;
         }
 
+        // Allow (e.g.) "Really move and attack while wielding nothing?" abort.
+        if (!rampaged && wu_jian_move_triggers_attacks(targ)
+            && !wielded_weapon_check(you.weapon(), "move and attack"))
+        {
+            return;
+        }
+
         // If confused, we've already been prompted (in case of stumbling into
         // a monster and attacking instead).
         // If rampaging we've already been prompted.
@@ -1145,16 +1141,15 @@ void move_player_action(coord_def move)
         // when confusion causes no move.
         if (you.pos() != targ && targ_pass)
         {
-            remove_water_hold();
             _clear_constriction_data();
-            if (!swap)
-                _trigger_opportunity_attacks(targ);
+            _trigger_opportunity_attacks(targ);
             // Check nothing weird happened during opportunity attacks.
             if (!you.pending_revival)
             {
                 move_player_to_grid(targ, true);
                 apply_barbs_damage();
                 remove_ice_movement();
+                you.clear_far_engulf(false, true);
                 apply_cloud_trail(old_pos);
             }
         }

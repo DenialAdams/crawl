@@ -72,9 +72,12 @@ static bool _act_worth_targeting(const actor &caster, const actor &a)
     if (a.is_player())
         return true;
     const monster &m = *a.as_monster();
-    return !mons_is_firewood(m)
-        && !mons_is_conjured(m.type)
-        && (!caster.is_player() || !god_protects(&you, &m, true));
+    if (mons_is_firewood(m) || mons_is_conjured(m.type))
+        return false;
+    if (!caster.is_player())
+        return true;
+    return !god_protects(&you, &m, true)
+           && !testbits(m.flags, MF_DEMONIC_GUARDIAN);
 }
 
 // returns the closest target to the caster, choosing randomly if there are more
@@ -1041,9 +1044,11 @@ spret cast_momentum_strike(int pow, coord_def target, bool fail)
 
     bolt beam;
     zappy(ZAP_MOMENTUM_STRIKE, pow, false, beam);
+    beam.source_id    = MID_PLAYER;
+    beam.thrower      = KILL_YOU;
+    beam.attitude     = ATT_FRIENDLY;
     beam.origin_spell = SPELL_MOMENTUM_STRIKE;
-    beam.source = beam.target = target;
-    beam.attitude = ATT_FRIENDLY;
+    beam.source       = beam.target = target;
     beam.fire();
 
     if (!beam.foe_info.hurt && !beam.friend_info.hurt) // miss!
@@ -1753,10 +1758,8 @@ static void _animate_scorch(coord_def p)
 #ifdef USE_TILE
         view_add_tile_overlay(p, tileidx_zap(RED));
 #endif
-#ifndef USE_TILE_LOCAL
         view_add_glyph_overlay(p, {dchar_glyph(DCHAR_FIRED_ZAP),
                                    static_cast<unsigned short>(RED)});
-#endif
 
     animation_delay(50, true);
 }
@@ -1868,7 +1871,7 @@ static int _irradiate_cell(coord_def where, int pow, const actor &agent)
     const int base_dam = dam_dice.roll();
     const int dam = act->apply_ac(base_dam);
 
-    if (god_protects(act->as_monster(), false))
+    if (god_protects(&agent, act->as_monster(), false))
         return 0;
 
     mprf("%s %s blasted with magical radiation%s",
@@ -1886,7 +1889,7 @@ static int _irradiate_cell(coord_def where, int pow, const actor &agent)
         // be nice and "only" contaminate the player a lot
         if (hitting_player)
             contaminate_player(2000 + random2(1000));
-        else
+        else if (coinflip())
             act->malmutate("");
     }
 
@@ -2455,7 +2458,7 @@ static int _discharge_monsters(const coord_def &where, int pow,
 
     int damage = 0;
     if (&agent == victim)
-        damage = 1 + random2(2 + div_rand_round(pow, 15));
+        damage = 1 + random2(1 + div_rand_round(pow, 18));
     else
     {
         damage = FLAT_DISCHARGE_ARC_DAMAGE
@@ -2615,9 +2618,8 @@ dice_def arcjolt_damage(int pow, bool random)
     return dice_def(1, random ? 10 + div_rand_round(pow, 2) : 10 + pow / 2);
 }
 
-vector<coord_def> arcjolt_targets(const actor &agent, int power, bool actual)
+vector<coord_def> arcjolt_targets(const actor &agent, bool actual)
 {
-    const int range = spell_range(SPELL_ARCJOLT, power);
     vector<coord_def> targets;
     set<coord_def> seen;
     vector<coord_def> to_check;
@@ -2630,7 +2632,7 @@ vector<coord_def> arcjolt_targets(const actor &agent, int power, bool actual)
         seen.insert(*ai);
     }
 
-    for (int dist = 0; dist < range && !to_check.empty(); ++dist)
+    while (!to_check.empty())
     {
         vector<coord_def> next_frontier;
         for (coord_def p : to_check)
@@ -2666,7 +2668,7 @@ spret cast_arcjolt(int pow, const actor &agent, bool fail)
 {
     if (agent.is_player()
         && _warn_about_bad_targets(SPELL_ARCJOLT,
-                                   arcjolt_targets(agent, pow, false)))
+                                   arcjolt_targets(agent, false)))
     {
             return spret::abort;
     }
@@ -2693,7 +2695,7 @@ spret cast_arcjolt(int pow, const actor &agent, bool fail)
                                " emits a burst of electricity!");
     }
 
-    auto targets = arcjolt_targets(agent, pow, true);
+    auto targets = arcjolt_targets(agent, true);
     for (coord_def t : targets)
     {
         if (Options.use_animations & UA_BEAM)
@@ -2729,6 +2731,115 @@ spret cast_arcjolt(int pow, const actor &agent, bool fail)
     }
     if (Options.use_animations & UA_BEAM)
         animation_delay(100, Options.reduce_animations);
+
+    return spret::success;
+}
+
+vector<coord_def> plasma_beam_targets(const actor &agent, int pow, bool actual)
+{
+    const int range = spell_range(SPELL_PLASMA_BEAM, pow);
+    int maxdist = 0;
+    vector <coord_def> targets;
+    coord_def source = agent.pos();
+
+    // find the "actual" range of the spell
+    for (monster_near_iterator mi(source, LOS_SOLID_SEE); mi; ++mi)
+    {
+        if (mi->wont_attack()
+            || !_act_worth_targeting(you, **mi))
+        {
+            continue;
+        }
+
+        if (!actual && !agent.can_see(**mi))
+            continue;
+
+        int dist = grid_distance(source, mi->pos());
+        if (dist > maxdist && dist <= range)
+            maxdist = dist;
+    }
+
+    // nothing in range
+    if (maxdist == 0)
+        return targets;
+
+    for (monster_near_iterator mi(source, LOS_SOLID_SEE); mi; ++mi)
+    {
+        // look only at the maximum found range
+        int dist = grid_distance(source, mi->pos());
+        if (dist != maxdist)
+            continue;
+
+        if (mi->wont_attack()
+            || !_act_worth_targeting(you, **mi))
+        {
+            continue;
+        }
+
+        targets.push_back(mi->pos());
+
+        if (!actual)
+        {
+            // any monster along the path could get hit, so we need to add them
+            // for targeter warnings
+            ray_def ray;
+            if (!find_ray(source, mi->pos(), ray, opc_solid))
+                continue;
+
+            while (ray.advance())
+            {
+                targets.push_back(ray.pos());
+
+                if (ray.pos() == mi->pos())
+                    break;
+            }
+        }
+    }
+
+    return targets;
+}
+
+spret cast_plasma_beam(int pow, const actor &agent, bool fail)
+{
+    if (agent.is_player()
+        && _warn_about_bad_targets(SPELL_PLASMA_BEAM,
+                                   plasma_beam_targets(agent, pow, false)))
+    {
+            return spret::abort;
+    }
+
+    fail_check();
+
+    vector<coord_def> targets = plasma_beam_targets(agent, pow, true);
+
+    if (targets.empty())
+    {
+        canned_msg(MSG_NOTHING_HAPPENS);
+        return spret::success;
+    }
+    auto target = *random_iterator(targets);
+
+    int range = grid_distance(agent.pos(), target);
+
+    // first beam
+    bolt beam;
+    beam.range        = range;
+    beam.name         = "plasma beam";
+    beam.source       = you.pos();
+    beam.target       = target;
+    beam.thrower      = agent.is_player() ? KILL_YOU : KILL_MON;
+    beam.attitude     = ATT_FRIENDLY;
+    beam.origin_spell = SPELL_PLASMA_BEAM;
+    beam.draw_delay   = 5;
+    zappy(ZAP_LIGHTNING_BOLT, pow, false, beam);
+    beam.fire();
+
+    // second beam
+    beam.flavour = BEAM_FIRE;
+    beam.name    = "fiery plasma";
+    beam.glyph   = dchar_glyph(DCHAR_FIRED_ZAP);
+    zappy(ZAP_PLASMA, pow, false, beam);
+    beam.fire();
 
     return spret::success;
 }
@@ -3769,7 +3880,8 @@ static void _hailstorm_cell(coord_def where, int pow, actor *agent)
 #ifdef USE_TILE
     beam.tile_beam  = -1;
 #endif
-    beam.draw_delay = 10;
+    beam.draw_delay = 0;
+    beam.redraw_per_cell = false;
     beam.source     = where;
     beam.target     = where;
     beam.hit_verb   = "pelts";
@@ -3829,6 +3941,9 @@ spret cast_hailstorm(int pow, bool fail, bool tracer)
 
         _hailstorm_cell(*ri, pow, &you);
     }
+
+    if (Options.use_animations & UA_BEAM)
+        animation_delay(200, true);
 
     return spret::success;
 }

@@ -1204,22 +1204,6 @@ _mon_hex_zap(ZAP_BANISHMENT, BEAM_BANISH, 150),
 _mon_hex_zap(ZAP_HIBERNATION, BEAM_HIBERNATION),
 
 {
-    ZAP_FLAME_TONGUE,
-    "flame tongue",
-    25,
-    new dicedef_calculator<1, 8, 1, 4>,
-    new tohit_calculator<11, 1, 6>,
-    new dicedef_calculator<3, 3, 1, 12>,
-    new tohit_calculator<7, 1, 6>,
-    RED,
-    false,
-    BEAM_FIRE,
-    DCHAR_FIRED_BOLT,
-    false,
-    false,
-},
-
-{
     ZAP_SANDBLAST,
     "blast of sand",
     50,
@@ -1805,6 +1789,22 @@ _mon_hex_zap(ZAP_DRAIN_MAGIC, BEAM_DRAIN_MAGIC),
     NUM_DCHAR_TYPES,
     false,
     false,
+},
+
+{
+    ZAP_PLASMA,
+    "fiery plasma",
+    200,
+    new dicedef_calculator<1, 11, 3, 5>,
+    new tohit_calculator<7, 1, 40>,
+    nullptr,
+    nullptr,
+    RED,
+    false,
+    BEAM_FIRE,
+    DCHAR_FIRED_ZAP,
+    false,
+    false
 },
 
 };

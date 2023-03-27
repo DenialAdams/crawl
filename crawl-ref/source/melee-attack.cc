@@ -592,6 +592,9 @@ bool melee_attack::handle_phase_damaged()
     if (!attack::handle_phase_damaged())
         return false;
 
+    if (attacker->is_player() && player_equip_unrand(UNRAND_POWER_GLOVES))
+        inc_mp(div_rand_round(damage_done, 8));
+
     return true;
 }
 
@@ -1070,6 +1073,9 @@ public:
             return fang_damage + (random ? div_rand_round(hd, denom) : hd / denom);
         }
 
+        if (you.get_mutation_level(MUT_ACIDIC_BITE))
+            return fang_damage + (random ? roll_dice(2, 4) : 4);
+
         return fang_damage;
     }
 
@@ -1265,7 +1271,7 @@ bool melee_attack::player_aux_unarmed()
             continue;
 
         to_hit = random2(aux_to_hit());
-        to_hit += post_roll_to_hit_modifiers(to_hit, false, true);
+        to_hit += post_roll_to_hit_modifiers(to_hit, false);
 
         handle_noise(defender->pos());
         alert_nearby_monsters();
@@ -1338,7 +1344,7 @@ bool melee_attack::player_aux_apply(unarmed_attack_type atk)
             player_announce_aux_hit();
 
             if (damage_brand == SPWPN_ACID)
-                defender->splash_with_acid(&you, 3);
+                defender->acid_corrode(3);
 
             if (damage_brand == SPWPN_VENOM && coinflip())
                 poison_monster(defender->as_monster(), &you);
@@ -2212,13 +2218,9 @@ int melee_attack::calc_to_hit(bool random)
     return mhit;
 }
 
-int melee_attack::post_roll_to_hit_modifiers(int mhit, bool random, bool aux)
+int melee_attack::post_roll_to_hit_modifiers(int mhit, bool random)
 {
     int modifiers = attack::post_roll_to_hit_modifiers(mhit, random);
-
-    // Just trying to touch is easier than trying to damage.
-    if (you.duration[DUR_CONFUSING_TOUCH] && !aux)
-        modifiers += maybe_random_div(you.dex(), 2, random);
 
     // Electric charges feel bad when they miss, so make them miss less often.
     if (charge_pow > 0)
@@ -2482,9 +2484,16 @@ bool melee_attack::mons_attack_effects()
         return false;
     }
 
+    const bool slippery = defender->is_player()
+                          && adjacent(attacker->pos(), defender->pos())
+                          && player_equip_unrand(UNRAND_SLICK_SLIPPERS);
     // Don't trample while player is moving - either mean or nonsensical
-    if (attacker != defender && attk_flavour == AF_TRAMPLE && !crawl_state.player_moving)
-        do_knockback();
+    if (attacker != defender
+        && (attk_flavour == AF_TRAMPLE || slippery)
+        && !crawl_state.player_moving)
+    {
+        do_knockback(slippery);
+    }
 
     special_damage = 0;
     special_damage_message.clear();
@@ -2669,7 +2678,7 @@ void melee_attack::mons_apply_attack_flavour()
 
             if (defender_visible)
             {
-                mprf("%s %s engulfed in a cloud of spores!",
+                mprf("%s %s engulfed in a cloud of dizzying spores!",
                      defender->name(DESC_THE).c_str(),
                      defender->conj_verb("are").c_str());
             }
@@ -2755,7 +2764,7 @@ void melee_attack::mons_apply_attack_flavour()
 
     case AF_REACH_TONGUE:
     case AF_ACID:
-        defender->splash_with_acid(attacker, 3);
+        defender->splash_with_acid(attacker);
         break;
 
     case AF_CORRODE:
@@ -3034,7 +3043,46 @@ void melee_attack::mons_apply_attack_flavour()
         }
         break;
     }
+    case AF_BLOODZERK:
+    {
+        if (!defender->can_bleed() || !attacker->can_go_berserk())
+            break;
 
+        monster* mon = attacker->as_monster();
+        if (mon->has_ench(ENCH_MIGHT))
+        {
+            mon->del_ench(ENCH_MIGHT, true);
+            mon->add_ench(mon_enchant(ENCH_BERSERK, 1, mon,
+                                      random_range(100, 200)));
+            simple_monster_message(*mon, " enters a blood-rage!");
+        }
+        else
+        {
+            mon->add_ench(mon_enchant(ENCH_MIGHT, 1, mon,
+                                      random_range(100, 200)));
+            simple_monster_message(*mon, " tastes blood and grows stronger!");
+        }
+        break;
+    }
+    case AF_SLEEP:
+        if (crawl_state.player_moving)
+            break; // looks too weird to fall asleep while still in motion
+        if (!coinflip())
+            break;
+        if (attk_type == AT_SPORE)
+        {
+            if (defender->is_unbreathing())
+                break;
+
+            if (defender_visible)
+            {
+                mprf("%s %s engulfed in a cloud of soporific spores!",
+                     defender->name(DESC_THE).c_str(),
+                     defender->conj_verb("are").c_str());
+            }
+        }
+        defender->put_to_sleep(attacker, attacker->get_experience_level() * 3);
+        break;
     }
 }
 
@@ -3333,7 +3381,7 @@ void melee_attack::riposte()
     attck.attack();
 }
 
-bool melee_attack::do_knockback(bool trample)
+bool melee_attack::do_knockback(bool slippery)
 {
     if (defender->is_stationary())
         return false; // don't even print a message
@@ -3346,7 +3394,7 @@ bool melee_attack::do_knockback(bool trample)
     const coord_def old_pos = defender->pos();
     const coord_def new_pos = old_pos + old_pos - attack_position;
 
-    if (!x_chance_in_y(size_diff + 3, 6)
+    if (!slippery && !x_chance_in_y(size_diff + 3, 6)
         // need a valid tile
         || !defender->is_habitable_feat(env.grid(new_pos))
         // don't trample anywhere the attacker can't follow
@@ -3367,7 +3415,7 @@ bool melee_attack::do_knockback(bool trample)
                      defender_name(false).c_str(),
                      defender->conj_verb("are").c_str());
             }
-            else
+            else if (!slippery)
             {
                 mprf("%s %s %s ground!",
                      defender_name(false).c_str(),
@@ -3383,7 +3431,9 @@ bool melee_attack::do_knockback(bool trample)
     {
         const bool can_stumble = !defender->airborne()
                                   && !defender->incapacitated();
-        const string verb = can_stumble ? "stumble" : "are shoved";
+        const string verb = slippery ? "slip" :
+                         can_stumble ? "stumble"
+                                     : "are shoved";
         mprf("%s %s backwards!",
              defender_name(false).c_str(),
              defender->conj_verb(verb).c_str());
@@ -3392,8 +3442,7 @@ bool melee_attack::do_knockback(bool trample)
     // Schedule following _before_ actually trampling -- if the defender
     // is a player, a shaft trap will unload the level. If trampling will
     // somehow fail, move attempt will be ignored.
-    if (trample)
-        trample_follow_fineff::schedule(attacker, old_pos);
+    trample_follow_fineff::schedule(attacker, old_pos);
 
     if (defender->is_player())
     {
@@ -3546,7 +3595,7 @@ bool melee_attack::using_weapon() const
     return weapon && is_melee_weapon(*weapon);
 }
 
-int melee_attack::weapon_damage()
+int melee_attack::weapon_damage() const
 {
     if (!using_weapon())
         return 0;

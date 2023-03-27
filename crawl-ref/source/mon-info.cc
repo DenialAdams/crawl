@@ -358,6 +358,11 @@ monster_info::monster_info(monster_type p_type, monster_type p_base_type)
     mr = mons_class_willpower(type, base_type);
     can_see_invis = mons_class_sees_invis(type, base_type);
 
+    if (mons_resists_drowning(type, base_type))
+        mb.set(MB_RES_DROWN);
+    if (!mons_can_be_blinded(type))
+        mb.set(MB_UNBLINDABLE);
+
     mitemuse = mons_class_itemuse(type);
 
     mbase_speed = mons_class_base_speed(type);
@@ -615,7 +620,7 @@ monster_info::monster_info(const monster* m, int milev)
         mb.set(MB_DISTRACTED);
     if (m->liquefied_ground())
         mb.set(MB_SLOW_MOVEMENT);
-    if (!actor_is_susceptible_to_vampirism(*m))
+    if (!actor_is_susceptible_to_vampirism(*m, true))
         mb.set(MB_CANT_DRAIN);
     if (m->res_water_drowning())
         mb.set(MB_RES_DROWN);
@@ -722,7 +727,10 @@ monster_info::monster_info(const monster* m, int milev)
     if (m->has_ghost_brand())
         props[SPECIAL_WEAPON_KEY] = m->ghost_brand();
 
-    ghost_colour = m->ghost ? m->ghost->colour : COLOUR_INHERIT;
+    // m->ghost->colour is unsigned (8 bit), but COLOUR_INHERIT is -1 and
+    // ghost_colour is an int. (...why)
+    ghost_colour = m->ghost ? static_cast<int>(m->ghost->colour)
+                            : static_cast<int>(COLOUR_INHERIT);
 
     // book loading for player ghost and vault monsters
     spells.clear();

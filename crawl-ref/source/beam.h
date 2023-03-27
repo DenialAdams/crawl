@@ -66,6 +66,7 @@ struct bolt
                                            // will remain the same while flavour
                                            // changes
     bool        drop_item = false;     // should drop an item when done
+    bool        item_mulches = false;  // item will mulch on hit
     item_def*   item = nullptr;        // item to drop
     coord_def   source = {0,0};           // beam origin
     coord_def   target = {0,0};           // intended target
@@ -201,7 +202,7 @@ public:
     bool can_affect_wall(const coord_def& p, bool map_knowledge = false) const;
     bool ignores_monster(const monster* mon) const;
     bool ignores_player() const;
-    bool can_knockback(const actor &act, int dam = -1) const;
+    bool can_knockback(int dam = -1) const;
     bool can_pull(const actor &act, int dam = -1) const;
     bool god_cares() const; // Will the god be unforgiving about this beam?
     bool is_harmless(const monster* mon) const;
@@ -210,7 +211,6 @@ public:
     bool has_saving_throw() const;
 
     void draw(const coord_def& p, bool force_refresh=true);
-    void drop_object(bool allow_mulch=true);
 
     // Various explosion-related stuff.
     bool explode(bool show_more = true, bool hole_in_the_middle = false);
@@ -273,6 +273,7 @@ private:
     void affect_place_explosion_clouds();
     int range_used(bool leg_only = false) const;
     void finish_beam();
+    void drop_object();
 
     // These methods make the beam affect a specific actor, not
     // necessarily what's at pos().

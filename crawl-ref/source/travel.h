@@ -413,7 +413,7 @@ private:
     void resize_stair_distances();
 };
 
-const int TRAVEL_WAYPOINT_COUNT = 10;
+const int TRAVEL_WAYPOINT_COUNT = 100;
 // Tracks all levels that the player has seen.
 class TravelCache
 {
@@ -459,9 +459,11 @@ public:
     void set_waypoint(int waynum, int x, int y);
     void delete_waypoint();
     uint8_t is_waypoint(const level_pos &lp) const;
+    vector<string> get_waypoint_descs() const;
     void list_waypoints() const;
     void flush_invalid_waypoints();
     void update_waypoints() const;
+    bool is_valid_waypoint(int waynum) const;
 
     void update_excludes();
     void update();

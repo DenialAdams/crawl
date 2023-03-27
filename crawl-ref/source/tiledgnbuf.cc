@@ -497,6 +497,7 @@ static map<tileidx_t, int> status_icon_sizes = {
     { TILEI_TELEPORTING,    9 },
     { TILEI_RESISTANCE,     8 },
     { TILEI_BRILLIANCE,     10 },
+    { TILEI_MALMUTATED,     8 },
 
     // These are in the bottom right, so don't need to shift.
     { TILEI_BERSERK,        FIXED_LOC_ICON },
@@ -611,7 +612,7 @@ void DungeonCellBuffer::pack_foreground(int x, int y, const packed_cell &cell)
         m_buf_icons.add(icon, x, y, -status_shift, 0);
         if (!size)
         {
-            dprf("unknown icon %llu", icon);
+            dprf("unknown icon %" PRIu64, icon);
             size = 7; // could maybe crash here?
         }
         status_shift += size;

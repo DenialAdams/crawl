@@ -1597,7 +1597,7 @@ Draconians (Dr)
   Most types of Draconians have breath weapons or special resistances.
   Draconians cannot wear body armour and advance very slowly in levels, but are
   reasonably good at all skills other than missile weapons, and they develop
-  natural physical defenses that compensate for the lack of body armour, without
+  natural physical defences that compensate for the lack of body armour, without
   needing to train their Armour skill at all. Still, each colour has its own
   strengths and some have complementary weaknesses, which sometimes requires a
   bit of flexibility on the part of the player. They are good general-purpose
@@ -1732,7 +1732,7 @@ Deep Elves (DE)
    in darkness underground. There, they developed their mental powers, evolving
    a natural gift for all forms of magic, and adapted physically to their new
    environment, becoming weaker and losing all colouration. They are poor at
-   melee combat and physical defense, although they are capable at using bows
+   melee combat and physical defence, although they are capable at using bows
    and other ranged weapons.
 
 Ogres (Og)
@@ -2602,6 +2602,12 @@ P
 R
   Remove jewellery.
 
+e
+  Equip actions (wield, wear, put on)
+
+c
+  Unequip actions (unwield, take off, remove)
+
 Item interaction (floor)
 ========================================
 
@@ -2637,9 +2643,6 @@ will deselect it (except for ',' and '-', obviously).
 
 ?
   Select all scrolls.
-
-:
-  Select all books.
 
 /
   Select all wands.

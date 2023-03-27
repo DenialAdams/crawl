@@ -16,6 +16,7 @@ import tornado.ioloop
 import tornado.template
 import tornado.web
 from tornado.ioloop import IOLoop
+# do not add tornado.platform here without changing do_chroot()
 
 import webtiles
 from webtiles import auth, load_games, process_handler, userdb, config
@@ -332,15 +333,18 @@ def monkeypatch_tornado24():
     IOLoop.current = staticmethod(IOLoop.instance)
 
 
-def ensure_tornado_current():
+def ensure_tornado_current(exit=True):
     try:
         tornado.ioloop.IOLoop.current()
     except AttributeError:
         monkeypatch_tornado24()
         tornado.ioloop.IOLoop.current()
-        logging.error(
-            "You are running a deprecated version of tornado; please update"
-            " to at least version 4.")
+        err = ("You are running a deprecated version of tornado; please update"
+               " to a current version.")
+        if exit:
+            sys.err(err)
+        else:
+            logging.error(err)
 
 
 def usr1_handler(signum, frame):
@@ -448,7 +452,7 @@ def reset_token_commands(args):
             if not user_info.email:
                 logging.warning("No email set for account '%s', use caution!" % username)
             print("Setting a password reset token on account '%s'." % username)
-            print("Email: %s\nMessage body to send to user:\n%s\n" % (username, msg))
+            print("Email: %s\nMessage body to send to user:\n%s\n" % (user_info.email, msg))
             return True
     return False
 
@@ -656,10 +660,28 @@ def parse_args_util():
     return result, help_fun
 
 
-def run_util():
-    args, help_fun = parse_args_util()
+def do_chroot():
     if config.get('chroot'):
         os.chroot(config.get('chroot'))
+        try:
+            # try to fail early, with an informative message, if this is not
+            # going to work
+            # the choice of tornado.platform is a bit heuristic, but it is
+            # currently where the webserver seems to fail on import after a chroot.
+            # If it is ever imported at the top of this file, something else would
+            # be needed.
+            import tornado.platform
+        except:
+            # no logging available yet
+            print("Error: can't import `tornado.platform` in chroot. Did you copy"
+                " the python library for this version of python into the chroot?",
+                file=sys.stderr)
+            raise
+
+
+def run_util():
+    args, help_fun = parse_args_util()
+    do_chroot()
 
     if config.source_file is None:
         sys.exit("No configuration provided!")
@@ -699,8 +721,7 @@ def run_util():
 # ../server.py in the official repository for an example.
 def run():
     args = parse_args_main()
-    if config.get('chroot'):
-        os.chroot(config.get('chroot'))
+    do_chroot()
 
     if config.source_file is None:
         # we could try to automatically figure this out from server_path, if
@@ -799,6 +820,10 @@ def run():
     except:
         err_exit("Server startup failed!", exc_info=True)
     finally:
+        # warning: need to be careful what appears in this finally block, since
+        # it may be called by child processes on fork in terminal.py in the
+        # event of rare bad timing or bugs. (So any global state that may be
+        # used here should be reset in the child process...)
         remove_pidfile()
 
 

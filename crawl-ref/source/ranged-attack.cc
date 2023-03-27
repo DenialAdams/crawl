@@ -28,12 +28,16 @@
 #include "xom.h"
 
 ranged_attack::ranged_attack(actor *attk, actor *defn, item_def *proj,
-                             bool tele, actor *blame)
+                             bool tele, actor *blame, bool mulch)
     : ::attack(attk, defn, blame), range_used(0), reflected(false),
-      projectile(proj), teleport(tele), orig_to_hit(0)
+      projectile(proj), teleport(tele), orig_to_hit(0), mulched(mulch)
 {
     if (is_launcher_ammo(*projectile))
+    {
         weapon = attacker->weapon(0); // else null
+        damage_brand = get_weapon_brand(*weapon);
+    }
+
     init_attack(SK_THROWING, 0);
     kill_type = KILLED_BY_BEAM;
 
@@ -63,8 +67,7 @@ ranged_attack::ranged_attack(actor *attk, actor *defn, item_def *proj,
     needs_message = defender_visible;
 }
 
-int ranged_attack::post_roll_to_hit_modifiers(int mhit, bool random,
-                                              bool /*aux*/)
+int ranged_attack::post_roll_to_hit_modifiers(int mhit, bool random)
 {
     int modifiers = attack::post_roll_to_hit_modifiers(mhit, random);
 
@@ -252,9 +255,12 @@ static bool _jelly_eat_missile(const item_def& projectile, int damage_done)
 
 bool ranged_attack::handle_phase_hit()
 {
-    // XXX: this kind of hijacks the shield block check
-    if (!is_penetrating_attack(*attacker, weapon, *projectile))
+    if (mulch_bonus()
+        // XXX: this kind of hijacks the shield block check
+        || !is_penetrating_attack(*attacker, weapon, *projectile))
+    {
         range_used = BEAM_STOP;
+    }
 
     if (projectile->is_type(OBJ_MISSILES, MI_DART))
     {
@@ -294,10 +300,11 @@ bool ranged_attack::handle_phase_hit()
         }
         else if (needs_message)
         {
-            mprf("%s %s %s but does no damage.",
+            mprf("%s %s %s%s but does no damage.",
                  projectile->name(DESC_THE).c_str(),
                  attack_verb.c_str(),
-                 defender->name(DESC_THE).c_str());
+                 defender->name(DESC_THE).c_str(),
+                 mulch_bonus() ? " and shatters," : "");
         }
     }
 
@@ -341,7 +348,7 @@ bool ranged_attack::clumsy_throwing() const
     return throwing() && !is_throwable(attacker, *projectile);
 }
 
-int ranged_attack::weapon_damage()
+int ranged_attack::weapon_damage() const
 {
     if (clumsy_throwing())
         return 0;
@@ -358,7 +365,7 @@ int ranged_attack::weapon_damage()
 /**
  * For ranged attacked, "unarmed" is throwing damage.
  */
-int ranged_attack::calc_base_unarmed_damage()
+int ranged_attack::calc_base_unarmed_damage() const
 {
     if (clumsy_throwing())
         return 0;
@@ -382,6 +389,22 @@ int ranged_attack::apply_damage_modifiers(int damage)
     return damage;
 }
 
+bool ranged_attack::mulch_bonus() const
+{
+    return mulched
+        && throwing()
+        && projectile
+        && ammo_type_damage(projectile->sub_type)
+        && projectile->sub_type != MI_STONE;
+}
+
+int ranged_attack::player_apply_postac_multipliers(int damage)
+{
+    if (mulch_bonus())
+        return div_rand_round(damage * 4, 3);
+    return damage;
+}
+
 bool ranged_attack::ignores_shield(bool verbose)
 {
     if (defender->is_player() && player_omnireflects())
@@ -400,30 +423,6 @@ bool ranged_attack::ignores_shield(bool verbose)
         return true;
     }
     return false;
-}
-
-bool ranged_attack::apply_damage_brand(const char *what)
-{
-    if (!weapon || !is_range_weapon(*weapon))
-        return false;
-
-    const brand_type brand = get_weapon_brand(*weapon);
-
-    // No stacking elemental brands.
-    if (projectile->base_type == OBJ_MISSILES
-        && get_ammo_brand(*projectile) != SPMSL_NORMAL
-        && (brand == SPWPN_FLAMING
-            || brand == SPWPN_FREEZING
-            || brand == SPWPN_HOLY_WRATH
-            || brand == SPWPN_ELECTROCUTION
-            || brand == SPWPN_VENOM
-            || brand == SPWPN_CHAOS))
-    {
-        return false;
-    }
-
-    damage_brand = brand;
-    return attack::apply_damage_brand(what);
 }
 
 special_missile_type ranged_attack::random_chaos_missile_brand()
@@ -756,7 +755,7 @@ bool ranged_attack::player_good_stab()
 
 void ranged_attack::set_attack_verb(int/* damage*/)
 {
-    attack_verb = is_penetrating_attack(*attacker, weapon, *projectile) ? "pierces through" : "hits";
+    attack_verb = !mulch_bonus() && is_penetrating_attack(*attacker, weapon, *projectile) ? "pierces through" : "hits";
 }
 
 void ranged_attack::announce_hit()
@@ -764,10 +763,11 @@ void ranged_attack::announce_hit()
     if (!needs_message)
         return;
 
-    mprf("%s %s %s%s%s",
+    mprf("%s %s %s%s%s%s",
          projectile->name(DESC_THE).c_str(),
          attack_verb.c_str(),
          defender_name(false).c_str(),
+         mulch_bonus() ? " and shatters for extra damage" : "",
          debug_damage_number().c_str(),
          attack_strength_punctuation(damage_done).c_str());
 }

@@ -220,6 +220,8 @@ mon_itemuse_type mons_itemuse(const monster& mon);
 bool mons_can_be_blinded(monster_type mc);
 bool mons_can_be_dazzled(monster_type mc);
 
+bool mons_resists_drowning(monster_type type, monster_type base);
+
 int get_shout_noise_level(const shout_type shout);
 shout_type mons_shouts(monster_type mclass, bool demon_shout = false);
 bool mons_can_shout(monster_type mclass);
@@ -388,7 +390,7 @@ bool mons_class_is_plant(monster_type mc);
 bool mons_class_is_draconic(monster_type mc);
 bool mons_is_plant(const monster& mon);
 bool mons_eats_items(const monster& mon);
-bool actor_is_susceptible_to_vampirism(const actor& act);
+bool actor_is_susceptible_to_vampirism(const actor& act, bool known = false);
 monster_type mons_genus(monster_type mc);
 monster_type mons_species(monster_type mc);
 monster_type draconian_subspecies(const monster& mon);

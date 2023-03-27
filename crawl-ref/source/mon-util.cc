@@ -40,6 +40,7 @@
 #include "libutil.h"
 #include "mapmark.h"
 #include "message.h"
+#include "misc.h"
 #include "mgen-data.h"
 #include "mon-abil.h"
 #include "mon-behv.h"
@@ -1034,17 +1035,26 @@ bool mons_eats_items(const monster& mon)
  * Undead actors and summoned, temporary, or ghostified monsters are all not
  * susceptible.
  * @param act The actor.
+ * @param only_known Only include information known to the player.
  * @returns True if the actor is susceptible to vampirism, false otherwise.
  */
-bool actor_is_susceptible_to_vampirism(const actor& act)
+bool actor_is_susceptible_to_vampirism(const actor& act, bool only_known)
 {
-    if (!(act.holiness() & (MH_NATURAL | MH_PLANT)) || act.is_summoned())
+    if (!(act.holiness() & (MH_NATURAL | MH_PLANT)))
         return false;
 
     if (act.is_player())
         return true;
 
     const monster *mon = act.as_monster();
+    // Don't leak phantom mirror info.
+    if (act.is_summoned() && (!only_known
+                              || !mon->has_ench(ENCH_PHANTOM_MIRROR)
+                              || mon->friendly()))
+    {
+        return false;
+    }
+
     // Don't allow HP draining from temporary monsters, spectralised monsters,
     // or firewood.
     return !mon->has_ench(ENCH_FAKE_ABJURATION)
@@ -1519,6 +1529,23 @@ bool mons_can_be_dazzled(monster_type mc)
     const mon_holy_type holiness = mons_class_holiness(mc);
     return !(holiness & (MH_UNDEAD | MH_NONLIVING | MH_PLANT))
         && mons_can_be_blinded(mc);
+}
+
+/**
+ * Can this type of monster survive in deep water?
+ *
+ * @param type  The monster type in question.
+ * @param base  The base type of the monster. (For e.g. draconians.)
+ * @return      Whether monsters of this type can survive falling into deep
+ *              water.
+ *
+ * XXX: Duplicates monster::res_water_drowning().
+ */
+bool mons_resists_drowning(monster_type type, monster_type base)
+{
+    const habitat_type ht = mons_habitat_type(type, base, true);
+
+    return mons_is_unbreathing(type) || ht == HT_WATER || ht == HT_AMPHIBIOUS;
 }
 
 char32_t mons_char(monster_type mc)

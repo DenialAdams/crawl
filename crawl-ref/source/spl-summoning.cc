@@ -307,8 +307,7 @@ static monster_type _choose_dragon_type(int pow, god_type /*god*/, bool player)
 
 spret cast_dragon_call(int pow, bool fail)
 {
-    // Quicksilver and storm dragons don't have rPois, but that's fine.
-    if (stop_summoning_prompt(MR_RES_POISON, "call dragons"))
+    if (stop_summoning_prompt(MR_NO_FLAGS, M_NO_FLAGS, "call dragons"))
         return spret::abort;
 
     fail_check();
@@ -512,10 +511,7 @@ spret cast_summon_mana_viper(int pow, god_type god, bool fail)
 
     mgen_data viper = _pal_data(MONS_MANA_VIPER, 2, god,
                                 SPELL_SUMMON_MANA_VIPER);
-    viper.hd = (5 + div_rand_round(pow, 12));
-
-    // Don't scale hp at the same time as their antimagic power
-    viper.hp = hit_points(495); // avg 50
+    viper.hd = (6 + div_rand_round(pow, 12));
 
     if (create_monster(viper))
         mpr("A mana viper appears with a sibilant hiss.");
@@ -822,8 +818,9 @@ spret cast_conjure_ball_lightning(int pow, god_type god, bool fail)
     fail_check();
     bool success = false;
 
-    mgen_data cbl =_pal_data(MONS_BALL_LIGHTNING, 0, god,
+    mgen_data cbl = _pal_data(MONS_BALL_LIGHTNING, 0, god,
                              SPELL_CONJURE_BALL_LIGHTNING);
+    cbl.foe = MHITNOT;
     cbl.hd = ball_lightning_hd(pow);
 
     for (int i = 0; i < 3; ++i)
@@ -1042,6 +1039,20 @@ spret cast_summon_demon(int pow)
     return spret::success;
 }
 
+static bool _butterfly_knockback(coord_def p)
+{
+    monster* mon = monster_at(p);
+    if (!mon)
+        return false;
+
+    const int dist = random_range(2, 4);
+    if (!mon->knockback(you, dist, -1, "sudden gust"))
+        return false;
+
+    behaviour_event(mon, ME_ALERT, &you);
+    return true;
+}
+
 spret summon_butterflies()
 {
     // Just fizzle instead of creating hostile butterflies.
@@ -1051,25 +1062,27 @@ spret summon_butterflies()
         return spret::success;
     }
 
-    const string reason = stop_summoning_reason(MR_NO_FLAGS, M_FLIES);
-    if (reason != "")
-    {
-        string prompt = make_stringf("Really summon butterflies while emitting a %s?",
-                                     reason.c_str());
+    if (stop_summoning_prompt(MR_NO_FLAGS, M_FLIES))
+        return spret::abort;
 
-        if (!yesno(prompt.c_str(), false, 'n'))
-        {
-            canned_msg(MSG_OK);
-            return spret::abort;
-        }
-    }
+    if (silenced(you.pos()))
+        mpr("Somewhere, a butterfly flaps its wings.");
+    else
+        mpr("You hear the flapping of tiny wings.");
 
-    // XXX: dedup with Xom, or change number?
+    bool success = false;
+    // push away further-away things first, so middle ones don't get stuck
+    // XXX: this is weird if a dispersal trap gets hit.
+    for (radius_iterator ri(you.pos(), 2, C_SQUARE, LOS_NO_TRANS, true); ri; ++ri)
+        if (grid_distance(*ri, you.pos()) == 2 && _butterfly_knockback(*ri))
+            success = true;
+    for (adjacent_iterator ai(you.pos()); ai; ++ai)
+        if (_butterfly_knockback(*ai))
+            success = true;
 
     // place some in a tight cluster, distance 2. Max 24 squares, so this is
     // always at least 2/3 density.
     const int how_many_inner = random_range(16, 22);
-    bool success = false;
     for (int i = 0; i < how_many_inner; ++i)
     {
         mgen_data butterfly(MONS_BUTTERFLY, BEH_FRIENDLY, you.pos(), MHITYOU,
@@ -1100,11 +1113,6 @@ spret summon_butterflies()
 
     if (!success)
         canned_msg(MSG_NOTHING_HAPPENS);
-    else if (silenced(you.pos()))
-        mpr("The fluttering of tiny wings stirs the air.");
-    else
-        mpr("You hear the tinkle of a tiny bell.");
-
     return spret::success;
 }
 
@@ -1222,8 +1230,11 @@ void create_malign_gateway(coord_def point, beh_type beh, string cause,
 spret cast_malign_gateway(actor * caster, int pow, god_type god,
                           bool fail, bool test)
 {
-    if (!test && caster->is_player() && stop_summoning_prompt(MR_RES_POISON))
+    if (!test && caster->is_player()
+        && stop_summoning_prompt(MR_RES_POISON, M_FLIES))
+    {
         return spret::abort;
+    }
 
     coord_def point = find_gateway_location(caster);
     bool success = point != coord_def(0, 0);
@@ -1340,7 +1351,7 @@ spret cast_summon_forest(actor* caster, int pow, god_type god, bool fail, bool t
                                       200 + div_rand_round(pow * 3, 2));
 
     // Hm, should dryads have rPois?
-    if (stop_summoning_prompt(MR_NO_FLAGS, "summon a forest"))
+    if (stop_summoning_prompt(MR_NO_FLAGS, M_NO_FLAGS, "summon a forest"))
         return spret::abort;
 
     fail_check();
@@ -1422,7 +1433,7 @@ monster_type pick_random_wraith()
 
 spret cast_haunt(int pow, const coord_def& where, god_type god, bool fail)
 {
-    if (stop_summoning_prompt(MR_RES_POISON, "haunt your foes"))
+    if (stop_summoning_prompt(MR_RES_POISON, M_FLIES, "haunt your foe"))
         return spret::abort;
 
     monster* m = monster_at(where);
@@ -1600,7 +1611,7 @@ void init_servitor(monster* servitor, actor* caster, int pow)
 
 spret cast_spellforged_servitor(int pow, god_type god, bool fail)
 {
-    if (stop_summoning_prompt(MR_RES_POISON))
+    if (stop_summoning_prompt(MR_RES_POISON, M_FLIES))
         return spret::abort;
 
     fail_check();
@@ -1643,7 +1654,7 @@ dice_def battlesphere_damage(int pow)
 
 spret cast_battlesphere(actor* agent, int pow, god_type god, bool fail)
 {
-    if (agent->is_player() && stop_summoning_prompt(MR_RES_POISON))
+    if (agent->is_player() && stop_summoning_prompt(MR_RES_POISON, M_FLIES))
         return spret::abort;
 
     fail_check();
@@ -1761,9 +1772,21 @@ void end_battlesphere(monster* mons, bool killed)
 
 bool battlesphere_can_mirror(spell_type spell)
 {
-    return spell_typematch(spell, spschool::conjuration)
+    return (spell_typematch(spell, spschool::conjuration)
+            || (get_spell_flags(spell) & spflag::destructive))
            && spell != SPELL_BATTLESPHERE
            && spell != SPELL_SPELLFORGED_SERVITOR;
+}
+
+vector<spell_type> player_battlesphere_spells()
+{
+    vector<spell_type> results;
+
+    for (const spell_type spell : you.spells)
+        if (battlesphere_can_mirror(spell))
+            results.push_back(spell);
+
+    return results;
 }
 
 bool aim_battlesphere(actor* agent, spell_type spell)

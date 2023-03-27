@@ -182,10 +182,8 @@ static void _zap_animation(int colour, const monster* mon = nullptr,
 #ifdef USE_TILE
         view_add_tile_overlay(p, tileidx_zap(colour));
 #endif
-#ifndef USE_TILE_LOCAL
         view_add_glyph_overlay(p, {dchar_glyph(DCHAR_FIRED_ZAP),
                                    static_cast<unsigned short>(colour)});
-#endif
         animation_delay(50, true);
     }
 }
@@ -456,7 +454,7 @@ int zap_to_hit(zap_type z_type, int power, bool is_monster)
     ASSERT(hit_calc);
     const int hit = (*hit_calc)(power);
     if (hit != AUTOMATIC_HIT && !is_monster && crawl_state.need_save)
-        return max(0, hit - 5 * you.inaccuracy());
+        return max(0, hit - you.inaccuracy_penalty());
     return hit;
 }
 
@@ -522,6 +520,23 @@ static int _zap_loudness(zap_type zap, spell_type spell)
     return 0;
 }
 
+#ifdef WIZARD
+static bool _needs_monster_zap(const zap_info &zinfo)
+{
+    // for enchantments we can't know from this data
+    if (zinfo.is_enchantment)
+        return false;
+    // if player tohit is missing from a non-enchantment, then it has to use
+    // a fake monster cast
+    if (!zinfo.player_tohit)
+        return true;
+
+    // otherwise, it should be possible to use a player zap (damage may or may
+    // not be defined)
+    return false;
+}
+#endif
+
 void zappy(zap_type z_type, int power, bool is_monster, bolt &pbolt)
 {
     const zap_info* zinfo = _seek_zap(z_type);
@@ -532,6 +547,13 @@ void zappy(zap_type z_type, int power, bool is_monster, bolt &pbolt)
         dprf("Couldn't find zap type %d", z_type);
         return;
     }
+
+#ifdef WIZARD
+    // we are in a wizmode cast scenario: use monster zap data to avoid crashes.
+    // N.b. this suppresses some player effects, such as inaccuracy.
+    if (!is_monster && you.wizard && _needs_monster_zap(*zinfo))
+        is_monster = true;
+#endif
 
     // Fill
     pbolt.name           = zinfo->name;
@@ -613,7 +635,7 @@ static beam_type _chaos_beam_flavour(bolt* beam)
          // Weights similar to those from chaos_effects in attack.cc
          10, BEAM_SLOW,
          10, BEAM_HASTE,
-         10, BEAM_INVISIBILITY,
+         10, BEAM_AGILITY,
           5, BEAM_PARALYSIS,
           5, BEAM_PETRIFY,
           5, BEAM_BERSERK,
@@ -630,7 +652,7 @@ static beam_type _chaos_beam_flavour(bolt* beam)
          // analogous BEAM_ type.
           4, BEAM_MIGHT,
           4, BEAM_HEALING,
-          4, BEAM_AGILITY,
+          4, BEAM_RESISTANCE,
           4, BEAM_ENSNARE);
 
     return flavour;
@@ -808,11 +830,10 @@ void bolt::draw(const coord_def& p, bool force_refresh)
         view_add_tile_overlay(p, vary_bolt_tile(tile_beam, dist));
     }
 #endif
-#ifndef USE_TILE_LOCAL
     const unsigned short c = colour == BLACK ? random_colour(true)
                                              : element_colour(colour);
     view_add_glyph_overlay(p, {glyph, c});
-#endif
+
     // If reduce_animations is set, the redraw is unnecesary and
     // should be done only once outside the loop calling the bolt::draw
     if (Options.reduce_animations)
@@ -1826,7 +1847,6 @@ void bolt::apply_bolt_paralysis(monster* mons)
     if (!mons_is_immotile(*mons)
         && simple_monster_message(*mons, " suddenly stops moving!"))
     {
-        mons->stop_directly_constricting_all();
         obvious_effect = true;
     }
 
@@ -2389,8 +2409,17 @@ void bolt::affect_endpoint()
     }
 
     // Leave an object, if applicable.
-    if (drop_item && item)
-        drop_object();
+    if (item && !is_tracer && was_missile)
+    {
+        ASSERT(item->defined());
+        // Hack: we use hit_verb to determine whether a ranged attack hit.
+        const bool damned = item->props.exists(DAMNATION_BOLT_KEY)
+                            && !hit_verb.empty(); // hack!
+        if (item->flags & ISFLAG_SUMMONED || item_mulches || damned)
+            item_was_destroyed(*item);
+        else if (drop_item)
+            drop_object();
+    }
 
     if (is_explosion)
     {
@@ -2526,52 +2555,27 @@ bool bolt::stop_at_target() const
             (aimed_at_spot && (pos() == source || flavour != BEAM_DIGGING));
 }
 
-void bolt::drop_object(bool allow_mulch)
+void bolt::drop_object()
 {
     ASSERT(item != nullptr);
     ASSERT(item->defined());
 
-    // Conditions: beam is missile and not tracer.
-    if (is_tracer || !was_missile)
-        return;
-
-    // Summoned creatures' thrown items disappear.
-    if (item->flags & ISFLAG_SUMMONED)
+    if (item->sub_type == MI_THROWING_NET)
     {
-        if (you.see_cell(pos()))
+        monster* m = monster_at(pos());
+        // Player or monster at position is caught in net.
+        if (you.pos() == pos() && you.attribute[ATTR_HELD]
+            || m && m->caught())
         {
-            mprf("%s %s!",
-                 item->name(DESC_THE).c_str(),
-                 summoned_poof_msg(agent() ? agent()->as_monster() : nullptr,
-                                   *item).c_str());
+            // If no trapping net found mark this one.
+            if (get_trapping_net(pos(), true) == NON_ITEM)
+                set_net_stationary(*item);
         }
-        item_was_destroyed(*item);
-        return;
     }
 
-    // Hack alert: we use hit_verb to determine whether a ranged attack hit.
-    const bool damned = item->props.exists(DAMNATION_BOLT_KEY) && !hit_verb.empty();
-    if (!allow_mulch || (!damned && !thrown_object_destroyed(item)))
-    {
-        if (item->sub_type == MI_THROWING_NET)
-        {
-            monster* m = monster_at(pos());
-            // Player or monster at position is caught in net.
-            if (you.pos() == pos() && you.attribute[ATTR_HELD]
-                || m && m->caught())
-            {
-                // If no trapping net found mark this one.
-                if (get_trapping_net(pos(), true) == NON_ITEM)
-                    set_net_stationary(*item);
-            }
-        }
-
-        if (item->props.exists(DAMNATION_BOLT_KEY))
-            item->props.erase(DAMNATION_BOLT_KEY);
-        copy_item_to_grid(*item, pos(), 1);
-    }
-    else
-        item_was_destroyed(*item);
+    if (item->props.exists(DAMNATION_BOLT_KEY))
+        item->props.erase(DAMNATION_BOLT_KEY);
+    copy_item_to_grid(*item, pos(), 1);
 }
 
 // Returns true if the beam hits the player, fuzzing the beam if necessary
@@ -3201,7 +3205,7 @@ bool bolt::misses_player()
                 mprf("You block the %s.", name.c_str());
                 finish_beam();
             }
-            you.shield_block_succeeded();
+            you.shield_block_succeeded(agent());
             return true;
         }
 
@@ -3838,7 +3842,8 @@ void bolt::affect_player()
 
     if (flavour == BEAM_MISSILE && item)
     {
-        ranged_attack attk(agent(true), &you, item, use_target_as_pos, agent());
+        ranged_attack attk(agent(true), &you, item, use_target_as_pos,
+                           agent(), item_mulches);
         attk.attack();
         // fsim purposes - throw_it detects if an attack connected through
         // hit_verb
@@ -4273,8 +4278,12 @@ void bolt::handle_stop_attack_prompt(monster* mon)
     // attempting to enslave monsters that might be affected.
     else if (flavour == BEAM_CHARM)
     {
-        const string verb = make_stringf("charm %s", mon->name(DESC_THE).c_str());
-        if (stop_summoning_prompt(monster_info(mon).resists(), verb))
+        monclass_flags_t flags = monster_info(mon).airborne() ? M_FLIES
+                                                              : M_NO_FLAGS;
+        const string verb = make_stringf("charm %s",
+                                         mon->name(DESC_THE).c_str());
+        if (stop_summoning_prompt(monster_info(mon).resists(), flags,
+            verb))
         {
             beam_cancelled = true;
             finish_beam();
@@ -4511,7 +4520,7 @@ static void _acid_splash_monsters(const bolt& beam, monster* mon, actor* agent)
                      victim->name(DESC_THE).c_str());
             }
 
-            victim->splash_with_acid(agent, 3);
+            victim->splash_with_acid(agent);
         }
     }
 }
@@ -4605,92 +4614,36 @@ void bolt::monster_post_hit(monster* mon, int dmg)
     }
 }
 
+static int _knockback_dist(spell_type origin, int pow)
+{
+    switch (origin)
+    {
+    case SPELL_FORCE_LANCE:
+    case SPELL_ISKENDERUNS_MYSTIC_BLAST:
+        return 2 + div_rand_round(pow, 50);
+    case SPELL_CHILLING_BREATH:
+        return 2;
+    default:
+        return 1;
+    }
+}
+
 void bolt::knockback_actor(actor *act, int dam)
 {
-    if (!act
-        || !can_knockback(*act, dam)
-        || act->resists_dislodge("being knocked back"))
-    {
-        return;
-    }
+    if (!can_knockback(dam)) return;
 
-    const int distance =
-        (origin_spell == SPELL_FORCE_LANCE
-         || origin_spell == SPELL_ISKENDERUNS_MYSTIC_BLAST)
-            ? 2 + div_rand_round(ench_power, 50) :
-        (origin_spell == SPELL_CHILLING_BREATH) ? 2 : 1;
-
+    const int max_dist = _knockback_dist(origin_spell, ench_power);
+    const monster_type montyp = act->is_monster() ? act->type
+                                                  : you.mons_species();
+    const int weight = max_corpse_chunks(montyp);
     const int roll = origin_spell == SPELL_FORCE_LANCE
                      ? 7 + 0.27 * ench_power
                      : 17;
-    const int weight = max_corpse_chunks(act->is_monster() ? act->type :
-                                                            you.mons_species());
+    const int dist = binomial(max_dist, roll - weight, roll); // This is silly! -- PF
 
-    const coord_def oldpos = act->pos();
-
-    if (act->is_stationary())
-        return;
-    // We can't do knockback if the beam starts and ends on the same space
-    if (source == oldpos)
-        return;
-    ASSERT(ray.pos() == oldpos);
-
-    coord_def newpos = oldpos;
-    for (int dist_travelled = 0; dist_travelled < distance; ++dist_travelled)
-    {
-        if (x_chance_in_y(weight, roll))
-            continue;
-
-        const ray_def oldray(ray);
-
-        ray.advance();
-
-        newpos = ray.pos();
-        if (newpos == oldray.pos()
-            || cell_is_solid(newpos)
-            || actor_at(newpos)
-            || !act->can_pass_through(newpos)
-            || !act->is_habitable(newpos))
-        {
-            ray = oldray;
-            break;
-        }
-
-        act->move_to_pos(newpos);
-        if (act->is_player())
-            stop_delay(true);
-    }
-
-    if (newpos == oldpos)
-        return;
-
-    if (you.can_see(*act))
-    {
-        if (origin_spell == SPELL_CHILLING_BREATH)
-        {
-            mprf("%s %s blown backwards by the freezing wind.",
-                 act->name(DESC_THE).c_str(),
-                 act->conj_verb("are").c_str());
-        }
-        else
-        {
-            mprf("%s %s knocked back by the %s.",
-                 act->name(DESC_THE).c_str(),
-                 act->conj_verb("are").c_str(),
-                 name.c_str());
-        }
-    }
-
-    if (act->pos() != newpos)
-        act->collide(newpos, agent(), ench_power);
-
-    // Stun the monster briefly so that it doesn't look as though it wasn't
-    // knocked back at all
-    if (act->is_monster())
-        act->as_monster()->speed_increment -= random2(6) + 4;
-
-    act->apply_location_effects(oldpos, killer(),
-                                actor_to_death_source(agent()));
+    const string push_type =
+        origin_spell == SPELL_CHILLING_BREATH ? "freezing wind" : name;
+    act->knockback(*agent(), dist, ench_power, push_type);
 }
 
 void bolt::pull_actor(actor *act, int dam)
@@ -4794,7 +4747,7 @@ bool bolt::attempt_block(monster* mon)
         finish_beam();
     }
 
-    mon->shield_block_succeeded();
+    mon->shield_block_succeeded(agent());
     return true;
 }
 
@@ -4875,7 +4828,7 @@ void bolt::affect_monster(monster* mon)
         if (!ag)
             ag = &env.mons[YOU_FAULTLESS];
         ASSERT(ag);
-        ranged_attack attk(ag, mon, item, use_target_as_pos, agent());
+        ranged_attack attk(ag, mon, item, use_target_as_pos, agent(), item_mulches);
         attk.attack();
         // fsim purposes - throw_it detects if an attack connected through
         // hit_verb
@@ -6304,11 +6257,10 @@ bool bolt::explosion_draw_cell(const coord_def& p)
             tileidx_t tile = tileidx_bolt(*this);
             view_add_tile_overlay(p, vary_bolt_tile(tile, dist));
 #endif
-#ifndef USE_TILE_LOCAL
             const unsigned short c = colour == BLACK ?
                     random_colour(true) : element_colour(colour, false, p);
             view_add_glyph_overlay(p, {dchar_glyph(DCHAR_EXPLOSION), c});
-#endif
+
             return true;
         }
     }
@@ -6768,26 +6720,25 @@ string bolt::get_source_name() const
 }
 
 /**
- * Can this bolt knock back an actor?
+ * Can this bolt potentially knock back a creature it hits?
  *
- * The bolts that knockback flying actors or actors only when damage is dealt
- * will return true when conditions are met.
- *
- * @param act The target actor. Check if the actor is flying for bolts that
- *            knockback flying actors.
  * @param dam The damage dealt. If non-negative, check that dam > 0 for bolts
- *             like force bolt that only push back upon damage.
- * @return True if the bolt could knockback the actor, false otherwise.
+ *             like force lance that only push back upon damage.
+ * @return True iff the bolt could knock something back.
 */
-bool bolt::can_knockback(const actor &act, int dam) const
+bool bolt::can_knockback(int dam) const
 {
-    if (act.is_stationary())
+    switch (origin_spell)
+    {
+    case SPELL_PRIMAL_WAVE:
+        return flavour == BEAM_WATER;
+    case SPELL_CHILLING_BREATH:
+    case SPELL_FORCE_LANCE:
+    case SPELL_ISKENDERUNS_MYSTIC_BLAST:
+        return dam != 0;
+    default:
         return false;
-
-    return flavour == BEAM_WATER && origin_spell == SPELL_PRIMAL_WAVE
-           || origin_spell == SPELL_CHILLING_BREATH && dam
-           || origin_spell == SPELL_FORCE_LANCE && dam
-           || origin_spell == SPELL_ISKENDERUNS_MYSTIC_BLAST && dam;
+    }
 }
 
 /**

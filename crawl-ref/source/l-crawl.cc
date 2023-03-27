@@ -1248,21 +1248,6 @@ static int crawl_is_webtiles(lua_State *ls)
     return 1;
 }
 
-/*** Are we using the touch ui?
- * @treturn boolean
- * @function is_touch_ui
- */
-static int crawl_is_touch_ui(lua_State *ls)
-{
-#ifdef TOUCH_UI
-    lua_pushboolean(ls, true);
-#else
-    lua_pushboolean(ls, false);
-#endif
-
-    return 1;
-}
-
 /*** Look up the current key bound to a command.
  * @tparam string name Name as in cmd-name.h
  * @treturn string|nil
@@ -1520,7 +1505,6 @@ static const struct luaL_reg crawl_clib[] =
     { "stat_gain_prompt",   crawl_stat_gain_prompt },
     { "is_tiles",           crawl_is_tiles },
     { "is_webtiles",        crawl_is_webtiles },
-    { "is_touch_ui",        crawl_is_touch_ui },
     { "err_trace",          crawl_err_trace },
     { "get_command",        crawl_get_command },
     { "endgame",            crawl_endgame },
@@ -1788,6 +1772,11 @@ LUAFN(crawl_rng_wrap)
 
 LUAWRAP(crawl_clear_message_store, clear_message_store())
 
+/*** Whether the crawl process has seen a HUP or INT signal.
+ * @treturn int the number of hups seen
+ * @function seen_hups
+ */
+LUARET1(crawl_seen_hups, number, crawl_state.seen_hups)
 
 static const struct luaL_reg crawl_dlib[] =
 {
@@ -1806,6 +1795,7 @@ static const struct luaL_reg crawl_dlib[] =
 { "unavailable_god", _crawl_unavailable_god },
 { "rng_wrap", crawl_rng_wrap },
 { "clear_message_store", crawl_clear_message_store },
+{ "seen_hups", crawl_seen_hups },
 
 { nullptr, nullptr }
 };

@@ -1219,8 +1219,6 @@ static bool _give_nemelex_gift(bool forced = false)
         simple_god_message(" deals you some cards!");
         mprf(MSGCH_GOD, "You now have %s.", deck_summary().c_str());
     }
-    else
-        simple_god_message(" goes to deal, but finds you have enough cards.");
     _inc_gift_timeout(5 + random2avg(9, 2));
     you.num_current_gifts[you.religion]++;
     you.num_total_gifts[you.religion]++;
@@ -3034,6 +3032,7 @@ void excommunication(bool voluntary, god_type new_god)
         if (you.duration[DUR_TROGS_HAND])
             trog_remove_trogs_hand();
         make_god_gifts_disappear();
+        you.skills_to_show.insert(SK_SPELLCASTING);
         break;
 
     case GOD_BEOGH:
@@ -3206,6 +3205,7 @@ void excommunication(bool voluntary, god_type new_god)
         {
             you.duration[DUR_FIERY_ARMOUR] = 0;
             mpr("Your cloak of flame burns out.");
+            you.redraw_armour_class = true;
         }
         if (you.duration[DUR_RISING_FLAME])
         {
@@ -3749,6 +3749,7 @@ void join_trog_skills()
     if (!you.has_mutation(MUT_DISTRIBUTED_TRAINING))
         for (int sk = SK_SPELLCASTING; sk <= SK_LAST_MAGIC; ++sk)
             you.train[sk] = you.train_alt[sk] = TRAINING_DISABLED;
+    you.skills_to_hide.insert(SK_SPELLCASTING);
 }
 
 // Setup for joining the orderly ascetics of Zin.

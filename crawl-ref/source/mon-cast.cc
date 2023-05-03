@@ -513,6 +513,16 @@ static const map<spell_type, mons_spell_logic> spell_to_logic = {
         _fire_simple_beam,
         _buff_beam_setup(BEAM_CONCENTRATE_VENOM)
     } },
+    { SPELL_PLASMA_BEAM, {
+        [](const monster &caster) {
+            const int pow = mons_spellpower(caster, SPELL_PLASMA_BEAM);
+            return ai_action::good_or_bad(mons_should_fire_plasma(pow, caster));
+        },
+        [](monster &caster, mon_spell_slot, bolt&) {
+            const int pow = mons_spellpower(caster, SPELL_PLASMA_BEAM);
+            cast_plasma_beam(pow, caster, false);
+        }
+    } },
     { SPELL_BLINK, {
         _mons_likes_blinking,
         [] (monster &caster, mon_spell_slot /*slot*/, bolt& /*beem*/) {
@@ -5870,11 +5880,7 @@ void mons_cast(monster* mons, bolt pbolt, spell_type spell_cast,
     case SPELL_CALL_IMP:
         duration  = min(2 + mons->spell_hd(spell_cast) / 5, 6);
         create_monster(
-            mgen_data(random_choose_weighted(
-                        1, MONS_IRON_IMP,
-                        2, MONS_SHADOW_IMP,
-                        2, MONS_WHITE_IMP,
-                        4, MONS_CRIMSON_IMP),
+            mgen_data(MONS_CERULEAN_IMP,
                       SAME_ATTITUDE(mons), mons->pos(), mons->foe)
             .set_summoned(mons, duration, spell_cast, god));
         return;

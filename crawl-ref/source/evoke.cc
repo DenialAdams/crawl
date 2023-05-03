@@ -93,7 +93,7 @@ static bool _evoke_horn_of_geryon()
 
         if (random2(adjusted_power) > 7)
             beh = BEH_FRIENDLY;
-        mgen_data mg(MONS_HELL_BEAST, beh, you.pos(), MHITYOU, MG_FORCE_BEH);
+        mgen_data mg(MONS_HELL_BEAST, beh, you.pos(), MHITYOU, MG_AUTOFOE);
         mg.set_summoned(&you, 3, SPELL_NO_SPELL);
         mg.set_prox(PROX_CLOSE_TO_PLAYER);
         mon = create_monster(mg);
@@ -498,7 +498,7 @@ static bool _phial_of_floods(dist *target)
 
     const int power = 10 + you.skill(SK_EVOCATIONS, 4);
     zappy(ZAP_PRIMAL_WAVE, power, false, beam);
-    beam.range = LOS_RADIUS;
+    beam.range = 5;
     beam.aimed_at_spot = true;
 
     // TODO: this needs a custom targeter
@@ -781,7 +781,18 @@ static spret _condenser()
             if (!cell_is_solid(*ai) && you.see_cell(*ai) && !cloud_at(*ai)
                 && !(act && act->wont_attack()))
             {
-                target_cells.push_back(*ai);
+                bool targeted = false;
+                for (auto p : target_cells)
+                {
+                    if (*ai == p)
+                    {
+                        targeted = true;
+                        break;
+                    }
+                }
+
+                if (!targeted)
+                    target_cells.push_back(*ai);
             }
         }
     }
@@ -806,11 +817,19 @@ static spret _condenser()
         return spret::fail;
     }
 
+    shuffle_array(target_cells);
+    bool did_something = false;
+
     for (auto p : target_cells)
     {
+        // Get at least one cloud, even at 0 power.
+        if (did_something && !x_chance_in_y(10 + pow, 120))
+            continue;
+
         const int cloud_power = 5
             + random2avg(12 + div_rand_round(pow * 3, 4), 3);
         place_cloud(cloud, p, cloud_power, &you);
+        did_something = true;
     }
 
     mprf("Clouds of %s condense around you!", cloud_type_name(cloud).c_str());

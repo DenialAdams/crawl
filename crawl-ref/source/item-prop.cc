@@ -71,12 +71,23 @@ struct armour_def
     armflags_t          flags;
 };
 
+// Total weight 25 (multiply by 4 for %s).
 static const vector<ego_weight_tuple> BASIC_BODY_EGOS = {
     { SPARM_FIRE_RESISTANCE,   7 },
     { SPARM_COLD_RESISTANCE,   7 },
     { SPARM_POISON_RESISTANCE, 5 },
     { SPARM_WILLPOWER,         4 },
     { SPARM_POSITIVE_ENERGY,   2 },
+};
+
+// Total weight 100.
+static const vector<ego_weight_tuple> HEAVY_BODY_EGOS = {
+    { SPARM_FIRE_RESISTANCE,    26 },
+    { SPARM_COLD_RESISTANCE,    26 },
+    { SPARM_POISON_RESISTANCE,  19 },
+    { SPARM_WILLPOWER,          15 },
+    { SPARM_POSITIVE_ENERGY,    7 },
+    { SPARM_PONDEROUSNESS,      7 },
 };
 
 static const vector<ego_weight_tuple> SHIELD_EGOS = {
@@ -127,17 +138,10 @@ static const armour_def Armour_prop[] =
         EQ_BODY_ARMOUR, SIZE_SMALL,  SIZE_MEDIUM, true, 1000, BASIC_BODY_EGOS },
     { ARM_SCALE_MAIL,           "scale mail",             6, -100,   40,
         EQ_BODY_ARMOUR, SIZE_SMALL,  SIZE_MEDIUM, true, 1000, BASIC_BODY_EGOS },
-    { ARM_CHAIN_MAIL,           "chain mail",             8, -150,   45,
-        EQ_BODY_ARMOUR, SIZE_SMALL,  SIZE_MEDIUM, true, 1000, BASIC_BODY_EGOS },
+    { ARM_CHAIN_MAIL,           "chain mail",             8, -140,   45,
+        EQ_BODY_ARMOUR, SIZE_SMALL,  SIZE_MEDIUM, true, 1000, HEAVY_BODY_EGOS },
     { ARM_PLATE_ARMOUR,         "plate armour",          10, -180,   230,
-        EQ_BODY_ARMOUR, SIZE_SMALL, SIZE_MEDIUM, true, 1000, {
-            { SPARM_FIRE_RESISTANCE,    26 },
-            { SPARM_COLD_RESISTANCE,    26 },
-            { SPARM_POISON_RESISTANCE,  19 },
-            { SPARM_WILLPOWER,          15 },
-            { SPARM_POSITIVE_ENERGY,    7 },
-            { SPARM_PONDEROUSNESS,      7 },
-    }},
+        EQ_BODY_ARMOUR, SIZE_SMALL, SIZE_MEDIUM, true, 1000, HEAVY_BODY_EGOS },
     { ARM_CRYSTAL_PLATE_ARMOUR, "crystal plate armour",  14, -230,   800,
         EQ_BODY_ARMOUR, SIZE_SMALL, SIZE_MEDIUM, false, 500 },
 
@@ -725,7 +729,7 @@ static const weapon_def Weapon_prop[] =
     { WPN_SLING,             "sling",               7,  0, 14,
         SK_RANGED_WEAPONS,   SIZE_LITTLE, SIZE_LITTLE, MI_SLING_BULLET,
         DAMV_NON_MELEE, 8, 10, 15, RANGED_BRANDS },
-    { WPN_HAND_CROSSBOW,     "hand crossbow",      16,  3, 19,
+    { WPN_HAND_CROSSBOW,     "hand crossbow",      15,  3, 19,
         SK_RANGED_WEAPONS,   SIZE_LITTLE, SIZE_LITTLE, MI_BOLT,
         DAMV_NON_MELEE, 0, 10, 35, RANGED_BRANDS },
 #if TAG_MAJOR_VERSION == 34
@@ -737,7 +741,7 @@ static const weapon_def Weapon_prop[] =
     { WPN_SHORTBOW,          "shortbow",            9,  2, 15,
         SK_RANGED_WEAPONS,   SIZE_LITTLE, NUM_SIZE_LEVELS, MI_ARROW,
         DAMV_NON_MELEE, 8, 10, 30, RANGED_BRANDS },
-    { WPN_ARBALEST,          "arbalest",           17, -2, 19,
+    { WPN_ARBALEST,          "arbalest",           16, -2, 19,
         SK_RANGED_WEAPONS,   SIZE_LITTLE, NUM_SIZE_LEVELS, MI_BOLT,
         DAMV_NON_MELEE, 5, 10, 45, RANGED_BRANDS },
     { WPN_LONGBOW,           "longbow",            13,  0, 16,
@@ -1948,14 +1952,13 @@ skill_type item_attack_skill(object_class_type wclass, int wtype)
 }
 
 // True if item is a staff that deals extra damage based on Evocations skill,
-// or has an evocations-based passive effect (staff of Wucad Mu).
+// or has an evocations-based passive effect (staff of Asmodeus).
 bool staff_uses_evocations(const item_def &item)
 {
     if (is_unrandom_artefact(item, UNRAND_ELEMENTAL_STAFF)
         || is_unrandom_artefact(item, UNRAND_OLGREB)
         || is_unrandom_artefact(item, UNRAND_ASMODEUS)
-        || is_unrandom_artefact(item, UNRAND_DISPATER)
-        || is_unrandom_artefact(item, UNRAND_WUCAD_MU))
+        || is_unrandom_artefact(item, UNRAND_DISPATER))
     {
         return true;
     }
@@ -2013,7 +2016,7 @@ bool item_skills(const item_def &item, set<skill_type> &skills)
         if (is_shield(item))
             skills.insert(SK_SHIELDS);
 
-        if (gives_ability(item) || get_armour_ego_type(item) == SPARM_ENERGY)
+        if (gives_ability(item))
             skills.insert(SK_EVOCATIONS);
     }
 
@@ -2866,9 +2869,9 @@ bool item_is_jelly_edible(const item_def &item)
     if (is_artefact(item) || item_is_horn_of_geryon(item))
         return false;
 
-    // Don't eat zigfigs. (They're artefact-like, and Jiyvaites shouldn't worry
-    // about losing them.)
-    if (item.base_type == OBJ_MISCELLANY && item.sub_type == MISC_ZIGGURAT)
+    // Don't eat zigfigs or elemental evokers. (They're artefact-like, and
+    // Jiyvaites shouldn't worry about losing them.)
+    if (item.base_type == OBJ_MISCELLANY)
         return false;
 
     // Don't eat mimics.

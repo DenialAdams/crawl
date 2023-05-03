@@ -71,14 +71,14 @@ static const struct spell_desc spelldata[] =
 },
 
 {
-    SPELL_BLASTSPARK, "Kindle Blastsparks",
-    spschool::fire | spschool::air | spschool::translocation,
+    SPELL_BLASTMOTE, "Volatile Blastmotes",
+    spschool::fire | spschool::translocation,
     spflag::destructive,
     3,
     50,
     -1, -1,
     0,
-    TILEG_BLASTSPARK,
+    TILEG_BLASTMOTE,
 },
 
 {
@@ -141,10 +141,10 @@ static const struct spell_desc spelldata[] =
     SPELL_PLASMA_BEAM, "Plasma Beam",
     spschool::fire | spschool::air,
     spflag::noisy | spflag::destructive,
-    5,
+    6,
     200,
     3, 10, // capped at LOS
-    25,
+    20,
     TILEG_PLASMA_BEAM,
 },
 
@@ -708,7 +708,7 @@ static const struct spell_desc spelldata[] =
     spschool::summoning,
     spflag::unholy | spflag::selfench,
     2,
-    100,
+    50,
     -1, -1,
     0,
     TILEG_CALL_IMP,
@@ -3636,6 +3636,18 @@ static const struct spell_desc spelldata[] =
     5,
     0,
     6, 6,
+    0,
+    TILEG_ERROR,
+},
+
+// Dummy spell for the Makhleb ability.
+{
+    SPELL_MINOR_DESTRUCTION, "Minor Destruction",
+    spschool::conjuration,
+    spflag::dir_or_target | spflag::chaotic | spflag::needs_tracer,
+    3,
+    0,
+    5, 5,
     0,
     TILEG_ERROR,
 },

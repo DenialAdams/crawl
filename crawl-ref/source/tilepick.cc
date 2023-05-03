@@ -1936,6 +1936,11 @@ static tileidx_t _tileidx_monster_no_props(const monster_info& mon)
             return TILEP_MONS_SIGMUND_SCYTHELESS;
         }
 
+        case MONS_OGRE:
+            if (today_is_serious())
+                return TILEP_MONS_SWAMP_OGRE;
+            return base;
+
         case MONS_NESSOS:
         {
             const item_def * const weapon = mon.inv[MSLOT_WEAPON].get();
@@ -3601,8 +3606,6 @@ tileidx_t tileidx_ability(const ability_type ability)
         return TILEG_ABILITY_SHAFT_SELF;
 
     // Evoking items.
-    case ABIL_EVOKE_ASMODEUS:
-        return TILEG_ABILITY_EVOKE_ASMODEUS;
     case ABIL_EVOKE_BLINK:
         return TILEG_ABILITY_BLINK;
     case ABIL_EVOKE_DISPATER:
@@ -4196,6 +4199,11 @@ int enchant_to_int(const item_def &item)
     if (is_random_artefact(item))
         return 4;
 
+    // Dragon scales and troll hides can't have egos.
+    // Only apply their special tiles to randarts.
+    if (armour_is_hide(item))
+        return 0;
+
     switch (item.flags & ISFLAG_COSMETIC_MASK)
     {
         default:
@@ -4222,7 +4230,7 @@ tileidx_t tileidx_enchant_equ(const item_def &item, tileidx_t tile, bool player)
 
     const int etype = enchant_to_int(item);
 
-    // XXX: only helmets, hats, robes and boots have variants, but it would be nice
+    // XXX: only helmets, hats, orbs, robes and boots have variants, but it would be nice
     // if this weren't hardcoded.
     if (tile == TILE_THELM_HAT)
     {
@@ -4261,6 +4269,9 @@ tileidx_t tileidx_enchant_equ(const item_def &item, tileidx_t tile, bool player)
         }
         return tile;
     }
+
+    if (tile == TILE_ARM_ORB && etype == 4)
+        return _modrng(item.rnd, TILE_ARM_ORB_ART_FIRST, TILE_ARM_ORB_ART_LAST);
 
     if (tile == TILE_ARM_ROBE)
     {

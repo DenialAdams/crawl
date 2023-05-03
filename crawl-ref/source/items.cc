@@ -647,6 +647,8 @@ void destroy_item(item_def &item, bool never_created)
     {
         if (is_unrandom_artefact(item))
             set_unique_item_status(item, UNIQ_NOT_EXISTS);
+        if (item.base_type == OBJ_MISCELLANY)
+            you.generated_misc.erase((misc_item_type)item.sub_type);
     }
 
     item.clear();
@@ -2009,6 +2011,7 @@ item_def *auto_assign_item_slot(item_def& item)
     // check to see whether we've chosen an automatic label:
     for (auto& mapping : Options.auto_item_letters)
     {
+        // `matches` has a validity check
         if (!mapping.first.matches(item.name(DESC_QUALNAME))
             && !mapping.first.matches(item_prefix(item)
                                       + " " + item.name(DESC_A)))

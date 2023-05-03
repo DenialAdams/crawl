@@ -607,7 +607,7 @@ namespace quiver
             unique_ptr<targeter> hitfunc;
             if (attack_cleaves(you, -1))
             {
-                const int range = reach_range == REACH_TWO ? 2 : 1;
+                const int range = reach_range;
                 hitfunc = make_unique<targeter_cleave>(&you, you.pos(), range);
             }
             else
@@ -1150,7 +1150,7 @@ namespace quiver
             // ignores things like butterflies, so that autofight doesn't get
             // tripped up.
                             && (spell != SPELL_ELECTRIC_CHARGE
-                                || electric_charge_possible(false));
+                                || electric_charge_impossible_reason(false).empty());
             // this imposes excommunication colors
             if (!enabled_cache)
                 col_cache = COL_USELESS;

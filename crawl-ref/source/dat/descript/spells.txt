@@ -257,8 +257,9 @@ or nearly adjacent cannot be struck by this.
 %%%%
 Call Imp spell
 
-Calls forth a minor demon from the pits of Hell. The demon will fight
-alongside the caster for a time depending on spell power.
+Calls forth a minor demon from the pits of Hell, equipped with a spear with
+which to jab at the caster's enemies. The quality of the imp's weaponry and
+the longevity of its service increase with spell power.
 %%%%
 Call Lost Soul spell
 
@@ -453,8 +454,7 @@ Disjunction spell
 
 Destabilizes the space in a sphere around the caster for a while, causing
 anyone nearby to blink away from the caster. The chance of blinking depends on
-the distance from the caster, being nearly certain when directly adjacent. It
-causes magical contamination when cast.
+the distance from the caster, being nearly certain when directly adjacent.
 %%%%
 Dispel Undead spell
 
@@ -851,9 +851,9 @@ Iskenderun's Mystic Blast spell
 Detonates a crackling sphere of destructive energy. The explosion will hit all
 nearby monsters with physical force, knocking them back if damage is done.
 %%%%
-Kindle Blastsparks spell
+Volatile Blastmotes spell
 
-Brings forth a cloud of volatile blastsparks around the caster, which explode
+Brings forth a cloud of volatile blastmotes around the caster, which explode
 when something moves into them or when they're exposed to open flames. The
 explosion is concussive, knocking adjacent creatures away. Damage done rises
 with the spell's power.

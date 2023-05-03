@@ -304,7 +304,6 @@ static vector<string> _randart_propnames(const item_def& item,
         { ARTP_PREVENT_TELEPORTATION, prop_note::plain },
         { ARTP_CONTAM,                prop_note::plain },
         { ARTP_ANGRY,                 prop_note::plain },
-        { ARTP_CAUSE_TELEPORTATION,   prop_note::plain },
         { ARTP_NOISE,                 prop_note::plain },
         { ARTP_HARM,                  prop_note::plain },
         { ARTP_RAMPAGING,             prop_note::plain },
@@ -578,11 +577,10 @@ static string _randart_descrip(const item_def &item)
         { ARTP_BLINK, "It lets you blink.", false},
         { ARTP_NOISE, "It may make noises in combat.", false},
         { ARTP_PREVENT_SPELLCASTING, "It prevents spellcasting.", false},
-        { ARTP_CAUSE_TELEPORTATION, "It may teleport you next to monsters.", false},
         { ARTP_PREVENT_TELEPORTATION, "It prevents most forms of teleportation.",
           false},
         { ARTP_ANGRY,  "It berserks you when you make melee attacks (%d% chance).", false},
-        { ARTP_CLARITY, "It protects you against confusion.", false},
+        { ARTP_CLARITY, "It protects you from confusion, rage, mesmerisation and fear.", false},
         { ARTP_CONTAM, "It causes magical contamination when unequipped.", false},
         { ARTP_RMSL, "It protects you from missiles.", false},
         { ARTP_REGENERATION, "It increases your rate of health regeneration.",
@@ -1950,10 +1948,8 @@ static const char* _item_ego_desc(special_armour_type ego)
     case SPARM_GUILE:
         return "it weakens the willpower of the wielder and everyone they hex.";
     case SPARM_ENERGY:
-        return "it occasionally powers its wielder's spells, but with a chance"
-               " of causing confusion or draining the wielder's intelligence."
-               " It becomes more likely to activate and less likely to backfire"
-               " with Evocations skill.";
+        return "it may return the magic spent to cast spells, but lowers their "
+               "success rate. It always returns the magic spent on miscasts.";
     default:
         return "it makes the wearer crave the taste of eggplant.";
     }
@@ -4519,8 +4515,9 @@ static const item_def* _weapon_for_attack(const monster_info& mi, int atk)
 
 static string _monster_attacks_description(const monster_info& mi)
 {
-    // Spectral weapons use the player's stats to attack, so displaying
+    // Spectral weapons use the wielder's stats to attack, so displaying
     // their 'monster' damage here is just misleading.
+    // TODO: display the right number without an awful hack
     if (mi.type == MONS_SPECTRAL_WEAPON)
         return "";
 

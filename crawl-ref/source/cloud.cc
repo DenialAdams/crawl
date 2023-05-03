@@ -309,10 +309,10 @@ static const cloud_data clouds[] = {
       BEAM_NONE, {},                              // beam & damage
       false,                                      // opacity
     },
-    // CLOUD_BLASTSPARKS,
-    { "blastsparks", "volatile sparks",           // terse, verbose name
+    // CLOUD_BLASTMOTES,
+    { "blastmotes", "volatile sparks",           // terse, verbose name
         ETC_SMOKE,                                // colour
-      { TILE_CLOUD_BLASTSPARKS, CTVARY_RANDOM },  // tile
+      { TILE_CLOUD_BLASTMOTES, CTVARY_RANDOM },  // tile
     },
     // CLOUD_ELECTRICITY,
     { "sparks", nullptr,         // terse, verbose name
@@ -856,7 +856,7 @@ static bool _cloud_has_negative_side_effects(cloud_type cloud)
     case CLOUD_PETRIFY:
     case CLOUD_ACID:
     case CLOUD_NEGATIVE_ENERGY:
-    case CLOUD_BLASTSPARKS:
+    case CLOUD_BLASTMOTES:
         return true;
     default:
         return false;
@@ -1258,7 +1258,8 @@ static void _actor_apply_cloud(actor *act, cloud_struct &cloud)
 {
     const bool player = act->is_player();
     monster *mons = act->as_monster();
-    const beam_type cloud_flavour = _cloud2beam(cloud.type);
+    if (mons && !mons->alive())
+        return;
 
     if (actor_cloud_immune(*act, cloud))
         return;
@@ -1270,13 +1271,14 @@ static void _actor_apply_cloud(actor *act, cloud_struct &cloud)
 
     if ((player || final_damage > 0
          || _cloud_has_negative_side_effects(cloud.type))
-        && cloud.type != CLOUD_BLASTSPARKS) // no effect over time
+        && cloud.type != CLOUD_BLASTMOTES) // no effect over time
     {
         cloud.announce_actor_engulfed(act);
     }
     if (player && cloud_max_base_damage > 0 && resist > 0)
         canned_msg(MSG_YOU_RESIST);
 
+    const beam_type cloud_flavour = _cloud2beam(cloud.type);
     if (cloud_flavour != BEAM_NONE)
         act->expose_to_element(cloud_flavour, 7);
 
@@ -1392,7 +1394,7 @@ bool is_damaging_cloud(cloud_type type, bool accept_temp_resistances, bool yours
 
 bool cloud_damages_over_time(cloud_type type, bool accept_temp_resistances, bool yours)
 {
-    return type != CLOUD_BLASTSPARKS
+    return type != CLOUD_BLASTMOTES
         && is_damaging_cloud(type, accept_temp_resistances, yours);
 }
 
@@ -1429,8 +1431,8 @@ static bool _mons_avoids_cloud(const monster* mons, const cloud_struct& cloud,
         // Even the dumbest monsters will avoid miasma if they can.
         return true;
 
-    case CLOUD_BLASTSPARKS:
-        // As with traps, make friendly monsters not walk into blastsparks.
+    case CLOUD_BLASTMOTES:
+        // As with traps, make friendly monsters not walk into blastmotes.
         return mons->attitude == ATT_FRIENDLY
         // Hack: try to avoid penance.
             || mons->attitude == ATT_GOOD_NEUTRAL;

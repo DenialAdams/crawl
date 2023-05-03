@@ -67,7 +67,7 @@
 #include "shout.h"
 #include "skills.h"
 #include "species.h" // random_starting_species
-#include "spl-clouds.h" // explode_blastsparks_at
+#include "spl-clouds.h" // explode_blastmotes_at
 #include "spl-damage.h"
 #include "spl-selfench.h"
 #include "spl-summoning.h"
@@ -561,8 +561,8 @@ void moveto_location_effects(dungeon_feature_type old_feat,
     if (old_pos != you.pos())
     {
         cloud_struct* cloud = cloud_at(you.pos());
-        if (cloud && cloud->type == CLOUD_BLASTSPARKS)
-            explode_blastsparks_at(you.pos()); // schedules a fineff
+        if (cloud && cloud->type == CLOUD_BLASTMOTES)
+            explode_blastmotes_at(you.pos()); // schedules a fineff
 
         // Traps go off.
         // (But not when losing flight - i.e., moving into the same tile)
@@ -1119,15 +1119,7 @@ int get_teleportitis_level()
     if (you.stasis())
         return 0;
 
-    int tp = 0;
-
-    // artefacts
-    tp += 8 * you.scan_artefacts(ARTP_CAUSE_TELEPORTATION);
-
-    // mutations
-    tp += you.get_mutation_level(MUT_TELEPORT) * 6;
-
-    return tp;
+    return you.get_mutation_level(MUT_TELEPORT) * 6;
 }
 
 // Computes bonuses to regeneration from most sources. Does not handle
@@ -1710,9 +1702,6 @@ int player_spec_conj()
     // Staves
     sc += you.wearing(EQ_STAFF, STAFF_CONJURATION);
 
-    if (player_equip_unrand(UNRAND_BATTLE))
-        sc++;
-
     return sc;
 }
 
@@ -1965,8 +1954,9 @@ static int _player_evasion_size_factor(bool base = false)
     return 2 * (SIZE_MEDIUM - size);
 }
 
-// Determines racial shield penalties (formicids get a bonus compared to
-// other medium-sized races)
+// Determines racial shield preferences for acquirement. (Formicids get a
+// bonus for larger shields compared to other medium-sized races).
+// TODO: rethink this
 int player_shield_racial_factor()
 {
     return you.has_mutation(MUT_QUADRUMANOUS) ? -2 // Same as trolls, etc.
@@ -2147,16 +2137,24 @@ int player_armour_shield_spell_penalty()
 }
 
 /**
- * How many spell-success-chance-boosting ('wizardry') effects can the player
- * apply to the given spell?
+ * How many spell-success-boosting ('wizardry') effects does the player have?
  *
- * @param spell     The type of spell being cast.
- * @return          The number of relevant wizardry effects.
+ * @return    The number of wizardry effects.
  */
-int player_wizardry(spell_type /*spell*/)
+int player_wizardry()
 {
     return you.wearing(EQ_RINGS, RING_WIZARDRY)
            + (you.get_mutation_level(MUT_BIG_BRAIN) == 3 ? 1 : 0);
+}
+
+int player_channeling()
+{
+    // Here and elsewhere, let's consider making this work for Dj.
+    if (you.has_mutation(MUT_HP_CASTING))
+        return 0;
+
+    return 2 * player_equip_unrand(UNRAND_WUCAD_MU)
+           + you.wearing_ego(EQ_ALL_ARMOUR, SPARM_ENERGY);
 }
 
 static int _sh_from_shield(const item_def &item)
@@ -2339,10 +2337,10 @@ static void _recharge_xp_evokers(int exp)
     FixedVector<item_def*, NUM_MISCELLANY> evokers(nullptr);
     list_charging_evokers(evokers);
 
-    int xp_factor = max(min((int)exp_needed(you.experience_level+1, 0) * 2 / 7,
-                             you.experience_level * 425),
-                        you.experience_level*4 + 30)
-                    / (3 + you.skill_rdiv(SK_EVOCATIONS, 2, 13));
+    const int xp_by_xl = exp_needed(you.experience_level+1, 0)
+                       - exp_needed(you.experience_level, 0);
+    const int skill_denom = 3 + you.skill_rdiv(SK_EVOCATIONS, 2, 13);
+    const int xp_factor = max(xp_by_xl / 5, 100) / skill_denom;
 
     for (int i = 0; i < NUM_MISCELLANY; ++i)
     {
@@ -5158,10 +5156,13 @@ player::player()
     seen_armour.init(0);
     seen_misc.reset();
 
+    generated_misc.clear();
     octopus_king_rings = 0x00;
 
     normal_vision    = LOS_DEFAULT_RANGE;
     current_vision   = LOS_DEFAULT_RANGE;
+
+    rampage_hints.clear();
 
     real_time_ms     = chrono::milliseconds::zero();
     real_time_delta  = chrono::milliseconds::zero();
@@ -5738,7 +5739,7 @@ int player::adjusted_shield_penalty(int scale) const
     const int base_shield_penalty = -property(*shield_l, PARM_EVASION) / 10;
     return 2 * base_shield_penalty * base_shield_penalty
            * (270 - skill(SK_SHIELDS, 10)) * scale
-           / (5 * (20 - 3 * player_shield_racial_factor())) / 270;
+           / (25 + 5 * strength()) / 270;
 }
 
 /**
@@ -6131,7 +6132,7 @@ int player::corrosion_amount() const
     if (duration[DUR_CORROSION])
         corrosion += you.props[CORROSION_KEY].get_int();
 
-    if (env.level_state & LSTATE_SLIMY_WALL)
+    if (you.on_current_level && env.level_state & LSTATE_SLIMY_WALL)
         corrosion += slime_wall_corrosion(&you);
 
     if (player_in_branch(BRANCH_DIS))
@@ -6181,6 +6182,15 @@ int player::armour_class_with_specific_items(vector<const item_def *> items) con
     AC += sanguine_armour_bonus();
 
     return AC / scale;
+}
+
+void player::refresh_rampage_hints()
+{
+    rampage_hints.clear();
+    if (you.rampaging())
+        for (coord_def delta : Compass)
+            if ((delta.x || delta.y) && get_rampage_target(delta))
+                you.rampage_hints.insert(you.pos() + delta);
 }
 
  /**
@@ -6504,13 +6514,12 @@ int player_willpower(bool temp)
  * Is the player prevented from teleporting? If so, why?
  *
  * @param blinking      Are you blinking or teleporting?
+ * @param temp          Are you being prevented by a temporary effect?
  * @return              Why the player is prevented from teleporting, if they
  *                      are; else, the empty string.
  */
-string player::no_tele_reason(bool blinking) const
+string player::no_tele_reason(bool blinking, bool temp) const
 {
-    // XX add a temp parm; in absence of this, do the non-temp check first
-    // assumption: species is the only source of stasis
     if (stasis())
         return "Your stasis prevents you from teleporting.";
 
@@ -6527,13 +6536,13 @@ string player::no_tele_reason(bool blinking) const
 
     vector<string> problems;
 
-    if (duration[DUR_DIMENSION_ANCHOR])
+    if (temp && duration[DUR_DIMENSION_ANCHOR])
         problems.emplace_back("locked down by a dimension anchor");
 
-    if (duration[DUR_LOCKED_DOWN])
+    if (temp && duration[DUR_LOCKED_DOWN])
         problems.emplace_back("magically locked down");
 
-    if (form == transformation::tree)
+    if (temp && form == transformation::tree)
         problems.emplace_back("held in place by your roots");
 
     vector<const item_def *> notele_items;
@@ -6582,11 +6591,12 @@ string player::no_tele_reason(bool blinking) const
  * Is the player prevented from teleporting/blinking right now?
  *
  * @param blinking      Are you blinking or teleporting?
+ * @param temp          Are you being prevented by a temporary effect?
  * @return              Whether the player is prevented from teleportation.
  */
-bool player::no_tele(bool blinking) const
+bool player::no_tele(bool blinking, bool temp) const
 {
-    return !no_tele_reason(blinking).empty();
+    return !no_tele_reason(blinking, temp).empty();
 }
 
 bool player::racial_permanent_flight() const
@@ -7506,6 +7516,13 @@ bool player::can_do_shaft_ability(bool quiet) const
     {
         if (!quiet)
             mprf("You can't shaft yourself while %s.", held_status());
+        return false;
+    }
+
+    if (you.duration[DUR_LOCKED_DOWN]) // XXX: also DUR_NO_MOMENTUM?
+    {
+        if (!quiet)
+            mpr("You can't shaft yourself while stuck.");
         return false;
     }
 

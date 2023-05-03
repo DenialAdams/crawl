@@ -299,6 +299,7 @@ bool player_tracer(zap_type ztype, int power, bolt &pbolt, int range)
     pbolt.heard         = false;
     pbolt.reflections   = 0;
     pbolt.bounces       = 0;
+    pbolt.loudness      = 0;
 
     // Save range before overriding it
     const int old_range = pbolt.range;
@@ -2391,6 +2392,17 @@ int bolt::get_cloud_size(bool min, bool max) const
     return 8 + random2(5);
 }
 
+static void _waterlog_mon(monster &mon, int ench_pow)
+{
+    if (mon.res_water_drowning() || mon.has_ench(ENCH_WATERLOGGED))
+        return;
+
+    simple_monster_message(mon, " is engulfed in water.");
+    const int min_dur = ench_pow + 20;
+    const int dur = random_range(min_dur, min_dur * 3 / 2);
+    mon.add_ench(mon_enchant(ENCH_WATERLOGGED, 0, &you, dur));
+}
+
 void bolt::affect_endpoint()
 {
     // hack: we use hit_verb to communicate whether a ranged
@@ -2489,18 +2501,13 @@ void bolt::affect_endpoint()
         // Waterlog anything at the center, even if a pool wasn't generated there
         splash_coords.insert(pos());
 
-        if (is_player)
+        if (!is_player)
+            break;
+        for (const coord_def &coord : splash_coords)
         {
-            for (const coord_def &coord : splash_coords)
-            {
-                monster* mons = monster_at(coord);
-                if (mons && !mons->res_water_drowning())
-                {
-                    simple_monster_message(*mons, " is engulfed in water.");
-                    mons->add_ench(mon_enchant(ENCH_WATERLOGGED, 0, &you,
-                                                   random_range(dur, dur * 3 / 2) - 20 * coord.distance_from(pos())));
-                }
-            }
+            monster* mons = monster_at(coord);
+            if (mons)
+                _waterlog_mon(*mons, ench_power);
         }
         break;
     }
@@ -2683,9 +2690,9 @@ void bolt::affect_place_clouds()
             extra_range_used += 5;
             return;
         }
-        // blastspark explosions
-        if (cloud->type == CLOUD_BLASTSPARKS && hot_beam)
-            explode_blastsparks_at(p);
+        // blastmote explosions
+        if (cloud->type == CLOUD_BLASTMOTES && hot_beam)
+            explode_blastmotes_at(p);
         return;
     }
 
@@ -3189,13 +3196,13 @@ bool bolt::misses_player()
             {
                 if (shield && shield_reflects(*shield))
                 {
-                    mprf("Your %s reflects the %s!",
+                    mprf("Your %s blocks the %s... and reflects it back!",
                             shield->name(DESC_PLAIN).c_str(),
                             refl_name.c_str());
                 }
                 else
                 {
-                    mprf("The %s reflects off an invisible shield around you!",
+                    mprf("You block %s... and reflect it back!",
                             refl_name.c_str());
                 }
                 reflect();
@@ -4612,6 +4619,9 @@ void bolt::monster_post_hit(monster* mon, int dmg)
         if (mon->add_ench(ench))
             simple_monster_message(*mon, " is blinded.");
     }
+
+    if (origin_spell == SPELL_PRIMAL_WAVE && agent() && agent()->is_player())
+        _waterlog_mon(*mon, ench_power);
 }
 
 static int _knockback_dist(spell_type origin, int pow)
@@ -4722,7 +4732,7 @@ bool bolt::attempt_block(monster* mon)
         {
             if (shield && shield_reflects(*shield))
             {
-                mprf("%s reflects the %s off %s %s!",
+                mprf("%s blocks the %s with %s %s... and reflects it back!",
                      mon->name(DESC_THE).c_str(),
                      name.c_str(),
                      mon->pronoun(PRONOUN_POSSESSIVE).c_str(),
@@ -5993,8 +6003,8 @@ const map<spell_type, explosion_sfx> spell_explosions = {
         "The roots erupt in riotous growth!",
         "creaking and crackling",
     } },
-    { SPELL_BLASTSPARK, {
-        "The cloud of blastsparks explodes!",
+    { SPELL_BLASTMOTE, {
+        "The cloud of blastmotes explodes!",
         "a concussive explosion",
     } },
 };
@@ -6758,6 +6768,28 @@ bool bolt::can_pull(const actor &act, int dam) const
         return false;
 
     return origin_spell == SPELL_HARPOON_SHOT && dam;
+}
+
+ai_action::goodness bolt::good_to_fire() const
+{
+    // Use of foeRatio:
+    // The higher this number, the more monsters will _avoid_ collateral
+    // damage to their friends.
+    // Setting this to zero will in fact have all monsters ignore their
+    // friends when considering collateral damage.
+
+    // Quick check - did we in fact hit anything?
+    if (foe_info.count == 0)
+        return ai_action::neutral();
+
+    const int total_pow = foe_info.power + friend_info.power;
+    // Only fire if they do acceptably low collateral damage.
+    if (!friend_info.power
+        || foe_info.power >= div_round_up(foe_ratio * total_pow, 100))
+    {
+        return ai_action::good();
+    }
+    return ai_action::bad();
 }
 
 void clear_zap_info_on_exit()

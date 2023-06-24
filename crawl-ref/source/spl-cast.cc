@@ -377,7 +377,6 @@ static int _stepdown_spellpower(int power)
 static int _skill_power(spell_type spell)
 {
     int power = 0;
-
     const spschools_type disciplines = get_spell_disciplines(spell);
     const int skillcount = count_bits(disciplines);
     if (skillcount)
@@ -387,11 +386,7 @@ static int _skill_power(spell_type spell)
                 power += you.skill(spell_type2skill(bit), 200);
         power /= skillcount;
     }
-
-    // Innate casters use spellcasting for every spell school.
-    const int splcast_mult = you.has_mutation(MUT_INNATE_CASTER) ? 250 : 50;
-    power += you.skill(SK_SPELLCASTING, splcast_mult);
-    return power;
+    return power + you.skill(SK_SPELLCASTING, 50);
 }
 
 
@@ -544,6 +539,12 @@ static int _spell_enhancement(spell_type spell)
 
     if (typeflags & spschool::necromancy)
         enhanced += player_spec_death();
+
+    if (typeflags & spschool::translocation)
+        enhanced += player_spec_tloc();
+
+    if (typeflags & spschool::transmutation)
+        enhanced += player_spec_tmut();
 
     if (typeflags & spschool::fire)
         enhanced += player_spec_fire();

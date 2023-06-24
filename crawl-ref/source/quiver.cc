@@ -707,6 +707,8 @@ namespace quiver
                 if ((midmons = monster_at(middle))
                     && !midmons->submerged()
                     && !god_protects(&you, midmons, true)
+                    && (midmons->type != MONS_SPECTRAL_WEAPON
+                        || !midmons->wont_attack())
                     && coinflip())
                 {
                     success = false;
@@ -933,8 +935,7 @@ namespace quiver
             // Update the legacy quiver history data structure
             // TODO: eliminate this? History should be stored per quiver, not
             // globally
-            you.m_quiver_history.on_item_fired(you.inv[item_slot],
-                    !target.fire_context || !target.fire_context->autoswitched);
+            you.m_quiver_history.on_item_fired(you.inv[item_slot]);
         }
 
         virtual formatted_string quiver_description(bool short_desc) const override
@@ -1865,6 +1866,7 @@ namespace quiver
             switch (you.inv[item_slot].sub_type)
             {
             case MISC_ZIGGURAT:     // non-damaging misc items
+            case MISC_SACK_OF_SPIDERS:
             case MISC_BOX_OF_BEASTS:
             case MISC_HORN_OF_GERYON:
             case MISC_QUAD_DAMAGE:
@@ -2010,7 +2012,7 @@ namespace quiver
     }
 
     action_cycler::action_cycler(shared_ptr<action> init)
-        : autoswitched(false), current(init)
+        : current(init)
     { }
 
     // by default, initialize as invalid, not empty
@@ -2095,14 +2097,13 @@ namespace quiver
      * @param new_act the action to fill in. nullptr is safe.
      * @return whether the action changed as a result of the call.
      */
-    bool action_cycler::set(const shared_ptr<action> new_act, bool _autoswitched)
+    bool action_cycler::set(const shared_ptr<action> new_act)
     {
         auto n = new_act ? new_act : make_shared<action>();
 
         const bool diff = *n != *get();
         auto old = move(current);
         current = move(n);
-        autoswitched = _autoswitched;
 
         if (diff)
         {
@@ -2119,12 +2120,9 @@ namespace quiver
             // side effects, ugh. Update the fire history, and play a sound
             // if needed. TODO: refactor so this is less side-effect-y
             // somehow?
-            if (!autoswitched)
-            {
-                const int item_slot = get()->get_item();
-                if (item_slot >= 0 && you.inv[item_slot].defined())
-                    you.m_quiver_history.set_quiver(you.inv[item_slot]);
-            }
+            const int item_slot = get()->get_item();
+            if (item_slot >= 0 && you.inv[item_slot].defined())
+                you.m_quiver_history.set_quiver(you.inv[item_slot]);
 #ifdef USE_SOUND
             parse_sound(CHANGE_QUIVER_SOUND);
 #endif
@@ -2145,7 +2143,6 @@ namespace quiver
         // don't use regular set: avoid all the side effects when importing
         // from another action cycler. (Used in targeting.)
         current = other.get();
-        autoswitched = false;
         set_needs_redraw();
         return diff;
     }
@@ -2316,27 +2313,8 @@ namespace quiver
         return set(next(dir, allow_disabled));
     }
 
-    void action_cycler::on_actions_changed(bool check_autoswitch)
+    void action_cycler::on_actions_changed()
     {
-        if (!get()->is_valid())
-        {
-            // XX should find_replacement respect +f?
-            auto r = get()->find_replacement();
-            if (r && r->is_valid()
-                && _fireorder_inscription_ok(r->get_item(), false) != false)
-            {
-                set(r, true);
-            }
-        }
-        else if (check_autoswitch && autoswitched)
-        {
-            auto r = ammo_to_action(you.m_quiver_history.get_last_ammo());
-            if (r && r->is_valid()
-                && _fireorder_inscription_ok(r->get_item(), false) != false)
-            {
-                set(r);
-            }
-        }
         set_needs_redraw();
     }
 
@@ -3152,9 +3130,9 @@ namespace quiver
     }
 #endif
 
-    void on_actions_changed(bool check_autoswitch)
+    void on_actions_changed()
     {
-        you.quiver_action.on_actions_changed(check_autoswitch);
+        you.quiver_action.on_actions_changed();
     }
 
     void set_needs_redraw()

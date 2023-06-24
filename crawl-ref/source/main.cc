@@ -521,6 +521,7 @@ static void _show_commandline_options_help()
     puts("  -no-throttle          disable throttling of user Lua scripts");
 #else
     puts("  -throttle             enable throttling of user Lua scripts");
+    puts("  -lua-max-memory       max memory in MB allowed for user Lua scripts");
     puts("  -seed <number>        specify a game seed to use when creating a new game");
 #endif
 
@@ -1063,6 +1064,9 @@ static void _input()
         update_screen();
     }
 
+    if (you.props.exists(DREAMSHARD_KEY))
+        you.props.erase(DREAMSHARD_KEY);
+
     apply_exp();
 
     // Unhandled things that should have caused death.
@@ -1077,7 +1081,6 @@ static void _input()
                                       "repetition.");
         crawl_state.prev_cmd = CMD_NO_CMD;
         flush_prev_message();
-        getchm();
         return;
     }
 
@@ -1723,7 +1726,7 @@ static void _do_rest()
     }
 #endif
 
-    if (bezotted() && !yesno("Really rest while Zot is near?", false, 'n'))
+    if (should_fear_zot() && !yesno("Really rest while Zot is near?", false, 'n'))
     {
         canned_msg(MSG_OK);
         return;

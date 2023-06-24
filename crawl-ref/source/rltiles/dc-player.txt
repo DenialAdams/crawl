@@ -90,7 +90,7 @@ troll_m
 octopode1 OCTOPODE
 octopode2
 octopode3
-octopode4
+octopode4 OCTOPODE_SILLY
 octopode5
 %rim 0
 djinni_f DJINNI
@@ -156,13 +156,13 @@ gargoyle_brown_f
 %rim 0
 cat1 FELID
 cat2
-cat3
 cat4
 cat5
-cat6
 cat7
 cat8
 cat9
+cat3 FELID_SILLY
+cat6
 cat10
 %sdir player/base
 %end_ctg
@@ -244,17 +244,10 @@ slippers SLIPPERS
 ## Mutations
 hooves HOOVES
 ## Bardings
-%rim 1
 %sdir player/barding
-naga_barding_blue NAGA_BARDING
-naga_barding_metal NAGA_BARDING_METAL
-naga_barding_magenta NAGA_BARDING_MAGENTA
-naga_barding_red NAGA_BARDING_RED
-centaur_barding_blue CENTAUR_BARDING
-centaur_barding_metal CENTAUR_BARDING_METAL
-centaur_barding_magenta CENTAUR_BARDING_MAGENTA
-centaur_barding_red CENTAUR_BARDING_RED
-%rim 0
+barding1 BARDING
+barding2 BARDING_EGO
+barding3 BARDING_RANDART
 lightning_scales LIGHTNING_SCALES
 black_knight BLACK_KNIGHT
 %end_ctg
@@ -639,6 +632,7 @@ morningstar MORNINGSTAR
 morningstar2
 eveningstar EVENINGSTAR
 eveningstar2
+eveningstar3
 hammer HAMMER
 hammer2
 hammer_one HAMMER1
@@ -769,8 +763,10 @@ axe_short AXE_SHORT
 ## launchers
 sling SLING
 bow BOW
-bow_two BOW2
-bow_three BOW3
+shortbow SHORTBOW
+orcbow1 ORCBOW
+orcbow1
+orcbow3
 great_bow GREAT_BOW
 storm_bow STORM_BOW
 hand_crossbow HAND_CROSSBOW

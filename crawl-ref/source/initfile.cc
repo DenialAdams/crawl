@@ -506,6 +506,7 @@ const vector<GameOption*> game_options::build_options_list()
         new BoolGameOption(SIMPLE_NAME(dos_use_background_intensity), true),
         new BoolGameOption(SIMPLE_NAME(explore_greedy), true),
         new BoolGameOption(SIMPLE_NAME(explore_auto_rest), true),
+        new BoolGameOption(SIMPLE_NAME(fear_zot), false),
         new BoolGameOption(SIMPLE_NAME(travel_key_stop), true),
         new ListGameOption<string>(ON_SET_NAME(explore_stop),
             {"item", "stair", "portal", "branch", "shop", "altar",
@@ -766,7 +767,7 @@ const vector<GameOption*> game_options::build_options_list()
         new StringGameOption(ON_SET_NAME(tile_weapon_offsets), "reset", false,
             [this]() { set_tile_offsets(tile_weapon_offsets_option, false); }),
         new StringGameOption(ON_SET_NAME(tile_shield_offsets), "reset", false,
-            [this]() { set_tile_offsets(tile_weapon_offsets_option, true); }),
+            [this]() { set_tile_offsets(tile_shield_offsets_option, true); }),
         new StringGameOption(ON_SET_NAME(tile_tag_pref), "auto", false,
             [this]() { tile_tag_pref = _str_to_tag_pref(tile_tag_pref_option); }),
 
@@ -2174,6 +2175,8 @@ void base_game_options::merge(const base_game_options &other)
 
 void read_init_file(bool runscripts)
 {
+    unwind_bool parsing_state(crawl_state.parsing_rc, true);
+
     Options.reset_options();
     // XX why didn't this clear first
     Options.reset_aliases(false);
@@ -3137,27 +3140,31 @@ void game_options::update_explore_greedy_visit_conditions()
 message_filter::message_filter(const string &filter)
     : message_filter()
 {
-    string::size_type pos = filter.find(":");
-    if (pos && pos != string::npos)
+    vector<string> splits = split_string(":", filter, true, true, 1, true);
+    if (splits.size() > 1)
     {
-        string prefix = filter.substr(0, pos);
-        int ch = str_to_channel(prefix);
-        if (ch != -1 || prefix == "any")
+        // legacy behavior from before escaping `:` was implemented: if the
+        // prefix is not a valid channel, treat it as escaped rather than
+        // an error. This maybe should be removed for consistency, but would
+        // potentially break many rc files.
+        int ch = str_to_channel(splits[0]);
+        if (ch != -1 || splits[0] == "any")
         {
-            string s = filter.substr(pos + 1);
-            trim_string(s);
-            pattern = text_pattern(s, true);
+            pattern = text_pattern(splits[1], true);
             channel = ch;
             return;
         }
+        splits[0] += ":";
+        splits[0] += splits[1]; // reuse our escaping work
     }
-    pattern = text_pattern(filter, true);
+    pattern = text_pattern(splits[0], true);
 }
 
 message_colour_mapping::message_colour_mapping(const string &s)
     : message_colour_mapping()
 {
-    vector<string> cmap = split_string(":", s, true, true, 1);
+    // note: leave all other escape sequences (including `\\`) intact.
+    vector<string> cmap = split_string(":", s, true, true, 1, true);
 
     if (cmap.size() != 2)
     {
@@ -3183,7 +3190,7 @@ colour_mapping::colour_mapping(const string &s)
     : colour_mapping()
 {
     // Format is "tag:colour:pattern" or "colour:pattern" (default tag).
-    vector<string> subseg = split_string(":", s, false, false, 2);
+    vector<string> subseg = split_string(":", s, false, false, 2, true);
     string tagname, colname;
     if (subseg.size() < 2)
     {
@@ -3225,7 +3232,7 @@ static sound_mapping _interrupt_sound_mapping(const string &s)
 sound_mapping::sound_mapping(const string &s)
     : sound_mapping()
 {
-    string::size_type cpos = s.find(":", 0);
+    string::size_type cpos = s.find(":", 0); // TODO: allow escaping?
     if (cpos == string::npos)
     {
         mprf(MSGCH_ERROR, "Options error: invalid sound mapping '%s'", s.c_str());
@@ -3503,6 +3510,8 @@ static void _base_split_parse(const string &s,
 {
     // Lots of things use split parse, for some ^= and += should do different things,
     // for others they should not. Split parse just passes them along.
+    // this does not allow escaping `separator`, because it doesn't seem like
+    // any of the callers currently should need it
     const vector<string> defs = split_string(separator, s);
     if (prepend)
     {
@@ -3593,6 +3602,7 @@ void base_game_options::read_option_line(const string &str, bool runscripts)
     }
     else if (state.key == "opt" || state.key == "option")
     {
+        // does this need the ability to escape `,` for some reason?
         _base_split_parse(state.raw_field, ",",
                 [this](const string & s, bool b) { set_option_fragment(s, b); });
         return;
@@ -4529,6 +4539,7 @@ enum commandline_option_type
     CLO_NO_GDB, CLO_NOGDB,
     CLO_THROTTLE,
     CLO_NO_THROTTLE,
+    CLO_CLUA_MAX_MEMORY,
     CLO_PLAYABLE_JSON, // JSON metadata for species, jobs, combos.
     CLO_BRANCHES_JSON, // JSON metadata for branches.
     CLO_SAVE_JSON,
@@ -4584,7 +4595,8 @@ static const char *cmd_ops[] =
     "extra-opt-first", "extra-opt-last", "sprint-map", "edit-save",
     "print-charset", "tutorial", "wizard", "explore", "no-save",
     "no-player-bones", "gdb", "no-gdb", "nogdb", "throttle", "no-throttle",
-    "playable-json", "branches-json", "save-json", "gametypes-json", "bones",
+    "lua-max-memory", "playable-json", "branches-json", "save-json",
+    "gametypes-json", "bones",
 #if defined(UNIX) || defined(USE_TILE_LOCAL)
     "headless",
 #endif
@@ -5879,6 +5891,15 @@ bool parse_args(int argc, char **argv, bool rc_only)
 
         case CLO_NO_THROTTLE:
             crawl_state.throttle = false;
+            break;
+
+        case CLO_CLUA_MAX_MEMORY:
+            if (!next_is_param)
+                return false;
+
+            if (!sscanf(next_arg, "%" SCNu64, &crawl_state.clua_max_memory_mb))
+                return false;
+            nextUsed = true;
             break;
 
         case CLO_EXTRA_OPT_FIRST:

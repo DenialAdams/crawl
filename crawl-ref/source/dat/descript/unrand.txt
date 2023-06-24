@@ -180,7 +180,8 @@ both the wielder and all of their followers.
 arbalest "Damnation"
 
 An unholy crossbow, forged in the fires of Gehenna. It imbues the bolts it
-fires with the raw power of its namesake.
+fires with the raw power of its namesake. Thankfully, the blasts this weapon
+produces never harm the one firing.
 %%%%
 # TAG_MINOR_VERSION == 34
 sword of the Doom Knight
@@ -691,9 +692,7 @@ of the recently dead, protecting the wearer with a cocoon of carrion.
 seven-league boots
 
 An enchanted pair of boots which grant the ability to take strides of incredible
-length, as long as the wearer is advancing bravely towards their foes. They
-allow the wearer to engage in combat in a single step, although it becomes
-impossible to remain stealthy while taking such strides.
+length, as long as the wearer is advancing bravely towards their foes.
 %%%%
 Mad Mage's Maulers
 
@@ -701,6 +700,10 @@ A pair of gloves designed to carefully control and channel the flow of magic,
 later misused and mangled by the lunatic murderer-mages of the Fifth Circle.
 Their influence leaves the wearer utterly unable to cast spells - the wearer's
 magic is redirected to far bloodier purposes.
+%%%%
+dreamdust necklace
+
+A dull dusty mixture trapped within a cracked crystal on a thin silver chain.
 %%%%
 dreamshard necklace
 

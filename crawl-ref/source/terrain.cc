@@ -1265,7 +1265,9 @@ void dungeon_terrain_changed(const coord_def &pos,
                              bool preserve_features,
                              bool preserve_items,
                              bool temporary,
-                             bool wizmode)
+                             bool wizmode,
+                             unsigned short flv_nfeat,
+                             unsigned short flv_nfeat_idx)
 {
     if (env.grid(pos) == nfeat)
         return;
@@ -1292,9 +1294,8 @@ void dungeon_terrain_changed(const coord_def &pos,
             unnotice_feature(level_pos(level_id::current(), pos));
 
         env.grid(pos) = nfeat;
-        // Reset feature tile
-        tile_env.flv(pos).feat = 0;
-        tile_env.flv(pos).feat_idx = 0;
+        tile_env.flv(pos).feat = flv_nfeat;
+        tile_env.flv(pos).feat_idx = flv_nfeat_idx;
 
         if (is_notable_terrain(nfeat) && you.see_cell(pos))
             seen_notable_thing(nfeat, pos);
@@ -2020,6 +2021,7 @@ void temp_change_terrain(coord_def pos, dungeon_feature_type newfeat, int dur,
                          terrain_change_type type, int mid)
 {
     dungeon_feature_type old_feat = env.grid(pos);
+    tile_flavour old_flv = tile_env.flv(pos);
     for (map_marker *marker : env.markers.get_markers_at(pos))
     {
         if (marker->get_type() == MAT_TERRAIN_CHANGE)
@@ -2051,7 +2053,11 @@ void temp_change_terrain(coord_def pos, dungeon_feature_type newfeat, int dur,
                 return;
             }
             else
+            {
                 old_feat = tmarker->old_feature;
+                old_flv.feat = tmarker->flv_old_feature;
+                old_flv.feat_idx = tmarker->flv_old_feature_idx;
+            }
         }
     }
 
@@ -2061,8 +2067,9 @@ void temp_change_terrain(coord_def pos, dungeon_feature_type newfeat, int dur,
         return;
 
     map_terrain_change_marker *marker =
-        new map_terrain_change_marker(pos, old_feat, newfeat, dur, type,
-                                      mid, env.grid_colours(pos));
+        new map_terrain_change_marker(pos, old_feat, newfeat, old_flv.feat,
+                                      old_flv.feat_idx, dur, type, mid,
+                                      env.grid_colours(pos));
     env.markers.add(marker);
     env.markers.clear_need_activate();
     dungeon_terrain_changed(pos, newfeat, false, true, true);
@@ -2128,6 +2135,8 @@ static bool _revert_terrain_to(coord_def pos, dungeon_feature_type feat)
 bool revert_terrain_change(coord_def pos, terrain_change_type ctype)
 {
     dungeon_feature_type newfeat = DNGN_UNSEEN;
+    unsigned short newfeat_flv = 0;
+    unsigned short newfeat_flv_idx = 0;
     int colour = BLACK;
 
     for (map_marker *marker : env.markers.get_markers_at(pos))
@@ -2143,6 +2152,10 @@ bool revert_terrain_change(coord_def pos, terrain_change_type ctype)
                     colour = tmarker->colour;
                 if (!newfeat)
                     newfeat = tmarker->old_feature;
+                if (!newfeat_flv)
+                    newfeat_flv = tmarker->flv_old_feature;
+                if (!newfeat_flv_idx)
+                    newfeat_flv_idx = tmarker->flv_old_feature_idx;
                 env.markers.remove(tmarker);
             }
             else
@@ -2164,7 +2177,8 @@ bool revert_terrain_change(coord_def pos, terrain_change_type ctype)
     {
         if (ctype == TERRAIN_CHANGE_BOG)
             env.map_knowledge(pos).set_feature(newfeat, colour);
-        dungeon_terrain_changed(pos, newfeat, false, true);
+        dungeon_terrain_changed(pos, newfeat, false, true, false, false,
+            newfeat_flv, newfeat_flv_idx);
         env.grid_colours(pos) = colour;
         return true;
     }

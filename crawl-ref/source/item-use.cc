@@ -3449,7 +3449,6 @@ static bool _is_cancellable_scroll(scroll_type scroll)
            || scroll == SCR_AMNESIA
            || scroll == SCR_BRAND_WEAPON
            || scroll == SCR_ENCHANT_WEAPON
-           || scroll == SCR_MAGIC_MAPPING
            || scroll == SCR_ACQUIREMENT
            || scroll == SCR_POISON;
 }
@@ -3811,9 +3810,10 @@ bool read(item_def* scroll, dist *target)
     // For cancellable scrolls leave printing this message to their
     // respective functions.
     const string pre_succ_msg =
-            make_stringf("As you%s read the %s, it crumbles to dust.",
+            make_stringf("As you%s read the %s, it %s.",
                          you.has_mutation(MUT_AWKWARD_TONGUE) ? " slowly" : "",
-                          scroll->name(DESC_QUALNAME).c_str());
+                          scroll->name(DESC_QUALNAME).c_str(),
+                         which_scroll == SCR_FOG ? "dissolves into smoke" : "crumbles to dust");
     if (!_is_cancellable_scroll(which_scroll))
     {
         mpr(pre_succ_msg);
@@ -3888,15 +3888,14 @@ bool read(item_def* scroll, dist *target)
 
     case SCR_FOG:
     {
-        mpr("The scroll dissolves into smoke.");
         auto smoke = random_smoke_type();
         big_cloud(smoke, &you, you.pos(), 50, 8 + random2(8));
         break;
     }
 
-    case SCR_MAGIC_MAPPING:
-        mpr(pre_succ_msg);
+    case SCR_REVELATION:
         magic_mapping(500, 100, false);
+        you.duration[DUR_REVELATION] = you.time_taken + 1;
         break;
 
     case SCR_TORMENT:
@@ -4059,9 +4058,15 @@ bool read(item_def* scroll, dist *target)
             dec_inv_item_quantity(link, 1);
         else
             dec_mitm_item_quantity(scroll->index(), 1);
+
         count_action(CACT_USE, OBJ_SCROLLS);
+
         if (you.has_mutation(MUT_AWKWARD_TONGUE))
+        {
             you.time_taken = div_rand_round(you.time_taken * 3, 2);
+            if (which_scroll == SCR_REVELATION) // ew
+                you.duration[DUR_REVELATION] = you.time_taken + 1;
+        }
     }
 
     if (!alreadyknown

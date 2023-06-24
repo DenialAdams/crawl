@@ -672,10 +672,13 @@ int make_mons_weapon(monster_type type, int level, bool melee_only)
             { { { WPN_TRIDENT,          1 },
                 { WPN_SPEAR,            2 },
         } } },
-        { MONS_CENTAUR, { { { WPN_SHORTBOW, 1 } } } },
+        { MONS_CENTAUR,
+            { { { WPN_SHORTBOW,         1 },
+                { WPN_ORCBOW,           1 },
+        } } },
         { MONS_CENTAUR_WARRIOR,
-            { { { WPN_SHORTBOW,         2 },
-                { WPN_LONGBOW,          1 },
+            { { { WPN_SHORTBOW,         1 },
+                { WPN_ORCBOW,           1 },
         } } },
         { MONS_FAUN,                    { FAUN_WEAPONS } },
         { MONS_SATYR,                   { FAUN_WEAPONS } },
@@ -942,9 +945,10 @@ int make_mons_weapon(monster_type type, int level, bool melee_only)
     {   { WPN_ARBALEST,                 1 },
         { NUM_WEAPONS,                  8 }, }; // 1/9 chance of ranged weapon
 
+
     static const map<monster_type, mon_weapon_spec> secondary_weapon_specs = {
         { MONS_JOSEPH, { { { WPN_SLING, 1 } } } },
-        { MONS_DEEP_ELF_ARCHER, // XXX: merge w/centaur warrior primary?
+        { MONS_DEEP_ELF_ARCHER,
             { { { WPN_SHORTBOW,         3 },
                 { WPN_LONGBOW,          1 },
         } } },
@@ -957,15 +961,18 @@ int make_mons_weapon(monster_type type, int level, bool melee_only)
                 { WPN_ARBALEST,         2 },
                 { WPN_LONGBOW,          1 }
         } } },
-        { MONS_VAULT_WARDEN,            { ORC_KNIGHT_BOWS } },
+        { MONS_VAULT_WARDEN,            { { { WPN_ARBALEST, 1 }, { NUM_WEAPONS, 8 }} } },
         { MONS_ORC_WARLORD,             { ORC_KNIGHT_BOWS } },
         { MONS_SAINT_ROKA,              { ORC_KNIGHT_BOWS } },
         { MONS_ORC_KNIGHT,              { ORC_KNIGHT_BOWS } },
-        { MONS_ORC_WARRIOR,             { ORC_KNIGHT_BOWS } },
+        { MONS_ORC_WARRIOR,
+            { { { WPN_ORCBOW,           3 },
+                { WPN_ARBALEST,         1 },
+                { NUM_WEAPONS,          32 }
+        } } },
         { MONS_TENGU_WARRIOR,
-            { { { WPN_ARBALEST,                 3 },
-                { WPN_LONGBOW,                  1 },
-                { NUM_WEAPONS,                  32 }, // 1/9 chance of weap
+            { { { WPN_ARBALEST,                 1 },
+                { NUM_WEAPONS,                  8 }, // 1/9 chance of weap
         } } },
         { MONS_VAULT_SENTINEL,
             { { { WPN_ARBALEST,                 19 },

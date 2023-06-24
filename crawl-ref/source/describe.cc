@@ -344,7 +344,20 @@ static vector<string> _randart_propnames(const item_def& item,
         { ARTP_STEALTH,               prop_note::symbolic },
         { ARTP_CLARITY,               prop_note::plain },
         { ARTP_RMSL,                  prop_note::plain },
+
+        // spell enhancers
         { ARTP_ARCHMAGI,              prop_note::plain },
+        { ARTP_ENHANCE_CONJ,          prop_note::plain },
+        { ARTP_ENHANCE_HEXES,         prop_note::plain },
+        { ARTP_ENHANCE_SUMM,          prop_note::plain },
+        { ARTP_ENHANCE_NECRO,         prop_note::plain },
+        { ARTP_ENHANCE_TLOC,          prop_note::plain },
+        { ARTP_ENHANCE_TMUT,          prop_note::plain },
+        { ARTP_ENHANCE_FIRE,          prop_note::plain },
+        { ARTP_ENHANCE_ICE,           prop_note::plain },
+        { ARTP_ENHANCE_AIR,           prop_note::plain },
+        { ARTP_ENHANCE_EARTH,         prop_note::plain },
+        { ARTP_ENHANCE_POISON,        prop_note::plain },
     };
 
     const unrandart_entry *entry = nullptr;
@@ -597,6 +610,17 @@ static string _randart_descrip(const item_def &item)
         { ARTP_RAMPAGING, "It bestows one free step when moving towards enemies.",
           false},
         { ARTP_ARCHMAGI, "It increases the power of your magical spells.", false},
+        { ARTP_ENHANCE_CONJ, "It increases the power of your Conjurations spells." },
+        { ARTP_ENHANCE_HEXES, "It increases the power of your Hexes spells." },
+        { ARTP_ENHANCE_SUMM, "It increases the power of your Summonings spells." },
+        { ARTP_ENHANCE_NECRO, "It increases the power of your Necromancy spells." },
+        { ARTP_ENHANCE_TLOC, "It increases the power of your Translocations spells." },
+        { ARTP_ENHANCE_TMUT, "It increases the power of your Transmutations spells." },
+        { ARTP_ENHANCE_FIRE, "It increases the power of your Fire spells." },
+        { ARTP_ENHANCE_ICE, "It increases the power of your Ice spells." },
+        { ARTP_ENHANCE_AIR, "It increases the power of your Air spells." },
+        { ARTP_ENHANCE_EARTH, "It increases the power of your Earth spells." },
+        { ARTP_ENHANCE_POISON, "It increases the power of your Poison spells." },
     };
 
     bool need_newline = false;
@@ -1203,8 +1227,8 @@ static int _get_delay(const item_def &item)
 static string _desc_attack_delay(const item_def &item)
 {
     const int base_delay = property(item, PWPN_SPEED);
-    const int cur_delay = _get_delay(item);
-    if (base_delay == cur_delay)
+    const int cur_delay = _get_delay(get_item_known_info(item));
+    if (weapon_adjust_delay(item, base_delay, false) == cur_delay)
         return "";
     return make_stringf("\n    Current attack delay: %.1f.", (float)cur_delay / 10);
 }
@@ -1963,6 +1987,18 @@ static string _describe_armour(const item_def &item, bool verbose, bool monster)
 
     if (verbose)
     {
+        if (!monster && is_shield(item))
+        {
+            const int evp = -property(item, PARM_EVASION);
+            const char* cumber_desc = evp < 100 ? "slightly " :
+                                      evp > 100 ? "greatly " : "";
+            description += make_stringf(
+                "It is cumbersome to wear, and %simpedes the evasion, "
+                "spellcasting ability, and attack speed of the wearer. "
+                "These penalties are reduced by the wearer's Shields skill "
+                "and Strength; mastering Shields eliminates penalties.",
+                cumber_desc);
+        }
         if (!monster)
             description += "\n\n";
         if (is_shield(item))
@@ -2480,18 +2516,13 @@ string get_item_description(const item_def &item,
             {
                 description << "\n\n";
                 // slightly redundant with uselessness desc..
-                description << "Charges: "
-                            << evoker_charges(item.sub_type) << ". "
-                            << "Once "
-                            << (item.sub_type == MISC_LIGHTNING_ROD
-                                ? "all charges have been used"
-                                : "activated")
-                            << ", this device "
-                            << (!item_is_horn_of_geryon(item) ?
-                               "and all other devices of its kind are " : "is ")
-                            << "rendered temporarily inert. However, "
-                            << (!item_is_horn_of_geryon(item) ? "they recharge " : "it recharges ")
-                            << "as you gain experience.";
+                const int charges = evoker_charges(item.sub_type);
+                if (charges > 1)
+                    description << "Charges: " << charges << ". Once all charges have been used";
+                else
+                    description << "Once activated";
+                description << ", this device is rendered temporarily inert. "
+                            << "However, it recharges as you gain experience.";
             }
         }
 
@@ -3478,7 +3509,7 @@ void target_item(item_def &item)
     you.set_training_target(skill, target, true);
     // ensure that the skill is at least enabled
     if (you.train[skill] == TRAINING_DISABLED)
-        you.train[skill] = TRAINING_ENABLED;
+        set_training_status(skill, TRAINING_ENABLED);
     you.train_alt[skill] = you.train[skill];
     reset_training();
 }
@@ -4412,6 +4443,7 @@ static string _flavour_base_desc(attack_flavour flavour)
         { AF_FIRE,              "deal up to %d extra fire damage" },
         { AF_SEAR,              "remove fire resistance" },
         { AF_MUTATE,            "cause mutations" },
+        { AF_MINIPARA,          "cause very brief paralysis" },
         { AF_POISON_PARALYSE,   "poison and cause paralysis or slowing" },
         { AF_POISON,            "cause poisoning" },
         { AF_POISON_STRONG,     "cause strong poisoning" },
@@ -4563,10 +4595,14 @@ static string _monster_attacks_description(const monster_info& mi)
             make_stringf(" with %s weapon", mi.pronoun(PRONOUN_POSSESSIVE))
             : "";
 
+        int attk_mult = attack_count.second;
+        if (weapon_multihits(info.weapon))
+            attk_mult *= weapon_hits_per_swing(*info.weapon);
+
         const string count_desc =
-              attack_count.second == 1 ? "" :
-              attack_count.second == 2 ? " twice" :
-              " " + number_in_words(attack_count.second) + " times";
+              attk_mult == 1 ? "" :
+              attk_mult == 2 ? " twice" :
+              " " + number_in_words(attk_mult) + " times";
 
         // XXX: hack alert
         if (attack.flavour == AF_PURE_FIRE)

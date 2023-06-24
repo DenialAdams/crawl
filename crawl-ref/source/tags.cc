@@ -2413,6 +2413,9 @@ static spell_type _fixup_removed_spells(spell_type s)
         case SPELL_CONFUSE:
             return SPELL_CONFUSING_TOUCH;
 
+        case SPELL_IRON_SHOT:
+            return SPELL_UNMAKING;
+
         default:
             return s;
     }
@@ -3004,6 +3007,23 @@ static void _tag_read_you(reader &th)
                                                           you.training_targets[SK_SLINGS]));
         // fixup_skills is called at the end of loading a character, in
         // _post_init
+    }
+
+    // should be a check for MUT_INNATE_CASTER but I don't remember if muts
+    // have been unmarshalled here.
+    if (th.getMinorVersion() < TAG_MINOR_DJ_SPLIT && you.species == SP_DJINNI)
+    {
+        // Balance XP from spellcasting across all other skills.
+        cleanup_innate_magic_skills();
+        // Fix which skills are enabled. (Don't bother fixing autotraining %s,
+        // it'll all get balanced across skills anyway.)
+        for (skill_type sk = SK_FIRST_MAGIC_SCHOOL; sk <= SK_LAST_MAGIC; ++sk)
+        {
+            you.train[sk] = you.train[SK_SPELLCASTING];
+            you.train_alt[sk] = you.train_alt[SK_SPELLCASTING];
+        }
+        // Based on this, reset skill distribution percentages.
+        reset_training();
     }
 #endif
 
@@ -5449,7 +5469,8 @@ void unmarshallItem(reader &th, item_def &item)
     if (th.getMinorVersion() < TAG_MINOR_REALLY_UNSTACK_EVOKERS
         && item.base_type == OBJ_MISCELLANY
         && (item.sub_type == MISC_PHANTOM_MIRROR
-            || item.sub_type == MISC_BOX_OF_BEASTS) )
+            || item.sub_type == MISC_BOX_OF_BEASTS
+            || item.sub_type == MISC_SACK_OF_SPIDERS) )
     {
         item.quantity = 1;
     }

@@ -62,6 +62,7 @@
 #include "unicode.h"
 #include "unwind.h"
 #include "view.h"
+#include "zot.h"
 
 enum IntertravelDestination
 {
@@ -256,7 +257,8 @@ bool is_unknown_transporter(const coord_def &p)
 
 // Returns true if the character can cross this dungeon feature, and
 // the player hasn't requested that travel avoid the feature.
-bool feat_is_traversable_now(dungeon_feature_type grid, bool try_fallback)
+bool feat_is_traversable_now(dungeon_feature_type grid, bool try_fallback,
+                             bool assume_flight)
 {
     if (!ignore_player_traversability)
     {
@@ -279,7 +281,7 @@ bool feat_is_traversable_now(dungeon_feature_type grid, bool try_fallback)
         if (grid == DNGN_DEEP_WATER || grid == DNGN_LAVA
             || grid == DNGN_TOXIC_BOG)
         {
-            return you.permanent_flight();
+            return assume_flight || you.permanent_flight();
         }
     }
 
@@ -3311,6 +3313,12 @@ void start_explore(bool grab_items)
 
     if (!i_feel_safe(true, true))
         return;
+
+    if (should_fear_zot() && !yesno("Really explore while Zot is near?", false, 'n'))
+    {
+        canned_msg(MSG_OK);
+        return;
+    }
 
     you.running = (grab_items ? RMODE_EXPLORE_GREEDY : RMODE_EXPLORE);
 

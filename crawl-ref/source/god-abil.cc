@@ -1225,7 +1225,7 @@ static void _zin_saltify(monster* mon)
         // Enemies with more HD leave longer-lasting pillars of salt.
         int time_left = (random2(8) + hd) * BASELINE_DELAY;
         mon_enchant temp_en(ENCH_SLOWLY_DYING, 1, 0, time_left);
-        pillar->update_ench(temp_en);
+        pillar->add_ench(temp_en);
     }
 }
 
@@ -2487,6 +2487,7 @@ static potion_type _gozag_potion_list[][4] =
     { POT_HASTE, POT_HEAL_WOUNDS, NUM_POTIONS, NUM_POTIONS },
     { POT_HASTE, POT_BRILLIANCE, NUM_POTIONS, NUM_POTIONS },
     { POT_HASTE, POT_RESISTANCE, NUM_POTIONS, NUM_POTIONS },
+    { POT_HASTE, POT_ENLIGHTENMENT, NUM_POTIONS, NUM_POTIONS },
     { POT_BRILLIANCE, POT_MAGIC, NUM_POTIONS, NUM_POTIONS },
     { POT_INVISIBILITY, POT_MIGHT, NUM_POTIONS, NUM_POTIONS },
     { POT_HEAL_WOUNDS, POT_CURING, POT_MAGIC, NUM_POTIONS },
@@ -2496,6 +2497,7 @@ static potion_type _gozag_potion_list[][4] =
     { POT_RESISTANCE, POT_MIGHT, NUM_POTIONS, NUM_POTIONS },
     { POT_RESISTANCE, POT_MIGHT, POT_HASTE, NUM_POTIONS },
     { POT_RESISTANCE, POT_INVISIBILITY, NUM_POTIONS, NUM_POTIONS },
+    { POT_RESISTANCE, POT_ENLIGHTENMENT, NUM_POTIONS, NUM_POTIONS },
     { POT_LIGNIFY, POT_MIGHT, POT_RESISTANCE, NUM_POTIONS },
 };
 

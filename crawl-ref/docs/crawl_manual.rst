@@ -1697,9 +1697,9 @@ Djinn (Dj)
   through the air without need for legs or feet, they cannot wear boots.
 
   Djinn are middlingly competent at most forms of physical combat, but have
-  a particular aptitude for spellcasting. Their Spellcasting skill grants
-  the same level of spell success and power that other species need multiple
-  skills to reach.
+  a particular aptitude for spellcasting. Their aptitudes for all forms of
+  magic are phenomenal, though their unique relationship with magic means that
+  they cannot choose to train magic skills independently.
 
 Spriggans (Sp)
   Spriggans are small magical creatures distantly related to Elves. They love to
@@ -1984,7 +1984,7 @@ Monks
 
 Hunters
   The Hunter is a type of fighter who specialises in missile weapons. A Hunter
-  starts with a shortbow, a scroll of immolation, and a set of leathers.
+  starts with a shortbow, a scroll of butterflies, and a set of leathers.
 
 Brigands
   A Brigand is a shady character who is especially good at killing, using
@@ -2773,6 +2773,10 @@ and explore.
 e
   Set travel exclusion. If an exclusion is already present, change size (from
   single square to full field of vision); after that, remove exclusion.
+
+R#
+  Set an exclusion with an arbitrary radius, where # is a number from 1 to 8.
+  If an exclusion is already present, change its radius to #.
 
 Ctrl-E
   Erase all travel exclusions at once.

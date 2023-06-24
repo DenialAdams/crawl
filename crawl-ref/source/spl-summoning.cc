@@ -1473,7 +1473,7 @@ static spell_type servitor_spells[] =
     // primary spells
     SPELL_LEHUDIBS_CRYSTAL_SPEAR,
     SPELL_IOOD,
-    SPELL_IRON_SHOT,
+    SPELL_UNMAKING,
     SPELL_BOLT_OF_COLD, // left in for frederick
     SPELL_PLASMA_BEAM, // maybe should be higher?
     SPELL_FIREBALL,
@@ -2204,7 +2204,7 @@ static const map<spell_type, summon_cap> summonsdata =
     { SPELL_SUMMON_DEMON,             { 0, 3 } },
     { SPELL_SUMMON_TZITZIMITL,        { 0, 3 } },
     { SPELL_SUMMON_HELL_SENTINEL,     { 0, 3 } },
-    { SPELL_CONJURE_LIVING_SPELLS,    { 0, 6 } },
+    { SPELL_CONJURE_LIVING_SPELLS,    { 0, 4 } },
     { SPELL_SHEZAS_DANCE,             { 0, 6 } },
 };
 

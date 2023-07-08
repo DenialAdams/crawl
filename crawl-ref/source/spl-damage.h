@@ -78,6 +78,7 @@ spret cast_fragmentation(int powc, const actor *caster,
                               const coord_def target, bool fail);
 spret cast_polar_vortex(int powc, bool fail);
 void polar_vortex_damage(actor *caster, int dur);
+dice_def polar_vortex_dice(int pow, bool random);
 void cancel_polar_vortex(bool tloc = false);
 coord_def get_thunderbolt_last_aim(actor *caster);
 spret cast_thunderbolt(actor *caster, int pow, coord_def aim,
@@ -120,6 +121,7 @@ void end_flame_wave();
 
 spret cast_imb(int pow, bool fail);
 
+dice_def toxic_bog_damage();
 void actor_apply_toxic_bog(actor *act);
 
 vector<coord_def> find_ramparts_walls();

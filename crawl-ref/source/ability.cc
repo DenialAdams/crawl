@@ -503,7 +503,7 @@ static vector<ability_def> &_get_ability_list()
         { ABIL_NEMELEX_TRIPLE_DRAW, "Triple Draw",
             2, 0, 6, -1, {fail_basis::invo, 60, 5, 20}, abflag::none },
         { ABIL_NEMELEX_DEAL_FOUR, "Deal Four",
-            8, 0, 4, -1, {fail_basis::invo, -1}, // failure special-cased
+            8, 0, 8, -1, {fail_basis::invo, -1}, // failure special-cased
             abflag::none },
         { ABIL_NEMELEX_STACK_FIVE, "Stack Five",
             5, 0, 10, -1, {fail_basis::invo, 80, 4, 25}, abflag::none },
@@ -2843,7 +2843,7 @@ static spret _do_ability(const ability_def& abil, bool fail, dist *target,
                     + random2(1 + you.skill(SK_INVOCATIONS, 1));
 
         // Since the actual beam is random, check with BEAM_MMISSILE.
-        if (!player_tracer(ZAP_DEBUGGING_RAY, power, beam, beam.range))
+        if (!player_tracer(ZAP_MAGIC_DART, power, beam, beam.range))
             return spret::abort;
 
         fail_check();
@@ -2875,7 +2875,7 @@ static spret _do_ability(const ability_def& abil, bool fail, dist *target,
                     + random2(1 + you.skill(SK_INVOCATIONS, 2));
 
         // Since the actual beam is random, check with BEAM_MMISSILE.
-        if (!player_tracer(ZAP_DEBUGGING_RAY, power, beam, beam.range))
+        if (!player_tracer(ZAP_ENERGY_BOLT, power, beam, beam.range))
             return spret::abort;
 
         fail_check();

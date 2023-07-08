@@ -1089,7 +1089,7 @@ static skill_type _item_training_skill(const item_def &item)
         return SK_ARMOUR;
     else if (item.base_type == OBJ_MISSILES && is_throwable(&you, item))
         return SK_THROWING;
-    else if (item_is_evokable(item)) // not very accurate
+    else if (item_ever_evokable(item)) // not very accurate
         return SK_EVOCATIONS;
     else
         return SK_NONE;
@@ -3489,7 +3489,11 @@ static bool _do_action(item_def &item, const command_type action)
         drop_item(slot, item.quantity);
         break;
     case CMD_ADJUST_INVENTORY: adjust_item(slot);             break;
-    case CMD_EVOKE:            evoke_item(slot);              break;
+    case CMD_EVOKE:
+        if (!check_warning_inscriptions(you.inv[slot], OPER_EVOKE))
+            return true;
+        evoke_item(you.inv[slot]);
+        break;
     default:
         ui::error(make_stringf("illegal inventory cmd '%d'", action));
     }

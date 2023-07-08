@@ -192,7 +192,7 @@ void zap_wand(int slot, dist *_target)
         return;
     }
 
-    if (!evoke_check(slot))
+    if (!item_currently_evokable(slot == -1 ? nullptr : &you.inv[slot]))
         return;
 
     int item_slot;
@@ -218,7 +218,7 @@ void zap_wand(int slot, dist *_target)
         return;
     }
 
-    if (!evoke_check(slot))
+    if (!item_currently_evokable(&wand))
         return;
 
     // If you happen to be wielding the wand, its display might change.
@@ -1105,49 +1105,22 @@ string cannot_evoke_item_reason(const item_def *item, bool temp, bool ident)
     return "";
 }
 
-// for historical reasons, we have both item_is_evokable and evoke_check. They
-// are now both interfaces on cannot_evoke_item_reason.
-// TODO: unify the api?
-bool item_is_evokable(const item_def &item, bool msg)
+bool item_currently_evokable(const item_def *item)
 {
-    const string err = cannot_evoke_item_reason(&item, false);
-    if (!err.empty() && msg)
+    const string err = cannot_evoke_item_reason(item);
+    if (!err.empty())
         mpr(err);
     return err.empty();
 }
 
-// Is there anything that would prevent a player from evoking?
-// If slot == -1, it asks this question in general.
-// If slot is a particular item, it asks this question for that item.
-bool evoke_check(int slot, bool quiet)
+bool item_ever_evokable(const item_def &item)
 {
-    item_def *i = nullptr;
-    if (slot >= 0 && slot < ENDOFPACK && you.inv[slot].defined())
-        i = &you.inv[slot];
-
-    // TODO: menu for zigfig under sac artiface
-    const string err = cannot_evoke_item_reason(i, true);
-    if (!err.empty() && !quiet)
-        mpr(err);
-    return err.empty();
+    return cannot_evoke_item_reason(&item, false).empty();
 }
 
-bool evoke_item(int slot, dist *preselect)
+bool evoke_item(item_def& item, dist *preselect)
 {
-    ASSERT_RANGE(slot, 0, ENDOFPACK);
-    if (!evoke_check(slot))
-        return false;
-
-    if (!check_warning_inscriptions(you.inv[slot], OPER_EVOKE))
-        return false;
-
-#ifdef ASSERTS // Used only by an assert
-    const bool wielded = (you.equip[EQ_WEAPON] == slot);
-#endif /* DEBUG */
-
-    item_def& item = you.inv[slot];
-    // Also handles messages.
-    if (!item_is_evokable(item, true) || !evoke_check(slot))
+    if (!item_currently_evokable(&item))
         return false;
 
     bool did_work   = false;  // "Nothing happens" message
@@ -1156,12 +1129,17 @@ bool evoke_item(int slot, dist *preselect)
     switch (item.base_type)
     {
     case OBJ_WANDS:
-        zap_wand(slot, preselect);
+        ASSERT(in_inventory(item));
+        zap_wand(item.link, preselect);
         return true;
 
     case OBJ_WEAPONS:
     {
-        ASSERT(wielded);
+#ifdef ASSERTS
+        ASSERT(in_inventory(item));
+        const int equip = you.equip[EQ_WEAPON];
+        ASSERT(equip != -1 && item.link == equip);
+#endif
         dist targ_local;
         if (!preselect)
             preselect = &targ_local;
@@ -1171,6 +1149,7 @@ bool evoke_item(int slot, dist *preselect)
     }
 
     case OBJ_MISCELLANY:
+        ASSERT(in_inventory(item));
         did_work = true; // easier to do it this way for misc items
 
         switch (item.sub_type)

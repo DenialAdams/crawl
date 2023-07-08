@@ -2779,6 +2779,10 @@ static dice_def _spell_damage(spell_type spell, int power)
             return base_fragmentation_damage(power, false);
         case SPELL_ARCJOLT:
             return arcjolt_damage(power, false);
+        case SPELL_POLAR_VORTEX:
+            return polar_vortex_dice(power, false);
+        case SPELL_NOXIOUS_BOG:
+            return toxic_bog_damage();
         default:
             break;
     }
@@ -2845,7 +2849,7 @@ string spell_damage_string(spell_type spell, bool evoked, int pow)
             break;
     }
     const string dam_str = make_stringf("%s%dd%d", mult.c_str(), dam.num, dam.size);
-    if (spell == SPELL_LRD || spell == SPELL_SHATTER)
+    if (spell == SPELL_LRD || spell == SPELL_SHATTER || spell == SPELL_POLAR_VORTEX)
         return dam_str + "*"; // many special cases of more/less damage
     return dam_str;
 }

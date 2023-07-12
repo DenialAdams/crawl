@@ -20,12 +20,11 @@ enum unarmed_attack_type
     UNAT_BITE,
     UNAT_PSEUDOPODS,
     UNAT_TENTACLES,
+    UNAT_MAW,
     UNAT_FIRST_ATTACK = UNAT_CONSTRICT,
-    UNAT_LAST_ATTACK = UNAT_TENTACLES,
+    UNAT_LAST_ATTACK = UNAT_MAW,
     NUM_UNARMED_ATTACKS,
 };
-
-const int UC_FORM_TO_HIT_BONUS = 5;
 
 class melee_attack : public attack
 {

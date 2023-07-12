@@ -45,6 +45,7 @@
 #include "random.h"
 #include "religion.h"
 #include "shout.h"
+#include "spl-clouds.h" // big_cloud
 #include "spl-goditem.h"
 #include "spl-summoning.h"
 #include "spl-util.h"
@@ -1114,13 +1115,6 @@ static bool _init_frag_player(frag_effect &effect)
         effect.colour     = mons_class_colour(player_mons(true));
         return true;
     }
-    if (you.form == transformation::ice_beast)
-    {
-        effect.name       = "icy blast";
-        effect.colour     = WHITE;
-        effect.damage     = frag_damage_type::ice;
-        return true;
-    }
     return false;
 }
 
@@ -1542,9 +1536,7 @@ static int _shatter_player_dice()
         return 1;
     if (you.petrified() || you.petrifying())
         return 6; // reduced later by petrification's damage reduction
-    else if (you.form == transformation::statue
-             || you.form == transformation::ice_beast
-             || you.species == SP_GARGOYLE)
+    else if (you.form == transformation::statue || you.species == SP_GARGOYLE)
         return 6;
     else if (you.airborne())
         return 1;
@@ -4375,17 +4367,21 @@ static void _discharge_maxwells_coupling()
     // XX the messaging and corpse logic here would be better handled in
     // monster_die, so that various special cases (e.g. dancing weapons in
     // the abyss) can get clear but non-redundant handling
+    const coord_def pos = mon->pos();
     const bool goldify = mons_will_goldify(*mon);
     if (goldify)
         simple_monster_message(*mon, " vaporises and condenses as gold!");
     else
+    {
         simple_monster_message(*mon, " vaporises in an electric haze!");
+        big_cloud(CLOUD_ELECTRICITY, &you, pos, random_range(4, 8), random_range(8, 12));
+    }
 
-    const coord_def pos = mon->pos();
     item_def* corpse = monster_die(*mon, KILL_YOU,
                                     actor_to_death_source(&you));
     if (corpse && !goldify)
         destroy_item(corpse->index());
+
 
     noisy(spell_effect_noise(SPELL_MAXWELLS_COUPLING), pos, you.mid);
 }
@@ -4489,4 +4485,15 @@ spret cast_noxious_bog(int pow, bool fail)
     mpr("You spew toxic sludge!");
 
     return spret::success;
+}
+
+int siphon_essence_range() { return 2; }
+
+bool siphon_essence_affects(const monster &m)
+{
+    return !m.wont_attack()
+        && !(m.holiness() & MH_NONLIVING)
+        && !mons_is_conjured(m.type) // redundant?
+        && !mons_is_tentacle_or_tentacle_segment(m.type); // dubious
+        // intentionally allowing firewood, i guess..?
 }

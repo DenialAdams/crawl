@@ -324,7 +324,7 @@ void fill_doll_equipment(dolls_data &result)
         result.parts[TILEP_PART_CLOAK]   = 0;
         result.parts[TILEP_PART_SHADOW]  = 0;
         break;
-    case transformation::lich:
+    case transformation::death:
         switch (you.species)
         {
 #if TAG_MAJOR_VERSION == 34
@@ -450,7 +450,7 @@ void fill_doll_equipment(dolls_data &result)
                 else if (is_player_tile(result.parts[TILEP_PART_BASE],
                                   TILEP_TRAN_STATUE_FELID))
                 {
-                    result.parts[TILEP_PART_HELM] = TILEP_HELM_HORNS_CAT;
+                    result.parts[TILEP_PART_HELM] = TILEP_HELM_HORNS_CAT_STATUE;
                 }
             }
             else if (species::is_draconian(you.species))

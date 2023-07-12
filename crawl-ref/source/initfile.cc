@@ -841,8 +841,8 @@ const vector<GameOption*> game_options::build_options_list()
 # ifndef __ANDROID__
         new IntGameOption(SIMPLE_NAME(game_scale), 1, 1, 8),
 # else
-        // I'm not entirely sure why this is disabled, but mark it as disabled
-        // so that android users get feedback if they do try to use it
+        // Android ignores this option and auto-sets the game_scale based on
+        // resolution (see TilesFramework::calculate_default_options)
         new DisabledGameOption({"game_scale"}),
 # endif
         new IntGameOption(SIMPLE_NAME(tile_key_repeat_delay), 200, 0, INT_MAX),
@@ -984,6 +984,8 @@ object_class_type item_class_by_sym(char32_t c)
         return OBJ_ORBS;
     case '}':
         return OBJ_MISCELLANY;
+    case 'T':
+        return OBJ_TALISMANS;
     case '&':
     case 'X':
     case 'x':
@@ -1329,6 +1331,7 @@ void game_options::set_default_activity_interrupts()
         "interrupt_armour_off = interrupt_armour_on",
         "interrupt_drop_item = interrupt_armour_on",
         "interrupt_jewellery_on = interrupt_armour_on",
+        "interrupt_transform = interrupt_armour_on",
         "interrupt_memorise = hp_loss, monster_attack, stat",
         "interrupt_butcher = interrupt_armour_on, teleport, stat",
         "interrupt_exsanguinate = interrupt_butcher",
@@ -1589,7 +1592,8 @@ void game_options::reset_options()
           ABIL_ZIN_RECITE, ABIL_QAZLAL_ELEMENTAL_FORCE, ABIL_JIYVA_OOZEMANCY,
           ABIL_BREATHE_LIGHTNING, ABIL_KIKU_TORMENT, ABIL_YRED_DRAIN_LIFE,
           ABIL_CHEIBRIADOS_SLOUCH, ABIL_QAZLAL_DISASTER_AREA,
-          ABIL_RU_APOCALYPSE, ABIL_LUGONU_CORRUPT, ABIL_IGNIS_FOXFIRE };
+          ABIL_RU_APOCALYPSE, ABIL_LUGONU_CORRUPT, ABIL_IGNIS_FOXFIRE,
+          ABIL_SIPHON_ESSENCE };
     always_use_static_ability_targeters = false;
 
 #ifdef DGAMELAUNCH

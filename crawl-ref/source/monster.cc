@@ -780,6 +780,8 @@ bool monster::can_use_missile(const item_def &item) const
 bool monster::likes_wand(const item_def &item) const
 {
     ASSERT(item.base_type == OBJ_WANDS);
+    if (item.sub_type == WAND_DIGGING)
+        return false; // Avoid very silly abuses.
     // kind of a hack
     // assumptions:
     // bad wands are value 32, so won't be used past hd 6
@@ -1994,6 +1996,7 @@ bool monster::pickup_item(item_def &item, bool msg, bool force)
     case OBJ_POTIONS:
         return pickup_potion(item, msg, force);
     case OBJ_BOOKS:
+    case OBJ_TALISMANS:
     case OBJ_MISCELLANY:
         return pickup_misc(item, msg, force);
     default:
@@ -3376,7 +3379,7 @@ void monster::suicide(int hp_target)
     hit_points = hp_target;
 }
 
-mon_holy_type monster::holiness(bool /*temp*/) const
+mon_holy_type monster::holiness(bool /*temp*/, bool /*incl_form*/) const
 {
     // zombie kraken tentacles
     if (testbits(flags, MF_FAKE_UNDEAD))
@@ -3417,7 +3420,7 @@ bool monster::is_holy() const
     return bool(holiness() & MH_HOLY) || is_priest() && is_good_god(god);
 }
 
-bool monster::is_nonliving(bool /*temp*/) const
+bool monster::is_nonliving(bool /*temp*/, bool /*incl_form*/) const
 {
     return bool(holiness() & MH_NONLIVING);
 }

@@ -475,8 +475,7 @@ Blade status
     local hands = you.hand() .. "s"
     return "Long, needle-thin blades have grown from your " .. hands
 }}, and smaller fragments of metal have grown inside your body, deforming you
-and reducing the effectiveness of body armour. Shapeshifting skill mitigates
-and eventually eliminates the latter effect.
+and reducing the effectiveness of body armour.
 
 Any equipped weapons, shields, and gloves are melded, and your success rate
 with spells is somewhat reduced.
@@ -486,7 +485,7 @@ Snake status
 You have been transformed into a giant, cold-blooded anaconda, ready to wind
 your coils around foes and crush them to death.
 
-Any equipped weapons and armour are melded, and casting spells is much harder.
+Any equipped weapons and armour are melded.
 %%%%
 Maw status
 
@@ -556,9 +555,10 @@ Death status
 You have been transformed into an undying offense against life itself.
 
 Foes struck by your hands or melee weapons are weakened, slowed, and drained,
-and you can heal themselves by tormenting foes nearby. You also resist cold and
-are immune to poison, miasma, negative energy, and torment. Unfortunately, you
-are vulnerable to holy damage and Dispel Undead, and cannot consume potions.
+and you can heal themselves by tormenting foes nearby. You also resist cold,
+have enhanced willpower, and are immune to poison, miasma, negative energy,
+and torment. Unfortunately, you are vulnerable to holy damage and Dispel
+Undead, and cannot consume potions.
 %%%%
 Bat status
 

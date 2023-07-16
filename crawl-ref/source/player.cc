@@ -3981,10 +3981,11 @@ int get_real_mp(bool include_items)
 /// Does the player currently regenerate hp? Used for resting.
 bool player_regenerates_hp()
 {
-    if (you.has_mutation(MUT_NO_REGENERATION) || regeneration_is_inhibited())
-        return false;
-
-    return true;
+    return !regeneration_is_inhibited()
+#if TAG_MAJOR_VERSION == 34
+    && !you.has_mutation(MUT_NO_REGENERATION)
+#endif
+    ;
 }
 
 bool player_regenerates_mp()
@@ -5434,10 +5435,7 @@ bool player::in_liquid() const
 
 bool player::can_swim(bool permanently) const
 {
-    return (species::can_swim(species)
-            || body_size(PSIZE_BODY) >= SIZE_GIANT
-            || !permanently)
-                && form_can_swim();
+    return cur_form(!permanently)->player_can_swim();
 }
 
 /// Can the player do a passing imitation of a notorious Palestinian?
@@ -6478,7 +6476,13 @@ int player_willpower(bool temp)
     // Mutations
     rm += WL_PIP * you.get_mutation_level(MUT_STRONG_WILLED);
     rm += WL_PIP * you.get_mutation_level(MUT_DEMONIC_WILL);
-    rm -= WL_PIP * you.get_mutation_level(MUT_WEAK_WILLED);;
+    rm -= WL_PIP * you.get_mutation_level(MUT_WEAK_WILLED);
+
+    if (you.form == transformation::death &&
+        (temp || you.default_form == transformation::death))
+    {
+        rm += WL_PIP;
+    }
 
     // In this moment, you are euphoric.
     if (you.duration[DUR_ENLIGHTENED])

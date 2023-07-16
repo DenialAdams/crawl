@@ -186,9 +186,9 @@ int attack::calc_pre_roll_to_hit(bool random)
             mhit += maybe_random_div(you.experience_level * 100, 100, random);
         else
         {
-            // Claws give a slight bonus to accuracy when active
-            mhit += (you.get_mutation_level(MUT_CLAWS) > 0
-                     && wpn_skill == SK_UNARMED_COMBAT) ? 4 : 2;
+            // UC gets extra acc to compensate for lack of weapon enchantment.
+            if (wpn_skill == SK_UNARMED_COMBAT)
+                mhit += 6;
 
             mhit += maybe_random_div(you.skill(wpn_skill, 100), 100,
                                      random);

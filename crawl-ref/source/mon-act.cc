@@ -826,61 +826,6 @@ static void _handle_movement(monster* mons)
         mmov.reset();
 }
 
-static void _update_item_knowledge(object_class_type base_type, int sub_type)
-{
-    // Identify a scroll or potion and apply inscriptions if necessary.
-    if (set_ident_type(base_type, sub_type, true))
-    {
-        // Assign the inventory letter according to the item_slot option.
-        for (auto &item : you.inv)
-            if (item.base_type == base_type && item.sub_type == sub_type)
-            {
-                auto_assign_item_slot(item);
-                break;
-            }
-    }
-}
-
-static bool _handle_potion(monster& mons)
-{
-    item_def* potion = mons.mslot_item(MSLOT_POTION);
-    if (mons.asleep()
-        || !potion
-        || !one_chance_in(3)
-        || mons_itemuse(mons) < MONUSE_STARTING_EQUIPMENT
-        || potion->base_type != OBJ_POTIONS)
-    {
-        return false;
-    }
-
-    bool rc = false;
-
-    const potion_type ptype = static_cast<potion_type>(potion->sub_type);
-
-    if (mons.can_drink_potion(ptype) && mons.should_drink_potion(ptype))
-    {
-        const bool was_visible = you.can_see(mons);
-
-        // XXX: this is mostly to prevent a funny message order:
-        // "$foo drinks a potion. $foo wields a great mace. $foo goes berserk!"
-        if (ptype == POT_BERSERK_RAGE)
-            mons.wield_melee_weapon();
-
-        // Drink the potion, and identify it.
-        if (mons.drink_potion_effect(ptype) && was_visible)
-            _update_item_knowledge(OBJ_POTIONS, ptype);
-
-        // Remove it from inventory.
-        if (dec_mitm_item_quantity(potion->index(), 1))
-            mons.inv[MSLOT_POTION] = NON_ITEM;
-
-        mons.lose_energy(EUT_ITEM);
-        rc = true;
-    }
-
-    return rc;
-}
-
 /**
  * Check if the monster has a swooping attack and is in a position to
  * use it, and do so if they can.
@@ -995,57 +940,6 @@ static bool _handle_reaching(monster& mons)
     }
 
     return ret;
-}
-
-static bool _handle_scroll(monster& mons)
-{
-    item_def* scroll = mons.mslot_item(MSLOT_SCROLL);
-
-    // Yes, there is a logic to this ordering {dlb}:
-    if (mons.asleep()
-        || mons_is_confused(mons)
-        || mons.submerged()
-        || !scroll
-        || mons.has_ench(ENCH_BLIND)
-        || !one_chance_in(3)
-        || mons_itemuse(mons) < MONUSE_STARTING_EQUIPMENT
-        || mons.is_silenced()
-        || scroll->base_type != OBJ_SCROLLS)
-    {
-        return false;
-    }
-
-    bool read        = false;
-    bool was_visible = you.can_see(mons);
-    const int scroll_type = scroll->sub_type;
-
-    if (scroll_type == SCR_SUMMONING && mons.can_see(you))
-    {
-        simple_monster_message(mons, " reads a scroll.");
-        mprf("Wisps of shadow swirl around %s.", mons.name(DESC_THE).c_str());
-        read = true;
-        int count = roll_dice(2, 2);
-        for (int i = 0; i < count; ++i)
-        {
-            create_monster(
-                mgen_data(RANDOM_MOBILE_MONSTER, SAME_ATTITUDE((&mons)),
-                          mons.pos(), mons.foe)
-                .set_summoned(&mons, 3, MON_SUMM_SCROLL));
-        }
-    }
-
-    if (read)
-    {
-        if (dec_mitm_item_quantity(mons.inv[MSLOT_SCROLL], 1))
-            mons.inv[MSLOT_SCROLL] = NON_ITEM;
-
-        if (was_visible)
-            _update_item_knowledge(OBJ_SCROLLS, scroll_type);
-
-        mons.lose_energy(EUT_ITEM);
-    }
-
-    return read;
 }
 
 static void _mons_fire_wand(monster& mons, spell_type mzap, bolt &beem)
@@ -1514,21 +1408,6 @@ static bool _mons_take_special_action(monster &mons, int old_energy)
             _handle_battiness(mons);
             DEBUG_ENERGY_USE_REF("spell or special");
             mmov.reset();
-            return true;
-        }
-    }
-
-    if (friendly_or_near)
-    {
-        if (_handle_potion(mons))
-        {
-            DEBUG_ENERGY_USE_REF("_handle_potion()");
-            return true;
-        }
-
-        if (_handle_scroll(mons))
-        {
-            DEBUG_ENERGY_USE_REF("_handle_scroll()");
             return true;
         }
     }

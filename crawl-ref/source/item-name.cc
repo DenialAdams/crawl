@@ -2233,6 +2233,28 @@ void display_runes()
     menu.show();
 }
 
+static string _unforbid(string name)
+{
+    // Ironically, the ROT13'd versions can be pretty good names.
+    set<string> forbidden_words = set<string>{
+        "puvax", "snt", "avt", "avttre",
+        "xvxr", "ovgpu", "juber", "tvzc",
+        "ergneq", "phag", "pbba", "fdhnj",
+        "jbt", "qlxr", "ubzb", "genaal"
+    };
+    auto parts = split_string(" ", name);
+    for (size_t i = 0; i < parts.size(); i++)
+    {
+        string part = parts[i];
+        string rot13d = "";
+        for (size_t j = 0; j < part.size(); j++)
+            rot13d += ((part[j] + 13 - 'a') % 26) + 'a';
+        if (forbidden_words.count(rot13d))
+            parts[i] = rot13d;
+    }
+    return join_strings(parts.begin(), parts.end());
+}
+
 // Seed ranges for _random_consonant_set: (B)eginning and one-past-the-(E)nd
 // of the (B)eginning, (E)nding, and (M)iddle cluster ranges.
 const size_t RCS_BB = 0;
@@ -2416,6 +2438,7 @@ string make_name(uint32_t seed, makename_type name_type)
 
         name = "plog";
     }
+    name = _unforbid(name);
 
     string uppercased_name;
     for (size_t i = 0; i < name.length(); i++)
@@ -3207,8 +3230,11 @@ bool is_useless_item(const item_def &item, bool temp, bool ident)
             return player_prot_life(false, temp, false) == 3;
 
         case AMU_REGENERATION:
-            return you.get_mutation_level(MUT_NO_REGENERATION) > 0
-                   || (temp
+            return
+#if TAG_MAJOR_VERSION == 34
+                   you.get_mutation_level(MUT_NO_REGENERATION) > 0 ||
+#endif
+                     (temp
                        && (you.get_mutation_level(MUT_INHIBITED_REGENERATION) > 0
                            || you.has_mutation(MUT_VAMPIRISM))
                        && regeneration_is_inhibited());

@@ -620,6 +620,10 @@ Sacrifice Artifice ability
 
 Sacrifices the ability to evoke any magical items, and prevents you from having
 any ranks in the Evocations skill.
+
+This includes wands and most items evoked with <input>$cmd[CMD_EVOKE]</input>,
+excepting reaching weapons, talismans, and ziggurat figurines. This also renders
+magical staves much less effective in melee.
 %%%%
 Sacrifice Love ability
 
@@ -820,7 +824,7 @@ again for a short time.
 Siphon Essence ability
 
 Violently draws upon the vital essence of nearby foes, halving their
-remaining life and using it to heal the user. Transmutations skill increases
+remaining life and using it to heal the user. Shapeshifting skill increases
 the healing received.
 
 This effect applies to anything living, undead, demonic or angelic - anything

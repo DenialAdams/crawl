@@ -54,6 +54,7 @@
 #include "mon-util.h"
 #include "movement.h"
 #include "mutation.h"
+#include "nearby-danger.h" // i_feel_safe
 #include "notes.h"
 #include "options.h"
 #include "output.h"
@@ -372,6 +373,8 @@ static vector<ability_def> &_get_ability_list()
             0, 0, 0, -1, {fail_basis::xl, 45, 2}, abflag::none },
 #endif
         { ABIL_END_TRANSFORMATION, "End Transformation",
+            0, 0, 0, -1, {}, abflag::none },
+        { ABIL_BEGIN_UNTRANSFORM, "Begin Untransformation",
             0, 0, 0, -1, {}, abflag::none },
 
         // EVOKE abilities use Evocations and come from items.
@@ -1491,7 +1494,8 @@ static bool _check_ability_possible(const ability_def& abil, bool quiet = false)
     // Doing these would outright kill the player.
     // (or, in the case of the stat-zeros, they'd at least be extremely
     // dangerous.)
-    if (abil.ability == ABIL_END_TRANSFORMATION)
+    if (abil.ability == ABIL_END_TRANSFORMATION
+        || abil.ability == ABIL_BEGIN_UNTRANSFORM)
     {
         const auto form = abil.ability == ABIL_END_TRANSFORMATION ?
                             you.default_form : transformation::none;
@@ -2040,6 +2044,11 @@ static bool _check_ability_dangerous(const ability_type ability,
     {
         return !check_form_stat_safety(you.default_form, quiet);
     }
+    if (ability == ABIL_BEGIN_UNTRANSFORM
+        && !feat_dangerous_for_form(transformation::none, env.grid(you.pos())))
+    {
+        return !check_form_stat_safety(transformation::none, quiet);
+    }
     return false;
 }
 
@@ -2129,6 +2138,7 @@ unique_ptr<targeter> find_ability_targeter(ability_type ability)
 #endif
     case ABIL_EVOKE_TURN_INVISIBLE:
     case ABIL_END_TRANSFORMATION:
+    case ABIL_BEGIN_UNTRANSFORM:
     case ABIL_ZIN_VITALISATION:
     case ABIL_TSO_DIVINE_SHIELD:
     case ABIL_YRED_RECALL_UNDEAD_HARVEST:
@@ -2677,6 +2687,15 @@ static spret _do_ability(const ability_def& abil, bool fail, dist *target,
 
     case ABIL_END_TRANSFORMATION:
         return_to_default_form();
+        break;
+
+    case ABIL_BEGIN_UNTRANSFORM:
+        if (!i_feel_safe(true) && !yesno("Still begin untransforming?", true, 'n'))
+        {
+            canned_msg(MSG_OK);
+            return spret::abort;
+        }
+        start_delay<TransformDelay>(transformation::none);
         break;
 
     // INVOCATIONS:
@@ -3702,6 +3721,9 @@ bool player_has_ability(ability_type abil, bool include_unusable)
                && (!silenced(you.pos()) || include_unusable);
     case ABIL_END_TRANSFORMATION:
         return you.form != you.default_form && !you.transform_uncancellable;
+    case ABIL_BEGIN_UNTRANSFORM:
+        return you.form == you.default_form
+               && you.default_form != transformation::none;
     // TODO: other god abilities
     case ABIL_RENOUNCE_RELIGION:
         return !you_worship(GOD_NO_GOD);
@@ -3766,6 +3788,7 @@ vector<talent> your_talents(bool check_confused, bool include_unusable, bool ign
             ABIL_BLINKBOLT,
             ABIL_SIPHON_ESSENCE,
             ABIL_END_TRANSFORMATION,
+            ABIL_BEGIN_UNTRANSFORM,
             ABIL_RENOUNCE_RELIGION,
             ABIL_CONVERT_TO_BEOGH,
             ABIL_EVOKE_BLINK,

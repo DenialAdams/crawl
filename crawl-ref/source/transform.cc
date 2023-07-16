@@ -116,7 +116,7 @@ Form::Form(const form_entry &fe)
       min_skill(fe.min_skill), max_skill(fe.max_skill),
       str_mod(fe.str_mod), dex_mod(fe.dex_mod),
       blocked_slots(fe.blocked_slots), size(fe.size),
-      can_cast(fe.can_cast), spellcasting_penalty(fe.spellcasting_penalty),
+      can_cast(fe.can_cast),
       uc_colour(fe.uc_colour), uc_attack_verbs(fe.uc_attack_verbs),
       can_bleed(fe.can_bleed),
       keeps_mutations(fe.keeps_mutations),
@@ -307,8 +307,8 @@ int Form::mult_hp(int base_hp, bool force_talisman) const
     const int shortfall = min_skill * scale - lvl;
     if (shortfall <= 0 || you.default_form != you.form && !force_talisman)
         return hp_mod * base_hp / 10;
-    // -10% hp per skill level short, down to -70%
-    const int penalty = min(shortfall, 7 * scale);
+    // -10% hp per skill level short, down to -90%
+    const int penalty = min(shortfall, 9 * scale);
     return base_hp * hp_mod * (10 * scale - penalty) / (scale * 10 * 10);
 }
 
@@ -617,6 +617,20 @@ public:
     bool can_offhand_punch() const override { return true; }
 
     /**
+     * Find the player's base unarmed damage in this form.
+     */
+    int get_base_unarmed_damage(bool random, bool get_max) const override
+    {
+        const int scale = 100;
+        const int lvl = get_max ? max_skill * scale : get_level(scale);
+        const int over_min = max(0, lvl - min_skill * scale);
+        const int denom = (max_skill - min_skill) * scale;
+        if (random)
+            return 14 + div_rand_round(over_min * 4, denom);
+        return 14 + over_min * 4 / denom;
+    }
+
+    /**
      * Get the name displayed in the UI for the form's unarmed-combat 'weapon'.
      */
     string get_uc_attack_name(string /*default_name*/) const override
@@ -738,10 +752,11 @@ public:
      */
     int get_base_unarmed_damage(bool random, bool max) const override
     {
-        const int lvl = max ? max_skill * 2 : get_level(2);
+        const int scale = 100;
+        const int lvl = max ? max_skill * scale : get_level(scale);
         if (random)
-            return 22 + div_rand_round(lvl, 3);
-        return 22 + lvl / 3;
+            return 3 + div_rand_round(lvl, scale);
+        return 3 + lvl / scale;
     }
 
     /**
@@ -966,10 +981,11 @@ public:
      */
     int get_base_unarmed_damage(bool random, bool max) const override
     {
-        const int lvl = max ? max_skill * 3 : get_level(3);
+        const int scale = 100;
+        const int lvl = max ? max_skill * scale : get_level(scale);
         if (random)
-            return 8 + div_rand_round(lvl, 2);
-        return 8 + lvl / 2;
+            return 8 + div_rand_round(lvl, scale);
+        return 8 + lvl / scale;
     }
 
     int ev_bonus(bool max) const override
@@ -1719,6 +1735,14 @@ static void _on_enter_form(transformation which_trans)
             mpr("You feel less conspicuous.");
         break;
 
+    case transformation::maw:
+        if (have_passive(passive_t::goldify_corpses))
+        {
+            mprf(MSGCH_WARN, "Gozag's golden gift will leave your new mouth "
+                             "with nothing to eat.");
+        }
+        break;
+
     default:
         break;
     }
@@ -1934,6 +1958,15 @@ void untransform(bool skip_move)
         mprf(MSGCH_DURATION, "%s", message.c_str());
 
     set_form(transformation::none, 0);
+
+    const int str_mod = get_form(old_form)->str_mod;
+    const int dex_mod = get_form(old_form)->dex_mod;
+
+    if (str_mod)
+        notify_stat_change(STAT_STR, -str_mod, true);
+
+    if (dex_mod)
+        notify_stat_change(STAT_DEX, -dex_mod, true);
 
     // If you're a mer in water, boots stay melded even after the form ends.
     if (you.fishtail)

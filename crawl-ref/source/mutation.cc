@@ -164,24 +164,14 @@ vector<mutation_type> get_removed_mutations()
  */
 static const int conflict[][3] =
 {
-#if TAG_MAJOR_VERSION == 34
-    { MUT_REGENERATION,        MUT_SLOW_METABOLISM,         0},
-#endif
     { MUT_REGENERATION,        MUT_INHIBITED_REGENERATION,  0},
     { MUT_FAST,                MUT_SLOW,                    0},
-#if TAG_MAJOR_VERSION == 34
-    { MUT_STRONG_STIFF,        MUT_FLEXIBLE_WEAK,           1},
-#endif
     { MUT_STRONG,              MUT_WEAK,                    1},
     { MUT_CLEVER,              MUT_DOPEY,                   1},
     { MUT_AGILE,               MUT_CLUMSY,                  1},
     { MUT_ROBUST,              MUT_FRAIL,                   1},
     { MUT_HIGH_MAGIC,          MUT_LOW_MAGIC,               1},
     { MUT_WILD_MAGIC,          MUT_SUBDUED_MAGIC,           1},
-#if TAG_MAJOR_VERSION == 34
-    { MUT_CARNIVOROUS,         MUT_HERBIVOROUS,             1},
-    { MUT_SLOW_METABOLISM,     MUT_FAST_METABOLISM,         1},
-#endif
     { MUT_REGENERATION,        MUT_INHIBITED_REGENERATION,  1},
     { MUT_BERSERK,             MUT_CLARITY,                 1},
     { MUT_FAST,                MUT_SLOW,                    1},
@@ -200,8 +190,10 @@ static const int conflict[][3] =
     { MUT_COLD_RESISTANCE,     MUT_COLD_VULNERABILITY,     -1},
     { MUT_SHOCK_RESISTANCE,    MUT_SHOCK_VULNERABILITY,    -1},
     { MUT_STRONG_WILLED,       MUT_WEAK_WILLED,            -1},
+#if TAG_MAJOR_VERSION == 34
     { MUT_NO_REGENERATION,     MUT_INHIBITED_REGENERATION, -1},
     { MUT_NO_REGENERATION,     MUT_REGENERATION,           -1},
+#endif
     { MUT_HP_CASTING,          MUT_HIGH_MAGIC,             -1},
     { MUT_HP_CASTING,          MUT_LOW_MAGIC,              -1},
 };
@@ -768,7 +760,7 @@ static vector<string> _get_form_fakemuts(bool terse)
 
     // bad stuff
     if (!terse
-        && (form->spellcasting_penalty > 0
+        && (you.form == transformation::blade_hands
             || you.form == transformation::shadow)) // hard-coded effect
     {
         result.push_back(_badmut("Your spellcasting is less reliable in this form."));

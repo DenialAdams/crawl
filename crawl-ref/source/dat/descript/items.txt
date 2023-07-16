@@ -83,7 +83,8 @@ blade talisman
            "user's " .. hands
 }}, and smaller fragments of metal to grow inside their body, deforming them
 and reducing the effectiveness of body armour. Shapeshifting skill mitigates
-and eventually eliminates the latter effect.
+and eventually eliminates the latter effect, as well as increasing damage
+dealt.
 
 While transformed, equipped weapons, shields, and gloves are melded, and
 casting spells becomes somewhat more difficult.
@@ -1124,8 +1125,9 @@ artefacts cannot be enchanted at all.
 %%%%
 scroll of fear
 
-A scroll that causes great fear in those who see the one who reads it, even if
-the reader is invisible. Allies of the reader will remain unaffected.
+A scroll that causes great fear in nearby foes, causing them to flee until
+attacked, cornered, or enough time has passed.
+
 Non-living, undead and plant monsters cannot be feared, and berserk or frenzied
 monsters are also immune.
 %%%%
@@ -1202,7 +1204,7 @@ serpent talisman
 Transforms the user into a giant, cold-blooded anaconda, ready to wind their
 coils around foes and crush them to death. Shapeshifting skill increases the
 armour provided by the snake's scales. While transformed, any equipped weapons
-and armour are melded, and casting spells is much more difficult.
+and armour are melded.
 %%%%
 shortbow
 
@@ -1306,10 +1308,10 @@ talisman of death
 A lone finger-bone, infused with dark power through a sickening ritual. Transforms
 the user into an undying offense against life itself.
 
-Foes struck by user's melee weapons or hands are weakened, slowed, and drained,
-and they can heal themselves by tormenting foes nearby. (Shapeshifting skill
-increases the effectiveness of the latter.) The user also resists cold and is
-immune to poison, miasma, negative energy, and torment.
+Foes struck by user's melee weapons or hands are weakened, slowed, and drained.
+The user can also heal themself by tormenting foes nearby; Shapeshifting skill
+increases the amount healed. Further, the user resists cold, has enhanced
+willpower, and is immune to poison, miasma, negative energy, and torment.
 
 The user also gains some of the more dubious benefits of having an undead body.
 They are vulnerable to holy damage and Dispel Undead, and cannot consume potions.

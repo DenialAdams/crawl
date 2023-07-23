@@ -517,6 +517,7 @@ tileidx_t tileidx_player()
     {
         switch (you.species)
         {
+        case SP_FELID:             ch = TILEP_TRAN_DRAGON_FELID;   break;
         case SP_BLACK_DRACONIAN:   ch = TILEP_TRAN_DRAGON_BLACK;   break;
         case SP_YELLOW_DRACONIAN:  ch = TILEP_TRAN_DRAGON_YELLOW;  break;
         case SP_GREY_DRACONIAN:    ch = TILEP_TRAN_DRAGON_GREY;    break;
@@ -524,7 +525,7 @@ tileidx_t tileidx_player()
         case SP_PALE_DRACONIAN:    ch = TILEP_TRAN_DRAGON_PALE;    break;
         case SP_PURPLE_DRACONIAN:  ch = TILEP_TRAN_DRAGON_PURPLE;  break;
         case SP_WHITE_DRACONIAN:   ch = TILEP_TRAN_DRAGON_WHITE;   break;
-        case SP_RED_DRACONIAN:     ch = TILEP_TRAN_DRAGON_RED;     break;
+        case SP_RED_DRACONIAN:
         default:                   ch = TILEP_TRAN_DRAGON;         break;
         }
         break;
@@ -1048,15 +1049,11 @@ void tilep_calc_flags(const dolls_data &doll, int flag[])
     if (doll.parts[TILEP_PART_HELM] >= TILEP_HELM_FHELM_OFS)
         flag[TILEP_PART_BEARD] = TILEP_FLAG_HIDE;
 
-    if (is_player_tile(doll.parts[TILEP_PART_BASE], TILEP_BASE_NAGA))
+    if (is_player_tile(doll.parts[TILEP_PART_BASE], TILEP_BASE_NAGA)
+        || is_player_tile(doll.parts[TILEP_PART_BASE], TILEP_BASE_ARMATAUR))
     {
         flag[TILEP_PART_BOOTS] = flag[TILEP_PART_LEG] = TILEP_FLAG_HIDE;
-        flag[TILEP_PART_BODY]  = TILEP_FLAG_CUT_NAGA;
-    }
-    else if (is_player_tile(doll.parts[TILEP_PART_BASE], TILEP_BASE_ARMATAUR))
-    {
-        flag[TILEP_PART_BOOTS] = flag[TILEP_PART_LEG] = TILEP_FLAG_HIDE;
-        flag[TILEP_PART_BODY]  = TILEP_FLAG_CUT_CENTAUR;
+        flag[TILEP_PART_BODY]  = TILEP_FLAG_CUT_BOTTOM;
     }
     else if (is_player_tile(doll.parts[TILEP_PART_BASE], TILEP_BASE_MERFOLK_WATER)
              || is_player_tile(doll.parts[TILEP_PART_BASE], TILEP_BASE_DJINNI))
@@ -1064,6 +1061,7 @@ void tilep_calc_flags(const dolls_data &doll, int flag[])
         flag[TILEP_PART_BOOTS]  = TILEP_FLAG_HIDE;
         flag[TILEP_PART_LEG]    = TILEP_FLAG_HIDE;
         flag[TILEP_PART_SHADOW] = TILEP_FLAG_HIDE;
+        flag[TILEP_PART_BODY]   = TILEP_FLAG_CUT_BOTTOM;
     }
     else if (doll.parts[TILEP_PART_BASE] >= TILEP_BASE_DRACONIAN_FIRST
              && doll.parts[TILEP_PART_BASE] <= TILEP_BASE_DRACONIAN_LAST)

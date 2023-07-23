@@ -125,12 +125,10 @@ Form::Form(const form_entry &fe)
       hand_name(fe.hand_name), foot_name(fe.foot_name),
       flesh_equivalent(fe.flesh_equivalent),
       long_name(fe.long_name), description(fe.description),
-      resists(fe.resists), skill_ac(fe.skill_ac),
-      base_unarmed_damage(fe.base_unarmed_damage),
+      resists(fe.resists), ac(fe.ac),
+      unarmed_bonus_dam(fe.unarmed_bonus_dam),
       can_fly(fe.can_fly), can_swim(fe.can_swim),
-      flat_ac(fe.flat_ac), xl_ac(fe.xl_ac),
       uc_brand(fe.uc_brand), uc_attack(fe.uc_attack),
-      unarmed_uses_skill(fe.unarmed_uses_skill),
       prayer_action(fe.prayer_action), equivalent_mons(fe.equivalent_mons),
       hp_mod(fe.hp_mod), fakemuts(fe.fakemuts)
 { }
@@ -277,6 +275,36 @@ string Form::get_untransform_message() const
     return "Your transformation has ended.";
 }
 
+int Form::scaling_value(const FormScaling &sc, bool random,
+                        bool get_max, int scale) const
+{
+    if (sc.xl_based)
+    {
+        const int s = sc.scaling * you.experience_level * scale;
+        if (random)
+            return sc.base * scale + div_rand_round(s, 27);
+        return sc.base * scale + s / 27;
+    }
+    if (max_skill == min_skill)
+        return sc.base * scale;
+
+    const int lvl = get_max ? max_skill * scale : get_level(scale);
+    const int over_min = max(0, lvl - min_skill * scale);
+    const int denom = max_skill - min_skill;
+    if (random)
+        return sc.base * scale + div_rand_round(over_min * sc.scaling, denom);
+    return sc.base * scale + over_min * sc.scaling / denom;
+}
+
+int Form::divided_scaling(const FormScaling &sc, bool random,
+                          bool get_max, int scale) const
+{
+    const int scaled_val = scaling_value(sc, random, get_max, scale);
+    if (random)
+        return div_rand_round(scaled_val, scale);
+    return scaled_val / scale;
+}
+
 /**
  * What AC bonus does the player get while in this form?
  *
@@ -289,12 +317,13 @@ string Form::get_untransform_message() const
  */
 int Form::get_ac_bonus(bool max) const
 {
-    const int bonus = flat_ac * 100 + xl_ac * you.experience_level;
-    if (!max_skill)
-        return bonus;
-    if (max)
-        return bonus + skill_ac * 100;
-    return bonus + get_level(skill_ac * 100) / max_skill;
+    return scaling_value(ac, false, max, 100);
+}
+
+int Form::get_base_unarmed_damage(bool random, bool max) const
+{
+    // All forms start with base 3 UC damage.
+    return 3 + divided_scaling(unarmed_bonus_dam, random, max, 100);
 }
 
 /// `force_talisman` means to calculate HP as if we were in a talisman form (i.e. with penalties with insufficient Shapeshifting skill),
@@ -475,6 +504,25 @@ bool Form::player_can_swim() const
 }
 
 /**
+ * Can the player survive in deep water when in the given form?
+ *
+ * Doesn't count flight or beogh water-walking.
+ *
+ * @return          Whether the player won't be killed when entering deep water
+ *                  in that form.
+ */
+bool Form::player_likes_water() const
+{
+    // Grey dracs can't swim, so can't statue form merfolk/octopodes
+    // -- yet they can still survive in water.
+    if (species::likes_water(you.species) && permits_liking_water())
+        return true;
+
+    // otherwise, you gotta swim to survive!
+    return player_can_swim();
+}
+
+/**
  * Are all of the given equipment slots blocked while in this form?
  *
  * @param slotflags     A set of flags, corresponding to the union of
@@ -617,20 +665,6 @@ public:
     bool can_offhand_punch() const override { return true; }
 
     /**
-     * Find the player's base unarmed damage in this form.
-     */
-    int get_base_unarmed_damage(bool random, bool get_max) const override
-    {
-        const int scale = 100;
-        const int lvl = get_max ? max_skill * scale : get_level(scale);
-        const int over_min = max(0, lvl - min_skill * scale);
-        const int denom = (max_skill - min_skill) * scale;
-        if (random)
-            return 14 + div_rand_round(over_min * 4, denom);
-        return 14 + over_min * 4 / denom;
-    }
-
-    /**
      * Get the name displayed in the UI for the form's unarmed-combat 'weapon'.
      */
     string get_uc_attack_name(string /*default_name*/) const override
@@ -690,6 +724,13 @@ public:
         string hand = you.base_hand_name(true, true);
         return make_stringf("Stone %s", hand.c_str());
     }
+
+    bool permits_liking_water() const override
+    {
+        // Statue form amphib species are still OK in water, despite
+        // not being able to swim.
+        return true;
+    }
 };
 
 class FormAnaconda : public Form
@@ -738,27 +779,11 @@ public:
      */
     int get_ac_bonus(bool max) const override
     {
-        if (species::is_draconian(you.species))
-        {
-            if (max)
-                return 1000 + skill_ac * 100;
-            return 1000 + get_level(skill_ac * 100) / max_skill;
-        }
-        return Form::get_ac_bonus(max);
+        const int normal = Form::get_ac_bonus(max);
+        if (!species::is_draconian(you.species))
+            return normal;
+        return normal + (12 - ac.base) * 100;
     }
-
-    /**
-     * Find the player's base unarmed damage in this form.
-     */
-    int get_base_unarmed_damage(bool random, bool max) const override
-    {
-        const int scale = 100;
-        const int lvl = max ? max_skill * scale : get_level(scale);
-        if (random)
-            return 3 + div_rand_round(lvl, scale);
-        return 3 + lvl / scale;
-    }
-
     /**
      * How many levels of resistance against fire does this form provide?
      */
@@ -976,21 +1001,9 @@ private:
 public:
     static const FormStorm &instance() { static FormStorm inst; return inst; }
 
-    /**
-     * Find the player's base unarmed damage in this form.
-     */
-    int get_base_unarmed_damage(bool random, bool max) const override
-    {
-        const int scale = 100;
-        const int lvl = max ? max_skill * scale : get_level(scale);
-        if (random)
-            return 8 + div_rand_round(lvl, scale);
-        return 8 + lvl / scale;
-    }
-
     int ev_bonus(bool max) const override
     {
-        return max ? max_skill : get_level(1);
+        return scaling_value(FormScaling().Base(20).Scaling(7), false, max);
     }
 
     bool can_offhand_punch() const override { return true; }
@@ -1015,10 +1028,7 @@ public:
     static const FormBeast &instance() { static FormBeast inst; return inst; }
     int slay_bonus(bool random, bool max) const override
     {
-        const int lvl = max ? max_skill * 7 : get_level(7);
-        if (random)
-            return div_rand_round(lvl, max_skill);
-        return lvl / max_skill;
+        return divided_scaling(FormScaling().Scaling(7), random, max, 100);
     }
 
     vector<string> get_fakemuts(bool terse) const override {
@@ -1041,12 +1051,7 @@ public:
 
     int get_aux_damage(bool random, bool max) const override
     {
-        const int scale = 100;
-        const int lvl = max ? max_skill * scale : get_level(scale);
-        const int base = 7;
-        if (random)
-            return base + div_rand_round(lvl, scale);
-        return base + lvl / scale;
+        return divided_scaling(FormScaling().Base(16).Scaling(11), random, max, 100);
     }
 };
 
@@ -1160,7 +1165,6 @@ bool form_can_fly(transformation form)
     return get_form(form)->player_can_fly();
 }
 
-
 /**
  * Can the player swim, if in this form?
  *
@@ -1188,17 +1192,7 @@ bool form_can_swim(transformation form)
  */
 bool form_likes_water(transformation form)
 {
-    // Grey dracs can't swim, so can't statue form merfolk/octopodes
-    // -- yet they can still survive in water.
-    if (species::likes_water(you.species)
-        && (form == transformation::statue
-            || !get_form(form)->forbids_swimming()))
-    {
-        return true;
-    }
-
-    // otherwise, you gotta swim to survive!
-    return form_can_swim(form);
+    return get_form(form)->player_likes_water();
 }
 
 // Used to mark transformations which override species intrinsics.
@@ -1567,15 +1561,16 @@ static int _transform_duration(transformation which_trans, int pow)
  * @param which_trans   The tranformation which the player is undergoing
  *                      (default you.form).
  * @param involuntary   Whether the transformation is involuntary or not.
+ * @param temp                   Whether to factor in temporary limits, e.g. wrong blood level.
  * @return              UFR_GOOD if the player is not blocked from entering the
  *                      given form by their undead race; UFR_TOO_ALIVE if the
  *                      player is too satiated as a vampire; UFR_TOO_DEAD if
  *                      the player is too dead (or too thirsty as a vampire).
  */
 undead_form_reason lifeless_prevents_form(transformation which_trans,
-                                          bool involuntary)
+                                          bool involuntary, bool temp)
 {
-    if (!you.undead_state(false))
+    if (!you.undead_state(false)) // intentionally don't pass temp in here
         return UFR_GOOD; // not undead!
 
     if (which_trans == transformation::none)
@@ -1595,20 +1590,31 @@ undead_form_reason lifeless_prevents_form(transformation which_trans,
         if (involuntary)
             return UFR_TOO_DEAD; // but not as a forced polymorph effect
 
-        return !you.vampire_alive ? UFR_GOOD : UFR_TOO_ALIVE;
+        return !you.vampire_alive || !temp ? UFR_GOOD : UFR_TOO_ALIVE;
     }
 
     // other forms can only be entered when alive
-    return you.vampire_alive ? UFR_GOOD : UFR_TOO_DEAD;
+    return you.vampire_alive || !temp ? UFR_GOOD : UFR_TOO_DEAD;
 }
 
 /**
  * Is the player unable to enter the given form? If so, why?
  */
-string cant_transform_reason(transformation which_trans, bool involuntary)
+string cant_transform_reason(transformation which_trans,
+                             bool involuntary, bool temp)
 {
     if (!involuntary && you.has_mutation(MUT_NO_FORMS))
         return "You have sacrificed the ability to change form!";
+
+    // the undead cannot enter most forms.
+    if (lifeless_prevents_form(which_trans, involuntary, temp) == UFR_TOO_DEAD)
+        return "Your unliving flesh cannot be transformed in this way.";
+
+    if (SP_GARGOYLE == you.species && which_trans == transformation::statue)
+        return "You're already a statue.";
+
+    if (!temp)
+        return "";
 
     if (you.transform_uncancellable)
         return "You are stuck in your current form!";
@@ -1620,18 +1626,8 @@ string cant_transform_reason(transformation which_trans, bool involuntary)
                             feat == DNGN_DEEP_WATER ? "drown" : "burn");
     }
 
-    if (you.form == which_trans)
-        return "";
-
-    // the undead cannot enter most forms.
-    if (lifeless_prevents_form(which_trans, involuntary) == UFR_TOO_DEAD)
-        return "Your unliving flesh cannot be transformed in this way.";
-
     if (which_trans == transformation::death && you.duration[DUR_DEATHS_DOOR])
         return "You cannot mock death while in death's door.";
-
-    if (SP_GARGOYLE == you.species && which_trans == transformation::statue)
-        return "You're already a statue.";
 
     return "";
 }
@@ -1750,6 +1746,7 @@ static void _on_enter_form(transformation which_trans)
 
 void set_form(transformation which_trans, int dur)
 {
+    const transformation old_form = you.form;
     you.form = which_trans;
     you.duration[DUR_TRANSFORMATION] = dur * BASELINE_DELAY;
     update_player_symbol();
@@ -1763,7 +1760,18 @@ void set_form(transformation which_trans, int dur)
     if (dex_mod)
         notify_stat_change(STAT_DEX, dex_mod, true);
 
-    calc_hp(true, false);
+    // Don't scale HP when going from nudity to a talisman form
+    // or vice versa. This is to discourage regenerating in a -90%
+    // underskilled talisman form and scaling back up to full, or
+    // leaving a +HP form to regen.
+    // Do scale HP when entering or leaving eg tree form, regardless
+    // of whether you're going from a talisman form or not.
+    const bool leaving_default = you.default_form == old_form
+                                 && which_trans == transformation::none;
+    const bool entering_default = you.default_form == which_trans
+                                 && old_form == transformation::none;
+    const bool scale_hp = !entering_default && !leaving_default;
+    calc_hp(scale_hp);
 
     you.redraw_evasion      = true;
     you.redraw_armour_class = true;

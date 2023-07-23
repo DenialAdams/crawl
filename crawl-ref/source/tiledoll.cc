@@ -410,10 +410,18 @@ void fill_doll_equipment(dolls_data &result)
     if (result.parts[TILEP_PART_BODY] == TILEP_SHOW_EQUIP)
     {
         const int item = you.melded[EQ_BODY_ARMOUR] ? -1 : you.equip[EQ_BODY_ARMOUR];
-        if (item == -1)
-            result.parts[TILEP_PART_BODY] = 0;
-        else
+        if (item != -1)
             result.parts[TILEP_PART_BODY] = tilep_equ_armour(you.inv[item]);
+        else if (you.form == transformation::maw
+                 // non-body-armour wearing species would need this tile to go elswhere
+                 && !species::bans_eq(you.species, EQ_BODY_ARMOUR))
+        {
+            const auto maw = TILEP_BODY_MAW_FORM;
+            const int count = tile_player_count(maw);
+            result.parts[TILEP_PART_BODY] = maw + you.frame_no % count;
+        }
+        else
+            result.parts[TILEP_PART_BODY] = 0;
     }
     // Cloak.
     if (result.parts[TILEP_PART_CLOAK] == TILEP_SHOW_EQUIP)
@@ -676,13 +684,6 @@ void pack_doll_buf(SubmergedTileBuffer& buf, const dolls_data &doll,
         if (p == TILEP_PART_SHADOW && (submerged || ghost))
             continue;
 
-        int ymax = TILE_Y;
-
-        if (flags[p] == TILEP_FLAG_CUT_CENTAUR
-            || flags[p] == TILEP_FLAG_CUT_NAGA)
-        {
-            ymax = 18;
-        }
         int ofs_x = 0, ofs_y = 0;
         if ((p == TILEP_PART_HAND1 && you.slot_item(EQ_WEAPON)
              || p == TILEP_PART_HAND2 && you.slot_item(EQ_SHIELD))
@@ -692,6 +693,7 @@ void pack_doll_buf(SubmergedTileBuffer& buf, const dolls_data &doll,
             ofs_y = dinfo[draw_info_count - dind - 1].ofs_y;
             ++dind;
         }
+        const int ymax = flags[p] == TILEP_FLAG_CUT_BOTTOM ? 18 : TILE_Y;
         buf.add(doll.parts[p], x, y, i, submerged, ghost, ofs_x, ofs_y, ymax);
     }
 }

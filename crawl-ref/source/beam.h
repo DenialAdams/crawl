@@ -176,6 +176,8 @@ private:
     bool can_see_invis = false;
     bool nightvision = false;
 
+    bool can_trigger_bullseye = false;
+
 public:
     bool is_enchantment() const; // no block/dodge, use willpower
     void set_target(const dist &targ);
@@ -378,4 +380,4 @@ int omnireflect_chance_denom(int SH);
 void glaciate_freeze(monster* mon, killer_type englaciator,
                              int kindex);
 
-bolt setup_targetting_beam(const monster &mons);
+bolt setup_targeting_beam(const monster &mons);

@@ -2245,7 +2245,7 @@ ENDMAP
 # A sealed arena. The walls are usually thick enough
 # to make this only accessible from the floor below.
 NAME:   kennysheep_catoblepas_arena
-TAGS:   no_monster_gen ruin
+TAGS:   no_monster_gen ruin no_descent
 DEPTH:  Lair:3-, !Lair:$
 MONS:   catoblepas
 NSUBST: d = 4=%* / 3:0 / *:.
@@ -3150,7 +3150,7 @@ ITEM:    rapier ego:pain w:5 / rapier ego:draining w:5 \
          / cigotuvi's embrace w:1 / amulet of regeneration randart \
          / ring of positive energy randart / staff of death \
          / book of necromancy / book of death / book of unlife \
-         / randbook owner:Kikubaaqudgh disc:necromancy \
+         / randbook owner:Kikubaaqudgha disc:necromancy \
          / necronomicon w:1
 KMONS:   pq = withered plant
 MONS:    elephant skeleton / elephant zombie / spectral elephant \
@@ -3502,7 +3502,7 @@ KMONS:   5 = patrolling merfolk avatar
 KFEAT:   p12345de%*| = W
 NSUBST:  % = 2=d / 2=d% / e / %%*|
 # Open up squares on the fixed portions of the temple walls, on the outer
-# colums, and in the inner room.
+# columns, and in the inner room.
 SUBST:   c = c:20 .:1 W:1, a = ccc-, q = cccc'
 # Each wall has a 50% chance of being broken open
 SHUFFLE: DEFHJ / uuyzz

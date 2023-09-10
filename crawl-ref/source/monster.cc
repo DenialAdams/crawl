@@ -60,6 +60,7 @@
 #include "religion.h"
 #include "spl-clouds.h" // explode_blastmotes_at
 #include "spl-monench.h"
+#include "spl-other.h"
 #include "spl-summoning.h"
 #include "spl-util.h"
 #include "state.h"
@@ -234,7 +235,7 @@ void monster::ensure_has_client_id()
 
 mon_attitude_type monster::temp_attitude() const
 {
-    if (has_ench(ENCH_INSANE))
+    if (has_ench(ENCH_FRENZIED))
         return ATT_NEUTRAL;
 
     if (has_ench(ENCH_HEXED))
@@ -1346,7 +1347,8 @@ static bool _is_signature_weapon(const monster* mons, const item_def &weapon)
             return wtype == WPN_DEMON_WHIP;
 
         // Donald kept dropping his shield. I hate that.
-        if (mons->type == MONS_DONALD)
+        // Jerry: I gotta have my orb!
+        if (mons->type == MONS_DONALD || mons->type == MONS_JEREMIAH)
             return mons->hands_reqd(weapon) == HANDS_ONE;
 
         // What kind of assassin would forget her dagger somewhere else?
@@ -2636,7 +2638,7 @@ bool monster::go_frenzy(actor *source)
 
     const int duration = 16 + random2avg(13, 2);
 
-    add_ench(mon_enchant(ENCH_INSANE, 0, source, duration * BASELINE_DELAY));
+    add_ench(mon_enchant(ENCH_FRENZIED, 0, source, duration * BASELINE_DELAY));
     add_ench(mon_enchant(ENCH_HASTE, 0, source, duration * BASELINE_DELAY));
     add_ench(mon_enchant(ENCH_MIGHT, 0, source, duration * BASELINE_DELAY));
 
@@ -2887,10 +2889,15 @@ bool monster::asleep() const
     return behaviour == BEH_SLEEP;
 }
 
+bool monster::sleepwalking() const
+{
+    return asleep() && has_ench(ENCH_CONFUSION);
+}
+
 bool monster::backlit(bool self_halo, bool /*temp*/) const
 {
     if (has_ench(ENCH_CORONA) || has_ench(ENCH_STICKY_FLAME)
-        || has_ench(ENCH_SILVER_CORONA))
+        || has_ench(ENCH_SILVER_CORONA) || has_ench(ENCH_CONTAM))
     {
         return true;
     }
@@ -2979,7 +2986,7 @@ bool monster::pacified() const
 bool monster::can_feel_fear(bool /*include_unknown*/) const
 {
     return (holiness() & (MH_NATURAL | MH_DEMONIC | MH_HOLY))
-           && !berserk_or_insane();
+           && !berserk_or_frenzied();
 }
 
 /**
@@ -4261,7 +4268,7 @@ int monster::hurt(const actor *agent, int amount, beam_type flavour,
         // Damage over time effects are excluded for similar reasons.
         if (agent && agent->is_player()
             && mons_class_gives_xp(type)
-            && (temp_attitude() == ATT_HOSTILE || has_ench(ENCH_INSANE))
+            && (temp_attitude() == ATT_HOSTILE || has_ench(ENCH_FRENZIED))
             && type != MONS_NAMELESS // hack - no usk piety for miscasts
             && flavour != BEAM_SHARED_PAIN
             && flavour != BEAM_STICKY_FLAME
@@ -4847,14 +4854,14 @@ bool monster::can_get_mad() const
     if (paralysed() || petrified() || petrifying())
         return false;
 
-    if (berserk_or_insane() || has_ench(ENCH_FATIGUE))
+    if (berserk_or_frenzied() || has_ench(ENCH_FATIGUE))
         return false;
 
     return true;
 }
 
 /**
- * Can the monster suffer ENCH_INSANE?
+ * Can the monster suffer ENCH_FRENZIED?
  */
 bool monster::can_go_frenzy() const
 {
@@ -4884,9 +4891,9 @@ bool monster::berserk() const
 }
 
 // XXX: this function could use a better name
-bool monster::berserk_or_insane() const
+bool monster::berserk_or_frenzied() const
 {
-    return berserk() || has_ench(ENCH_INSANE);
+    return berserk() || has_ench(ENCH_FRENZIED);
 }
 
 bool monster::needs_berserk(bool check_spells, bool ignore_distance) const
@@ -5183,18 +5190,6 @@ bool monster::has_action_energy() const
     return speed_increment >= ENERGY_THRESHOLD;
 }
 
-bool monster::may_have_action_energy() const
-{
-    const int max_gain = (speed * you.time_taken + 9) / BASELINE_DELAY;
-    return speed_increment + max_gain >= ENERGY_THRESHOLD;
-}
-
-/// At the player's current movement speed, will they eventually outpace this monster?
-bool monster::outpaced_by_player() const
-{
-    return speed * you.time_taken < energy_cost(EUT_MOVE, 1, BASELINE_DELAY);
-}
-
 /// If a monster had enough energy to act this turn, change it so it doesn't.
 void monster::drain_action_energy()
 {
@@ -5282,6 +5277,9 @@ void monster::apply_location_effects(const coord_def &oldpos,
     {
         del_ench(ENCH_SUBMERGED);
     }
+
+    if (env.grid(pos()) == DNGN_BINDING_SIGIL)
+        trigger_binding_sigil(*this);
 
     terrain_property_t &prop = env.pgrid(pos());
 
@@ -5387,7 +5385,7 @@ bool monster::swap_with(monster* other)
 }
 
 // Returns true if the trap should be revealed to the player.
-bool monster::do_shaft(bool check_terrain)
+bool monster::do_shaft()
 {
     if (!is_valid_shaft_level())
         return false;
@@ -5398,8 +5396,7 @@ bool monster::do_shaft(bool check_terrain)
 
     // Handle instances of do_shaft() being invoked magically when
     // the monster isn't standing over a shaft.
-    if (check_terrain
-        && get_trap_type(pos()) != TRAP_SHAFT
+    if (get_trap_type(pos()) != TRAP_SHAFT
         && !feat_is_shaftable(env.grid(pos())))
     {
         return false;
@@ -5493,6 +5490,9 @@ int monster::action_energy(energy_use_type et) const
     if (has_ench(ENCH_SWIFT))
         move_cost -= 3;
 
+    if (has_ench(ENCH_PURSUING))
+        move_cost -= 2;
+
     if (has_ench(ENCH_ROLLING))
         move_cost -= 5;
 
@@ -5570,7 +5570,7 @@ void monster::react_to_damage(const actor *oppressor, int damage,
         actor *owner = actor_by_mid(summoner);
         if (owner && owner != oppressor && oppressor->mid != summoner)
         {
-            int shared_damage = damage / 2;
+            int shared_damage = div_rand_round(damage*7,10);
             if (shared_damage > 0)
             {
                 if (owner->is_player())
@@ -6138,7 +6138,7 @@ bool monster::is_illusion() const
 {
     return type == MONS_PLAYER_ILLUSION
            || has_ench(ENCH_PHANTOM_MIRROR)
-           || props.exists(CLONE_SLAVE_KEY);
+           || props.exists(CLONE_REPLICA_KEY);
 }
 
 bool monster::is_divine_companion() const
@@ -6175,7 +6175,9 @@ int monster::dragon_level() const
 /// Is this monster's Blink ability themed as a 'jump'?
 bool monster::is_jumpy() const
 {
-    return type == MONS_JUMPING_SPIDER || type == MONS_BOULDER_BEETLE;
+    return type == MONS_JUMPING_SPIDER
+        || type == MONS_BOULDER_BEETLE
+        || mons_species() == MONS_BARACHI;
 }
 
 // HD for spellcasting purposes.
@@ -6245,7 +6247,7 @@ bool monster::has_facet(int facet) const
 /// If the player attacks this monster, will it become hostile?
 bool monster::angered_by_attacks() const
 {
-    return !has_ench(ENCH_INSANE)
+    return !has_ench(ENCH_FRENZIED)
             && !mons_is_avatar(type)
             && !mons_class_is_zombified(type)
             && type != MONS_BOUND_SOUL

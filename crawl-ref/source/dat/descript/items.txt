@@ -88,8 +88,7 @@ and reducing the effectiveness of body armour. Shapeshifting skill mitigates
 and eventually eliminates the latter effect, as well as increasing damage
 dealt.
 
-While transformed, equipped weapons, shields, and gloves are melded, and
-casting spells becomes somewhat more difficult.
+While transformed, equipped weapons, shields, and gloves are melded.
 %%%%
 book of air
 
@@ -585,6 +584,17 @@ flail
 
 A mace with a short chain connecting the head to the haft.
 %%%%
+flux talisman
+
+A canister holding an ominously glowing substance. Its user becomes unstable at
+a fundamental level, inflicting dangerous levels of magical contamination on
+foes with each touch. Sufficient contamination causes a highly localized meltdown,
+dealing enormous damage which increases with the user's Shapeshifting skill.
+
+However, this instability makes the user unable to use weapons or shields. They
+also glow, reducing stealth and preventing invisibility, and their melee damage
+is reduced, as their limbs sometimes destabilize mid-swing.
+%%%%
 giant club
 
 A giant lump of wood.
@@ -609,9 +619,9 @@ A pile of glittering gold coins.
 granite talisman
 
 A heavy stone icon, bearing the countenance of some long-forgotten king or god.
-Transforms the user into a slow, stone statue. The caster's stone body is
-immune to poison and miasma, and gains resistance to electricity and negative
-energy. Shapeshifting skill increases armour granted.
+Transforms the user into a slow, stone statue. The user's stone body is
+immune to poison and miasma, and gains resistance to electricity, negative
+energy, and torment. Shapeshifting skill increases armour granted.
 
 While transformed, any equipped body armour, gloves and boots are melded.
 %%%%
@@ -655,10 +665,11 @@ hand axe
 
 A small axe.
 %%%%
-hand crossbow
+hand cannon
 
-A compact piece of machinery, used for firing bolts. It takes some time to load
-and fire.
+A machine that fires bolts via applied alchemy. Some enchant their projectiles
+to fall forward instead of down, others bewitch the bolts with a fatal attraction
+to their targets. All are slow, loud, and blast out thick smoke with each shot.
 %%%%
 hat
 
@@ -829,15 +840,6 @@ of water, smashing the target and flooding the nearby area. If any creatures
 engulfed by the wave need air to breathe, they'll be unable to cast spells until
 they recover. The strength of the torrent and the duration of the flooding
 increase with Evocations skill.
-%%%%
-piece from Xom's chessboard
-
-A shimmering multi-coloured chesspiece belonging to Xom, god of chaos. When
-moved a glimmer of chaos from some cosmic game is imposed upon the battlefield.
-This glimmer afflicts a random foe with one of the following: haste,
-invisibility, might, corona, slow, paralyse, confuse, malmutate, petrify, or
-sleep. The strength of the effect (positive or negative) is increased with
-Evocations skill.
 %%%%
 plate armour
 
@@ -1055,7 +1057,7 @@ A charm which allows entry into the Realm of Zot.
 sack of spiders
 
 A woven silk bag. Opening it will cover the area with webs, spiders, and other
-skittering things. Evocations skill increases spider quality and webbing.
+skittering things. Evocations skill increases spider quality, quantity and webbing.
 %%%%
 sacred scourge
 
@@ -1136,7 +1138,8 @@ monsters are also immune.
 %%%%
 scroll of fog
 
-A scroll that surrounds the reader with a dense cloud of fog.
+A scroll that surrounds the reader with a dense cloud of fog, which can block
+vision temporarily. The fog takes a short time to fully spill out.
 %%%%
 scroll of identify
 
@@ -1145,7 +1148,8 @@ A useful magic scroll which identifies the properties of any unknown object.
 scroll of immolation
 
 A scroll that fills the creatures around the reader with an unstable and
-powerful inner flame.
+powerful inner flame. This fire is released any time the victims are hit, and
+explosively released upon their death. Giant creatures cause bigger explosions.
 %%%%
 scroll of noise
 
@@ -1295,10 +1299,10 @@ storm talisman
 
 Lightning trapped, impossibly, in a bottle. Lets the user walk through the air
 as a raging, lightning-filled tempest. The user's melee attacks are electrified
-and strike all adjacent foes. The user also flies, gains immunity to poison
-and miasma, and resists electricity. They can launch themselves as a lightning
-bolt, blasting through everything in their way. The damage and evasion granted
-by storm form are highly dependent on the user's skill with Shapeshifting.
+and strike all adjacent foes. The user also flies, gains immunity to poison,
+miasma, petrification, constriction, and sticky flame, and also resists
+electricity. They can launch themselves as a lightning bolt, blasting through
+everything in their way.
 
 While transformed, any equipped weapons and armour are melded.
 %%%%
@@ -1312,8 +1316,8 @@ A grey-black vessel, infused with dark power through a sickening ritual.
 Transforms the user into an undying offense against life itself.
 
 Foes struck by user's melee weapons or hands are weakened, slowed, and drained.
-The user can also heal themself by tormenting foes nearby; Shapeshifting skill
-increases the amount healed. Further, the user resists cold, has enhanced
+The user can also heal themself by tormenting living foes nearby; Shapeshifting
+skill increases the amount healed. Further, the user resists cold, has enhanced
 willpower, and is immune to poison, miasma, negative energy, and torment.
 
 The user also gains some of the more dubious benefits of having an undead body.

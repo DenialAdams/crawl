@@ -258,7 +258,7 @@ bool is_random_artefact(const item_def &item)
  *  @param item The item to be checked.
  *  @param which The unrand enum to be checked against (default 0).
  *  @returns true if item is an unrand, and if which is not 0, if it is the unrand
- *           specfied by enum in which.
+ *           specified by enum in which.
  */
 bool is_unrandom_artefact(const item_def &item, int which)
 {
@@ -772,7 +772,7 @@ static const artefact_prop_data artp_data[] =
         []() {return 1;}, nullptr, 0, 0},
     { "Rampage", ARTP_VAL_BOOL, 25, // ARTP_RAMPAGING,
         []() {return 1;}, nullptr, 0, 0},
-    { "Archmagi", ARTP_VAL_BOOL, 25, // ARTP_ARCHMAGI,
+    { "Archmagi", ARTP_VAL_BOOL, 40, // ARTP_ARCHMAGI,
         []() {return 1;}, nullptr, 0, 0},
     { "Conj", ARTP_VAL_BOOL, 3, // ARTP_ENHANCE_CONJ,
         []() {return 1;}, nullptr, 0, 0},
@@ -1194,6 +1194,8 @@ static string _get_artefact_type(const item_def &item, bool appear = false)
         if (get_item_slot(item) == EQ_BODY_ARMOUR)
             return "body armour";
         return "armour";
+    case OBJ_ORBS:
+        return "orb";
     case OBJ_JEWELLERY:
         // Distinguish between amulets and rings only in appearance.
         if (!appear)

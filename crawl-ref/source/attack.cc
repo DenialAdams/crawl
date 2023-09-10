@@ -37,6 +37,7 @@
 #include "religion.h"
 #include "shout.h"
 #include "skills.h"
+#include "spl-damage.h"
 #include "spl-util.h"
 #include "state.h"
 #include "stepdown.h"
@@ -81,6 +82,8 @@ bool attack::handle_phase_blocked()
 
     if (attacker->is_player())
         behaviour_event(defender->as_monster(), ME_WHACK, attacker);
+
+    maybe_trigger_jinxbite();
 
     return true;
 }
@@ -479,14 +482,10 @@ bool attack::distortion_affects_defender()
         NONE
     };
 
-    // Don't banish or blink the player during aoops, for sanity.
-    const int banish_weight = crawl_state.player_moving ? 0 : 5;
-    const int blink_weight = crawl_state.player_moving ? 0 : 20;
-
     const disto_effect choice = random_choose_weighted(35, SMALL_DMG,
                                                        25, BIG_DMG,
-                                                       banish_weight, BANISH,
-                                                       blink_weight, BLINK,
+                                                       5, BANISH,
+                                                       20, BLINK,
                                                        15,  NONE);
 
     if (simu && !(choice == SMALL_DMG || choice == BIG_DMG))
@@ -590,7 +589,7 @@ static const vector<chaos_effect> chaos_effects = {
         BEAM_NONE, [](attack &attack) {
             actor &defender = *attack.defender;
             ASSERT(defender.is_monster());
-            monster *clone = clone_mons(defender.as_monster(), true);
+            monster *clone = clone_mons(defender.as_monster());
             if (!clone)
                 return false;
 
@@ -602,6 +601,8 @@ static const vector<chaos_effect> chaos_effects = {
             // The player shouldn't get new permanent followers from cloning.
             if (clone->attitude == ATT_FRIENDLY && !clone->is_summoned())
                 clone->mark_summoned(6, true, MON_SUMM_CLONE);
+            else
+                clone->flags |= (MF_NO_REWARD | MF_HARD_RESET);
 
             // Monsters being cloned is interesting.
             xom_is_stimulated(clone->friendly() ? 12 : 25);
@@ -1733,4 +1734,10 @@ actor &attack::stat_source() const
     if (!summoner || !summoner->alive())
         return *attacker;
     return *summoner;
+}
+
+void attack::maybe_trigger_jinxbite()
+{
+    if (attacker->is_player() && you.duration[DUR_JINXBITE])
+        jinxbite_fineff::schedule(defender);
 }

@@ -151,7 +151,7 @@ void seen_monsters_react(int stealth)
         if (!mi->visible_to(&you))
             continue;
 
-        if (!mi->has_ench(ENCH_INSANE) && mi->can_see(you))
+        if (!mi->has_ench(ENCH_FRENZIED) && mi->can_see(you))
         {
             // Trigger Duvessa & Dowan upgrades
             if (mi->props.exists(ELVEN_ENERGIZE_KEY))
@@ -276,6 +276,8 @@ static bool _is_mon_equipment_worth_listing(const monster_info &mi)
     if (alt_weap && alt_weap->base_type == OBJ_WANDS)
         return true;
     if (mi.inv[MSLOT_WAND])
+        return true;
+    if (mi.has_unusual_items())
         return true;
 
     return _is_item_worth_listing(mi.inv[MSLOT_SHIELD])
@@ -685,7 +687,7 @@ static colour_t _feat_default_map_colour(dungeon_feature_type feat)
 // Returns true if it succeeded.
 bool magic_mapping(int map_radius, int proportion, bool suppress_msg,
                    bool force, bool deterministic, bool full_info,
-                   coord_def origin)
+                   bool range_falloff, coord_def origin)
 {
     if (!force && !is_map_persistent())
     {
@@ -714,7 +716,7 @@ bool magic_mapping(int map_radius, int proportion, bool suppress_msg,
          ri; ++ri)
     {
         coord_def pos = *ri;
-        if (!full_info)
+        if (range_falloff)
         {
             int threshold = proportion;
 
@@ -1053,7 +1055,7 @@ static update_flags player_view_update_at(const coord_def &gc)
     maybe_remove_autoexclusion(gc);
     update_flags ret;
 
-    // Set excludes in a radius of 1 around harmful clouds genereated
+    // Set excludes in a radius of 1 around harmful clouds generated
     // by neither monsters nor the player.
     const cloud_struct* cloud = cloud_at(gc);
     if (cloud && !crawl_state.game_is_arena())

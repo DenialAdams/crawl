@@ -120,7 +120,7 @@ static weapon_type _determine_weapon_subtype(int item_level)
     if (one_chance_in(30) && x_chance_in_y(item_level + 3, 100))
     {
         return random_choose(WPN_LAJATANG,
-                             WPN_HAND_CROSSBOW,
+                             WPN_HAND_CANNON,
                              WPN_TRIPLE_CROSSBOW,
                              WPN_DEMON_WHIP,
                              WPN_DEMON_BLADE,
@@ -259,7 +259,7 @@ static int _num_brand_tries(const item_def& item, int item_level)
         return 5;
     if (is_demonic(item)
         // Hand crossbows usually appear late, so encourage use.
-        || item.sub_type == WPN_HAND_CROSSBOW
+        || item.sub_type == WPN_HAND_CANNON
         || x_chance_in_y(101 + item_level, 300))
     {
         return 1;
@@ -472,7 +472,7 @@ static void _generate_weapon_item(item_def& item, bool allow_uniques,
         item.plus -= 1 + random2(3);
     }
     else if ((force_good || is_demonic(item)
-              || item.sub_type == WPN_HAND_CROSSBOW || forced_ego
+              || item.sub_type == WPN_HAND_CANNON || forced_ego
                     || x_chance_in_y(51 + item_level, 200))
                 && (!item.is_mundane() || force_good))
     {
@@ -523,6 +523,9 @@ static special_missile_type _determine_missile_brand(const item_def& item,
     case MI_LARGE_ROCK:
         rc = SPMSL_NORMAL;
         break;
+    case MI_BOOMERANG:
+        rc = SPMSL_NORMAL;
+        break;
     case MI_DART:
         // Curare is special cased, all the others aren't.
         if (got_curare_roll(item_level))
@@ -533,15 +536,11 @@ static special_missile_type _determine_missile_brand(const item_def& item,
 
         rc = random_choose_weighted(60, SPMSL_BLINDING,
                                     20, SPMSL_FRENZY,
+                                    20, SPMSL_DISPERSAL,
                                     pw, SPMSL_POISONED);
         break;
     case MI_JAVELIN:
         rc = random_choose_weighted(90, SPMSL_SILVER,
-                                    nw, SPMSL_NORMAL);
-        break;
-    case MI_BOOMERANG:
-        rc = random_choose_weighted(30, SPMSL_SILVER,
-                                    30, SPMSL_DISPERSAL,
                                     nw, SPMSL_NORMAL);
         break;
     }
@@ -579,6 +578,7 @@ bool is_missile_brand_ok(int type, int brand, bool strict)
     case SPMSL_PARALYSIS:
 #endif
     case SPMSL_FRENZY:
+    case SPMSL_DISPERSAL:
         return type == MI_DART;
 
     case SPMSL_BLINDING:
@@ -609,10 +609,8 @@ bool is_missile_brand_ok(int type, int brand, bool strict)
         return false;
     case SPMSL_CHAOS:
         return type == MI_BOOMERANG || type == MI_JAVELIN;
-    case SPMSL_DISPERSAL:
-        return type == MI_BOOMERANG;
     case SPMSL_SILVER:
-        return type == MI_JAVELIN || type == MI_BOOMERANG;
+        return type == MI_JAVELIN;
     default: break;
     }
 
@@ -894,7 +892,7 @@ static int _armour_plus_threshold(equipment_type armour_type)
 static armour_type _get_random_armour_type(int item_level)
 {
 
-    // Dummy value for initilization, always changed by the conditional
+    // Dummy value for initialization, always changed by the conditional
     // (and not changing it would trigger an ASSERT)
     armour_type armtype = NUM_ARMOURS;
 
@@ -1522,8 +1520,10 @@ static void _generate_jewellery_item(item_def& item, bool allow_uniques,
 static const vector<random_pick_entry<talisman_type>> talisman_weights =
 {
     // tier 0
-    {  0, 20,  95, FALL, TALISMAN_BEAST },
+    {  0, 20,  45, FALL, TALISMAN_BEAST },
     {  0, 35,   5, FLAT, TALISMAN_BEAST },
+    {  0, 20,  45, FALL, TALISMAN_FLUX },
+    {  0, 35,   5, FLAT, TALISMAN_FLUX },
     // tier 1
     {  0, 27,  90, PEAK, TALISMAN_MAW },
     {  0, 35,  10, FLAT, TALISMAN_MAW },
@@ -1591,8 +1591,7 @@ misc_item_type get_misc_item_type(int force_type, bool exclude)
             MISC_LIGHTNING_ROD,
             (misc_item_type)item_for_set(ITEM_SET_ALLY_MISCELLANY),
             MISC_PHANTOM_MIRROR,
-            (misc_item_type)item_for_set(ITEM_SET_AREA_MISCELLANY),
-            MISC_XOMS_CHESSBOARD
+            (misc_item_type)item_for_set(ITEM_SET_AREA_MISCELLANY)
         };
         for (auto it : you.generated_misc)
             choices.erase(it);
@@ -1607,7 +1606,6 @@ misc_item_type get_misc_item_type(int force_type, bool exclude)
             MISC_PHANTOM_MIRROR,
             MISC_CONDENSER_VANE,
             MISC_TIN_OF_TREMORSTONES,
-            MISC_XOMS_CHESSBOARD
         };
     }
     if (choices.size())
@@ -1632,7 +1630,6 @@ static void _generate_misc_item(item_def& item, int force_type, int item_level)
     case MISC_LIGHTNING_ROD:
     case MISC_PHIAL_OF_FLOODS:
     case MISC_PHANTOM_MIRROR:
-    case MISC_XOMS_CHESSBOARD:
     case MISC_TIN_OF_TREMORSTONES:
     case MISC_CONDENSER_VANE:
         you.generated_misc.insert(typ);
@@ -1643,7 +1640,7 @@ static void _generate_misc_item(item_def& item, int force_type, int item_level)
 }
 
 /**
- * Alter the inputed item to have no "plusses" (mostly weapon/armour enchantment)
+ * Alter the inputted item to have no "plusses" (mostly weapon/armour enchantment)
  *
  * @param[in,out] item_slot The item slot of the item to remove "plusses" from.
  */
@@ -1828,7 +1825,7 @@ int items(bool allow_uniques,
                                    440, OBJ_GOLD);
 
         // misc items placement wholly dependent upon current depth {dlb}:
-        if (item_level > 7 && x_chance_in_y(21 + item_level, 5000))
+        if (item_level > 7 && x_chance_in_y(11 + item_level, 9000))
             item.base_type = OBJ_MISCELLANY;
 
         if (item_level < 7
@@ -1841,7 +1838,7 @@ int items(bool allow_uniques,
         // Sorry. Trying to get a high enough weight of talismans early
         // so that folks can upgrade, etc, without deluging players with
         // them later.
-        if (one_chance_in(100) && !x_chance_in_y(item_level * 2, 100))
+        if (one_chance_in(100) && !x_chance_in_y(max(item_level, 5) * 2, 100))
             item.base_type = OBJ_TALISMANS;
     }
 

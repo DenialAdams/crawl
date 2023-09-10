@@ -31,7 +31,7 @@
 #include "item-prop.h"
 #include "items.h"
 #include "libutil.h"
-#include "melee-attack.h" // aux_attack_desc
+#include "melee-attack.h" // mut_aux_attack_desc
 #include "menu.h"
 #include "message.h"
 #include "mon-place.h"
@@ -393,9 +393,11 @@ mutation_activity_type mutation_activity_level(mutation_type mut)
         }
     }
 
-    //XXX: Should this make claws inactive too?
-    if (you.form == transformation::blade_hands && mut == MUT_PAWS)
+    if (you.form == transformation::blade_hands
+        && (mut == MUT_PAWS || mut == MUT_CLAWS))
+    {
         return mutation_activity_type::INACTIVE;
+    }
 
     if (mut == MUT_TELEPORT
         && (you.no_tele() || player_in_branch(BRANCH_ABYSS)))
@@ -410,6 +412,9 @@ mutation_activity_type mutation_activity_level(mutation_type mut)
         return mutation_activity_type::INACTIVE;
 
     if (mut == MUT_DEMONIC_GUARDIAN && you.allies_forbidden())
+        return mutation_activity_type::INACTIVE;
+
+    if (mut == MUT_ROLLPAGE && you_worship(GOD_WU_JIAN))
         return mutation_activity_type::INACTIVE;
 
     if (mut == MUT_NIMBLE_SWIMMER)
@@ -759,12 +764,8 @@ static vector<string> _get_form_fakemuts(bool terse)
     }
 
     // bad stuff
-    if (!terse
-        && (you.form == transformation::blade_hands
-            || you.form == transformation::shadow)) // hard-coded effect
-    {
+    if (!terse && you.form == transformation::shadow) // hard-coded effect
         result.push_back(_badmut("Your spellcasting is less reliable in this form."));
-    }
 
     // XX say something about AC? Best would be to compare it to AC without
     // the form, but I'm not sure if that's possible
@@ -1481,7 +1482,7 @@ static string _mut_blocks_item_reason(const item_def &item, mutation_type mut, i
     case EQ_BOOTS:
         if (mut == MUT_FLOAT)
             return "You have no feet!"; // or legs
-        if (level < 3)
+        if (level < 3 || item.sub_type == ARM_BARDING)
             break;
         if (mut == MUT_HOOVES)
             return "You can't wear boots with hooves!";
@@ -1622,7 +1623,7 @@ static int _handle_conflicting_mutations(mutation_type mutation,
                     }
 
                 default:
-                    die("bad mutation conflict resulution");
+                    die("bad mutation conflict resolution");
                 }
             }
         }
@@ -2511,7 +2512,7 @@ string get_mutation_desc(mutation_type mut)
     if (lookup.empty()) // Nothing found?
         desc << mutation_desc(mut, -1, false) << "\n";
 
-    desc << aux_attack_desc(mut);
+    desc << mut_aux_attack_desc(mut);
 
     // TODO: consider adding other fun facts here
         // _get_mutation_def(mut).form_based
@@ -2555,7 +2556,7 @@ const char* category_mutation_name(mutation_type mut)
  *                          with the partial match results (e.g. show them to the user). If this is `nullptr`,
  *                          will accept only exact matches.
  *
- * @return the mutation type if succesful, otherwise NUM_MUTATIONS if it can't find a single match.
+ * @return the mutation type if successful, otherwise NUM_MUTATIONS if it can't find a single match.
  */
 mutation_type mutation_from_name(string name, bool allow_category, vector<mutation_type> *partial_matches)
 {

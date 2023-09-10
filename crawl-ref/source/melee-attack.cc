@@ -327,6 +327,8 @@ bool melee_attack::handle_phase_dodged()
     if (defender->is_player())
         count_action(CACT_DODGE, DODGE_EVASION);
 
+    maybe_trigger_jinxbite();
+
     if (attacker != defender
         && attacker->alive() && defender->can_see(*attacker)
         && !defender->cannot_act() && !defender->confused()
@@ -449,6 +451,38 @@ void melee_attack::do_ooze_engulf()
     }
 }
 
+
+static void _apply_flux_contam(monster &m)
+{
+    const mon_enchant old_glow = m.get_ench(ENCH_CONTAM);
+
+    if (old_glow.degree >= 2)
+    {
+        const int max_dam = get_form()->contam_dam();
+        const int dam = random2(max_dam);
+        string msg = make_stringf(" shudders as magic cascades through %s%s",
+                                  m.pronoun(PRONOUN_OBJECTIVE).c_str(),
+                                  attack_strength_punctuation(dam).c_str());
+        dprf("done %d (max %d)", dam, max_dam);
+        simple_monster_message(m, msg.c_str());
+        if (dam)
+        {
+            m.hurt(&you, dam, BEAM_MMISSILE, KILLED_BY_BEAM /*eh*/);
+            if (!m.alive())
+                return;
+        }
+        m.malmutate("");
+        m.del_ench(ENCH_CONTAM, true);
+        return;
+    }
+
+    m.add_ench(mon_enchant(ENCH_CONTAM, 1, &you));
+    if (!old_glow.degree)
+        simple_monster_message(m, " begins to glow.");
+    else
+        simple_monster_message(m, " glows dangerously bright.");
+}
+
 /* An attack has been determined to have hit something
  *
  * Handles to-hit effects for both attackers and defenders,
@@ -537,22 +571,34 @@ bool melee_attack::handle_phase_hit()
             beogh_follower_convert(defender->as_monster(), true);
         }
     }
-    else if (needs_message)
+    else
     {
-        attack_verb = attacker->is_player()
-                      ? attack_verb
-                      : attacker->conj_verb(mons_attack_verb());
+        if (needs_message)
+        {
+            attack_verb = attacker->is_player()
+                                    ? attack_verb
+                                    : attacker->conj_verb(mons_attack_verb());
 
-        // TODO: Clean this up if possible, checking atype for do / does is ugly
-        mprf("%s %s %s but %s no damage.",
-             attacker->name(DESC_THE).c_str(),
-             attack_verb.c_str(),
-             defender_name(true).c_str(),
-             attacker->is_player() ? "do" : "does");
+            // TODO: Clean this up if possible, checking atype for do / does is ugly
+            mprf("%s %s %s but %s no damage.",
+                attacker->name(DESC_THE).c_str(),
+                attack_verb.c_str(),
+                defender_name(true).c_str(),
+                attacker->is_player() ? "do" : "does");
+        }
     }
+
+    maybe_trigger_jinxbite();
 
     // Check for weapon brand & inflict that damage too
     apply_damage_brand();
+
+    // Apply flux form's sfx.
+    if (attacker->is_player() && you.form == transformation::flux
+        && defender->alive() && defender->is_monster())
+    {
+        _apply_flux_contam(*(defender->as_monster()));
+    }
 
     // Fireworks when using Serpent's Lash to kill.
     if (!defender->alive()
@@ -607,12 +653,14 @@ static void _inflict_deathly_blight(monster &m)
     }
 
     const int dur = random_range(3, 6) * BASELINE_DELAY;
+    bool worked = false;
     if (!m.stasis() && !m.is_stationary())
-        m.add_ench(mon_enchant(ENCH_SLOW, 0, &you, dur));
+        worked = m.add_ench(mon_enchant(ENCH_SLOW, 0, &you, dur)) || worked;
     if (mons_has_attacks(m))
-        m.add_ench(mon_enchant(ENCH_WEAK, 1, &you, dur));
-    m.add_ench(mon_enchant(ENCH_DRAINED, random_range(3, 5), &you, dur));
-    if (you.can_see(m))
+        worked = m.add_ench(mon_enchant(ENCH_WEAK, 1, &you, dur)) || worked;
+    if (m.holiness() & (MH_NATURAL | MH_PLANT))
+        worked = m.add_ench(mon_enchant(ENCH_DRAINED, 2, &you, dur)) || worked;
+    if (worked && you.can_see(m))
         simple_monster_message(m, " decays.");
 }
 
@@ -625,8 +673,11 @@ bool melee_attack::handle_phase_damaged()
     {
         if (player_equip_unrand(UNRAND_POWER_GLOVES))
             inc_mp(div_rand_round(damage_done, 8));
-        if (you.form == transformation::death && defender->alive() && defender->is_monster())
+        if (you.form == transformation::death && defender->alive()
+            && defender->is_monster())
+        {
             _inflict_deathly_blight(*(defender->as_monster()));
+        }
     }
 
     return true;
@@ -749,7 +800,7 @@ static void _consider_devouring(monster &defender)
         return;
     }
 
-    if (coinflip())
+    if (one_chance_in(3))
         return;
 
     // chow down.
@@ -844,6 +895,15 @@ bool melee_attack::handle_phase_end()
         // Use the Nessos hack to give the player glaive of the guard spectral too
         if (weapon && is_unrandom_artefact(*weapon, UNRAND_GUARD))
             _handle_spectral_brand(*attacker, *defender);
+    }
+
+    // Dead but not yet reset, most likely due to an attack flavour that
+    // destroys the attacker on-hit.
+    if (attacker->is_monster()
+        && attacker->as_monster()->type != MONS_NO_MONSTER
+        && attacker->as_monster()->hit_points < 1)
+    {
+        monster_die(*attacker->as_monster(), KILL_MISC, NON_MONSTER);
     }
 
     return attack::handle_phase_end();
@@ -979,9 +1039,9 @@ bool melee_attack::attack()
         {
             bool cont = handle_phase_hit();
 
-            attacker_sustain_passive_damage();
-
-            if (!cont)
+            if (cont)
+                attacker_sustain_passive_damage();
+            else
             {
                 if (!defender->alive())
                     handle_phase_killed();
@@ -1175,7 +1235,8 @@ public:
 
     int get_damage(bool random) const override
     {
-        const int base_dam = damage + you.skill_rdiv(SK_UNARMED_COMBAT, 1, 2);
+        const int base_dam = damage + (random ? you.skill_rdiv(SK_UNARMED_COMBAT, 1, 2)
+                                              : you.skill(SK_UNARMED_COMBAT) / 2);
 
         if (you.form == transformation::blade_hands)
             return base_dam + 6;
@@ -1223,6 +1284,7 @@ public:
 
     int get_damage(bool random) const override
     {
+        // duplicated in _describe_talisman_form
         const int fang_damage = damage + you.has_usable_fangs() * 2;
 
         if (you.get_mutation_level(MUT_ANTIMAGIC_BITE))
@@ -1304,7 +1366,7 @@ class AuxMaw: public AuxAttackType
 {
 public:
     AuxMaw()
-    : AuxAttackType(0, 50, "bite") { };
+    : AuxAttackType(0, 75, "bite") { };
     int get_damage(bool random) const override {
         return get_form()->get_aux_damage(random);
     };
@@ -1656,8 +1718,11 @@ int melee_attack::player_apply_postac_multipliers(int damage)
 {
     // Statue form's damage modifier is designed to exactly compensate for
     // the slowed speed; therefore, it needs to apply after AC.
+    // Flux form's modifier is the inverse of statue form's.
     if (you.form == transformation::statue)
         damage = div_rand_round(damage * 3, 2);
+    else if (you.form == transformation::flux)
+        damage = div_rand_round(damage * 2, 3);
 
     return damage;
 }
@@ -2007,8 +2072,7 @@ bool melee_attack::consider_decapitation(int dam, int damage_type)
         return false;
 
     // What's the largest number of heads the defender can have?
-    const int limit = defender->type == MONS_LERNAEAN_HYDRA ? 27
-                                                            : MAX_HYDRA_HEADS;
+    const int limit = defender->type == MONS_LERNAEAN_HYDRA ? 27 : 20;
 
     if (attacker->damage_brand() == SPWPN_FLAMING)
     {
@@ -2653,13 +2717,8 @@ bool melee_attack::mons_attack_effects()
                           && adjacent(attacker->pos(), defender->pos())
                           && !player_stair_delay() // feet otherwise occupied
                           && player_equip_unrand(UNRAND_SLICK_SLIPPERS);
-    // Don't trample while player is moving - either mean or nonsensical
-    if (attacker != defender
-        && (attk_flavour == AF_TRAMPLE || slippery)
-        && !crawl_state.player_moving)
-    {
+    if (attacker != defender && (attk_flavour == AF_TRAMPLE || slippery))
         do_knockback(slippery);
-    }
 
     special_damage = 0;
     special_damage_message.clear();
@@ -2822,12 +2881,12 @@ void melee_attack::mons_apply_attack_flavour()
 
     case AF_BLINK:
         // blinking can kill, delay the call
-        if (one_chance_in(3) && !crawl_state.player_moving)
+        if (one_chance_in(3))
             blink_fineff::schedule(attacker);
         break;
 
     case AF_BLINK_WITH:
-        if (coinflip() && !crawl_state.player_moving)
+        if (coinflip())
             blink_fineff::schedule(attacker, defender);
         break;
 
@@ -3041,13 +3100,11 @@ void melee_attack::mons_apply_attack_flavour()
         break;
 
     case AF_ENSNARE:
-        if (!crawl_state.player_moving && one_chance_in(3))
+        if (one_chance_in(3))
             ensnare(defender);
         break;
 
     case AF_CRUSH:
-        if (crawl_state.player_moving)
-            break; // Won't work while player is moving
         if (needs_message)
         {
             mprf("%s %s %s.",
@@ -3062,9 +3119,7 @@ void melee_attack::mons_apply_attack_flavour()
         break;
 
     case AF_ENGULF:
-        if (!crawl_state.player_moving  // Won't work while player is moving
-            && x_chance_in_y(2, 3)
-            && attacker->can_engulf(*defender))
+        if (x_chance_in_y(2, 3) && attacker->can_engulf(*defender))
         {
             const bool watery = attacker->type != MONS_QUICKSILVER_OOZE;
             if (defender->is_player() && !you.duration[DUR_WATER_HOLD])
@@ -3247,8 +3302,6 @@ void melee_attack::mons_apply_attack_flavour()
         break;
     }
     case AF_SLEEP:
-        if (crawl_state.player_moving)
-            break; // looks too weird to fall asleep while still in motion
         if (!coinflip())
             break;
         if (attk_type == AT_SPORE)
@@ -3714,7 +3767,7 @@ bool melee_attack::_extra_aux_attack(unarmed_attack_type atk)
        return false;
     }
 
-    // XXX: dedup with aux_attack_desc()
+    // XXX: dedup with mut_aux_attack_desc()
     switch (atk)
     {
     case UNAT_CONSTRICT:
@@ -3897,7 +3950,7 @@ bool melee_attack::_vamp_wants_blood_from_monster(const monster* mon)
            && mons_has_blood(mon->type);
 }
 
-string aux_attack_desc(mutation_type mut)
+string mut_aux_attack_desc(mutation_type mut)
 {
     // XXX: dedup with _extra_aux_attack()
     switch (mut)
@@ -3931,9 +3984,8 @@ string aux_attack_desc(mutation_type mut)
     }
 }
 
-string AuxAttackType::describe() const
+static string _desc_aux(int chance, int to_hit, int dam)
 {
-    const int to_hit = aux_to_hit();
     string to_hit_pips = "";
     // Each pip is 10 to-hit. Since to-hit is rolled before we compare it to
     // defender evasion, for these pips to be comparable to monster EV pips,
@@ -3946,8 +3998,23 @@ string AuxAttackType::describe() const
     }
     return make_stringf("\nTrigger chance:  %d%%\n"
                           "Accuracy:        %s\n"
-                          "Base damage:     %d\n\n",
-                        get_chance(),
+                          "Base damage:     %d",
+                        chance,
                         to_hit_pips.c_str(),
-                        get_damage(false));
+                        dam);
+}
+
+string aux_attack_desc(unarmed_attack_type unat, int force_damage)
+{
+    const unsigned long idx = unat - UNAT_FIRST_ATTACK;
+    ASSERT_RANGE(idx, 0, ARRAYSZ(aux_attack_types));
+    const AuxAttackType* const aux = aux_attack_types[idx];
+    const int dam = force_damage == -1 ? aux->get_damage(false) : force_damage;
+    // lazily assume chance and to hit don't vary in/out of forms
+    return _desc_aux(aux->get_chance(), aux_to_hit(), dam);
+}
+
+string AuxAttackType::describe() const
+{
+    return _desc_aux(get_chance(), aux_to_hit(), get_damage(false)) + "\n\n";
 }

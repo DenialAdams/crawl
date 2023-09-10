@@ -32,9 +32,9 @@ The contents of this text are:
                 detected_monster_colour, detected_item_colour,
                 remembered_monster_colour
 3-c     Dungeon View Item and Monster Highlighting.
-                friend_highlight, neutral_highlight, stab_highlight,
-                may_stab_highlight, heap_highlight, feature_item_highlight,
-                trap_item_highlight
+                friend_highlight, neutral_highlight, unusual_highlight,
+                stab_highlight, may_stab_highlight, heap_highlight,
+                feature_item_highlight, trap_item_highlight
 3-d     Level Map Functions.
                 level_map_cursor_step
 3-e     Viewport Display Options.
@@ -75,13 +75,13 @@ The contents of this text are:
                 msg_min_height, msg_max_height, msg_webtiles_height,
                 messages_at_top, msg_condense_repeats, msg_condense_short,
                 show_travel_trail, skill_focus, default_show_all_skills,
-                monster_list_colour, view_delay, use_animations,
-                darken_beyond_range, show_blood, force_more_message,
-                flash_screen_message, cloud_status, always_show_zot,
-                action_panel, action_panel_filter,
-                action_panel_show_unidentified, action_panel_scale,
-                action_panel_orientation, action_panel_font_family,
-                action_panel_font_size
+                monster_list_colour, view_delay, reduce_animations,
+                use_animations, unusual_monster_items, darken_beyond_range,
+                show_blood, force_more_message, flash_screen_message,
+                cloud_status, always_show_zot, action_panel,
+                action_panel_filter, action_panel_show_unidentified,
+                action_panel_scale, action_panel_orientation,
+                action_panel_font_family, action_panel_font_size
 3-i     Colours (messages and menus).
                 menu_colour, message_colour
 3-j     Quivers, firing, and ammo.
@@ -355,9 +355,9 @@ name = Delilah
 
 type = normal
         Choose a game type. Valid values are "normal", "seeded", "tutorial",
-        "arena", "sprint", and "hints". If explicitly set (not just left to
-        the default), this sets the default game type at the main menu. If
-        the main menu is bypassed (e.g. by setting `name`), this option can
+        "arena", "sprint", "descent", and "hints". If explicitly set (not just
+        left to the default), this sets the default game type at the main menu.
+        If the main menu is bypassed (e.g. by setting `name`), this option can
         be used to determine the game type.
 
 remember_name = true
@@ -718,6 +718,15 @@ neutral_highlight = hi:lightgrey
         a neutral monster's path, and to avoid accidentally killing it.
         The default setting shows neutrals with a dark grey background. Since
         there are no darkgrey monster glyphs anymore, this works fine.
+
+unusual_highlight = hi:magenta
+        Highlight hostile monsters carrying unusual items. Useful to show if a
+        monster should be handled with care because it has an atypical item,
+        such as a wand or a distortion weapon.
+
+        This is used in conjunction with the unusual_monster_items option:
+        unusual_monster_items determines which items will cause a monster to be
+        highlighted.
 
 stab_highlight = hi:blue
         This option highlights monsters that are fully unaware of the player
@@ -1176,6 +1185,11 @@ allow_self_target = prompt
         you will be required to confirm self-targeting. This option has no
         effect on area-effect spells, such as Mephitic Cloud, where you are
         always a valid target.
+
+prompt_menu = true (tiles default), false (console default)
+        Always show prompt menus as popups if possible, rather than in the
+        message pane. This currently applies to Y/N prompts, and to the `G`o
+        menu.
 
 ability_menu = true
         Always show the full-screen 'a'bility menu. If false, 'a' prompts
@@ -1682,7 +1696,7 @@ default_show_all_skills = false
 
 monster_list_colour = friendly:green, neutral:brown, good_neutral:brown
 monster_list_colour += trivial:darkgrey, easy:lightgrey, tough:yellow,
-                       nasty:lightred
+                       nasty:lightred, unusual:lightmagenta
         (List option)
         Change the colours used to display monster names in the monster list.
         Valid keys, and their initial colours, are:
@@ -1697,6 +1711,7 @@ monster_list_colour += trivial:darkgrey, easy:lightgrey, tough:yellow,
              easy           - lightgrey
              tough          - yellow
              nasty          - lightred
+             unusual        - lightmagenta
 
         If a category is unset or has a missing colour, its colour defaults to
         lightgrey. For removal with `-=`, the category name can be used alone,
@@ -1739,6 +1754,21 @@ use_animations += branch_entry
                              ability or casts a spell.
           branch_entry     - Animations that run when you enter a new branch.
                              Currently only the Abyss and Zot have animations.
+
+unusual_monster_items += <regex>, <regex>, ...
+        (List option)
+        Monsters whose inventory items match a regex in this comma-separated
+        list will display with unusual threat level. E.g.
+            unusual_monster_items =  wand
+            unusual_monster_items += disto,chaos
+            unusual_monster_items += curare,atropa,datura,dispersal
+            unusual_monster_items += throwing net
+        The item descriptions matched against are the short item names that
+        ordinarily display when a monster is examined with 'xv'.
+
+        This option determines which monsters will be regarded as "unusual" for
+        the options tile_show_threat_levels (tiles only), monster_list_colour,
+        and unusual_highlight (console only).
 
 darken_beyond_range = true
         If set to true, everything beyond range when targeting will be
@@ -1935,7 +1965,7 @@ fire_order  = launcher, throwing, inscribed, spell, evokable, ability
 
         'launcher' refers to firing a wielded ranged weapon (i.e. crossbow,
         bow, sling). 'throwing' refers to all throwing ammo. Specific throwing
-        ammo types can be refered to by name ('javelin', 'boomerang', 'stone',
+        ammo types can be referred to by name ('javelin', 'boomerang', 'stone',
         'rock', 'net', 'dart'), but order of these only affects order internal
         to throwing ammo types; 'inscribed' can also be used to control the
         order of ammo that has been inscribed with "+f". See the "Inscriptions"
@@ -2342,7 +2372,7 @@ tile_overlay_alpha_percent = 40
         Transparency value for the message window overlay background, as when
         tile_force_overlay is set to true. Setting this option to 0 will cause
         the message window to only display text without any background. And
-        setting this option to 100 will force an opaque backgroud to the
+        setting this option to 100 will force an opaque background to the
         message window.
 
 tile_full_screen = auto
@@ -2426,10 +2456,13 @@ tile_show_player_species = false
         If enabled, displays the player using the monster tile for her species,
         instead of using the normal doll and showing equipment.
 
-tile_show_threat_levels = nasty
+tile_show_threat_levels = nasty, unusual
         This option controls which monsters will be highlighted with their
-        threat level. Valid levels include: trivial, easy, tough, nasty.
-        You can specify multiple levels at once, or 'none'.
+        threat level. Valid levels include: trivial, easy, tough, nasty,
+        unusual. You can specify multiple levels at once, or 'none'.
+
+        When 'unusual' is specified, the option unusual_monster_items will
+        determine which items cause a monster to highlight as unusual.
 
 tile_layout_priority = minimap, inventory, command, spell, monster
         (Ordered list option)
@@ -2510,7 +2543,7 @@ tile_web_mouse_control = true
 
 tile_web_mobile_input_helper = auto
         This option controls an optional auxiliary input field in the WebTiles
-        interface that can be focused to enable the vitual keyboard on mobile
+        interface that can be focused to enable the virtual keyboard on mobile
         devices. When set to true or false, the field is manually enabled or
         disabled. When set to auto, the field is only shown on devices with
         a touch screen.
@@ -2993,7 +3026,7 @@ dos_use_background_intensity = false
 5-c     Unix.
 -------------
 allow_extended_colours = true
-        Atempt to use more than the eight basic terminal colours for crawl's
+        Attempt to use more than the eight basic terminal colours for crawl's
         bright colours. Most modern terminals should use this setting. If
         successful, this puts console into 16-color mode.
 

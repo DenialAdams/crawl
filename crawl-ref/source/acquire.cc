@@ -133,7 +133,7 @@ static equipment_type _acquirement_armour_slot(bool divine)
     if (you.wear_barding()
         && one_chance_in(you.seen_armour[ARM_BARDING] ? 4 : 2))
     {
-            return EQ_BOOTS;
+        return EQ_BOOTS;
     }
 
     vector<pair<equipment_type, int>> weights = {
@@ -212,6 +212,10 @@ static armour_type _acquirement_armour_for_slot(equipment_type slot_type,
  */
 static armour_type _acquirement_shield_type()
 {
+    // Fixed chance for an orb.
+    if (one_chance_in(4))
+        return ARM_ORB;
+
     const int scale = 256;
     vector<pair<armour_type, int>> weights = {
         { ARM_BUCKLER,       (5 + player_shield_racial_factor()) * 4 * scale
@@ -267,7 +271,7 @@ static int _body_acquirement_weight(armour_type armour,
  * god gifts.
  *
  * @param divine      Whether the armour is a god gift.
- * @return A potentially wearable type of body armour..
+ * @return A potentially wearable type of body armour.
  */
 static armour_type _acquirement_body_armour(bool divine)
 {
@@ -661,7 +665,6 @@ static const vector<pair<misc_item_type, int> > _misc_base_weights()
         {MISC_LIGHTNING_ROD,       20},
         {MISC_PHIAL_OF_FLOODS,     20},
         {MISC_CONDENSER_VANE,      20},
-        {MISC_XOMS_CHESSBOARD,     20},
     };
     // The player never needs more than one of any of these.
     for (auto &p : choices)
@@ -699,8 +702,7 @@ static int _acquirement_misc_subtype(bool /*divine*/, int & /*quantity*/,
                              MISC_TIN_OF_TREMORSTONES,
                              MISC_LIGHTNING_ROD,
                              MISC_PHIAL_OF_FLOODS,
-                             MISC_CONDENSER_VANE,
-                             MISC_XOMS_CHESSBOARD);
+                             MISC_CONDENSER_VANE);
     }
 
     return *choice;
@@ -784,7 +786,10 @@ static int _find_acquirement_subtype(object_class_type &class_wanted,
     ASSERT(class_wanted != OBJ_RANDOM);
 
     if (class_wanted == OBJ_ARMOUR && you.has_mutation(MUT_NO_ARMOUR)
-        || class_wanted == OBJ_WEAPONS && you.has_mutation(MUT_NO_GRASPING))
+        || class_wanted == OBJ_WEAPONS && you.has_mutation(MUT_NO_GRASPING)
+        || you.species == SP_OCTOPODE && class_wanted == OBJ_ARMOUR
+           && you.has_mutation(MUT_MISSING_HAND)
+           && bool(!you_can_wear(EQ_HELMET)))
     {
         return OBJ_RANDOM;
     }
@@ -1163,7 +1168,6 @@ static void _adjust_brand(item_def &item, bool divine, int agent)
 
     if (is_artefact(item))
         return; // their own kettle of fish
-
 
     // Trog has a restricted brand table.
     if (agent == GOD_TROG && item.base_type == OBJ_WEAPONS)
@@ -1616,7 +1620,7 @@ bool AcquireMenu::examine_index(int i)
     ASSERT(i >= 0 && i < static_cast<int>(items.size()));
     // Use a copy to set flags that make the description better
     // See the similar code in shopping.cc for details about const
-    // hygene
+    // hygiene
     item_def &item = *static_cast<item_def*>(items[i]->data);
 
     item.flags |= (ISFLAG_IDENT_MASK | ISFLAG_NOTED_ID
@@ -1646,7 +1650,7 @@ static item_def _acquirement_item_def(object_class_type item_type)
         // We make a copy of the item def, but we don't keep the real item.
         item = env.item[item_index];
         set_ident_flags(item,
-                // Act as if we've recieved this item already to prevent notes.
+                // Act as if we've received this item already to prevent notes.
                 ISFLAG_IDENT_MASK | ISFLAG_NOTED_ID | ISFLAG_NOTED_GET);
         destroy_item(item_index);
     }

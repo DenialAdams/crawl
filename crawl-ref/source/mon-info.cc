@@ -55,7 +55,7 @@ static map<enchant_type, monster_info_flags> trivial_ench_mb_mappings = {
     { ENCH_SILVER_CORONA,   MB_GLOWING },
     { ENCH_SLOW,            MB_SLOWED },
     { ENCH_SICK,            MB_SICK },
-    { ENCH_INSANE,          MB_INSANE },
+    { ENCH_FRENZIED,          MB_FRENZIED },
     { ENCH_HASTE,           MB_HASTED },
     { ENCH_MIGHT,           MB_STRONG },
     { ENCH_CONFUSION,       MB_CONFUSED },
@@ -66,6 +66,7 @@ static map<enchant_type, monster_info_flags> trivial_ench_mb_mappings = {
     { ENCH_PETRIFYING,      MB_PETRIFYING },
     { ENCH_LOWERED_WL,      MB_LOWERED_WL },
     { ENCH_SWIFT,           MB_SWIFT },
+    { ENCH_PURSUING,        MB_PURSUING },
     { ENCH_SILENCE,         MB_SILENCING },
     { ENCH_PARALYSIS,       MB_PARALYSED },
     { ENCH_SOUL_RIPE,       MB_POSSESSABLE },
@@ -126,6 +127,8 @@ static map<enchant_type, monster_info_flags> trivial_ench_mb_mappings = {
     { ENCH_ANGUISH,         MB_ANGUISH },
     { ENCH_SIMULACRUM,      MB_SIMULACRUM },
     { ENCH_TP,              MB_TELEPORTING },
+    { ENCH_BOUND,           MB_BOUND },
+    { ENCH_BULLSEYE_TARGET, MB_BULLSEYE_TARGET},
 };
 
 static monster_info_flags ench_to_mb(const monster& mons, enchant_type ench)
@@ -133,7 +136,7 @@ static monster_info_flags ench_to_mb(const monster& mons, enchant_type ench)
     // Suppress silly-looking combinations, even if they're
     // internally valid.
     if (mons.paralysed() && (ench == ENCH_SLOW || ench == ENCH_HASTE
-                      || ench == ENCH_SWIFT
+                      || ench == ENCH_SWIFT || ench == ENCH_PURSUING
                       || ench == ENCH_PETRIFIED
                       || ench == ENCH_PETRIFYING))
     {
@@ -178,6 +181,8 @@ static monster_info_flags ench_to_mb(const monster& mons, enchant_type ench)
             return MB_MORE_POISONED;
         else
             return MB_MAX_POISONED;
+    case ENCH_CONTAM:
+        return mons.get_ench(ench).degree == 1 ? MB_CONTAM_LIGHT : MB_CONTAM_HEAVY;
     case ENCH_SHORT_LIVED:
     case ENCH_SLOWLY_DYING:
         if (mons.type == MONS_WITHERED_PLANT)
@@ -599,6 +604,9 @@ monster_info::monster_info(const monster* m, int milev)
     menergy = mons_energy(*m);
     can_go_frenzy = m->can_go_frenzy();
     can_feel_fear = m->can_feel_fear(false);
+    sleepwalking = m->sleepwalking();
+    backlit = m->backlit(false);
+    umbraed = m->umbra();
 
     // Not an MB_ because it's rare.
     if (m->cloud_immune())
@@ -881,16 +889,10 @@ string monster_info::get_max_hp_desc() const
  */
 int monster_info::lighting_modifiers() const
 {
-    // Lighting effects.
-    if (is(MB_GLOWING)       // corona, silver corona (!)
-        || is(MB_BURNING)    // sticky flame
-        || is(MB_HALOED))
-    {
+    if (backlit)
         return BACKLIGHT_TO_HIT_BONUS;
-    }
-    if (is(MB_UMBRAED) && !you.nightvision())
+    if (umbraed && !you.nightvision())
         return UMBRA_TO_HIT_MALUS;
-
     return 0;
 }
 
@@ -1395,6 +1397,11 @@ void monster_info::to_string(int count, string& desc, int& desc_colour,
         colour_type = MLC_NEUTRAL;
         break;
     case ATT_HOSTILE:
+        if (has_unusual_items())
+        {
+            colour_type = MLC_UNUSUAL;
+            break;
+        }
         switch (threat)
         {
         case MTHRT_TRIVIAL: colour_type = MLC_TRIVIAL; break;
@@ -1650,6 +1657,35 @@ bool monster_info::fellow_slime() const {
     return attitude == ATT_GOOD_NEUTRAL
         && have_passive(passive_t::neutral_slimes)
         && mons_class_is_slime(type);
+}
+
+vector<string> monster_info::get_unusual_items() const
+{
+    vector<string> names;
+    const auto &patterns = Options.unusual_monster_items;
+
+    for (unsigned i = 0; i <= MSLOT_LAST_VISIBLE_SLOT; ++i)
+    {
+        if (!inv[i])
+            continue;
+
+        const item_def* item = inv[i].get();
+        const string name = item->name(DESC_A, false, false, true, false);
+
+        if (any_of(begin(patterns), end(patterns),
+                   [&](const text_pattern &p) -> bool
+                   { return p.matches(name); }))
+        {
+            names.push_back(name);
+        }
+    }
+
+    return names;
+}
+
+bool monster_info::has_unusual_items() const
+{
+    return attitude == ATT_HOSTILE && !get_unusual_items().empty();
 }
 
 // Only checks for spells from preset monster spellbooks.

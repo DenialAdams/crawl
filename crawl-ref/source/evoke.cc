@@ -324,9 +324,9 @@ static bool _place_webs()
 {
     bool webbed = false;
     const int evo_skill = you.skill(SK_EVOCATIONS);
-    // At 0 evo skill, this is about a 1/3 chance of webbing an
-    // adjacent enemy. At 27 skill, it's about an 9/10 chance.
-    const int web_skill_factor = 64 - evo_skill * 2;
+    // At 0 evo skill, this is about a 1/3 chance of webbing each
+    // enemy. At 27 skill, it's about an 9/10 chance.
+    const int web_chance = 36 + evo_skill * 2;
     const int max_range = LOS_DEFAULT_RANGE / 2 + 2;
     for (monster_near_iterator mi(you.pos(), LOS_SOLID); mi; ++mi)
     {
@@ -342,11 +342,6 @@ static bool _place_webs()
             continue;
         }
 
-        // web chance increases with proximity & evo skill
-        // code here uses double negatives; sorry! i blame the other guy
-        const int dist = you.pos().distance_from((*mi)->pos());
-        const int web_dist_factor = 100 * (dist - 1) / max_range;
-        const int web_chance = 100 - web_dist_factor - web_skill_factor;
         if (!x_chance_in_y(web_chance, 100))
             continue;
 
@@ -393,8 +388,11 @@ static bool _sack_of_spiders_veto_mon(monster_type mon)
 
 static bool _spill_out_spiders()
 {
-    const int evo_skill = you.skill(SK_EVOCATIONS);
-    const int n_mons = random_range(2, 3);
+    const int evo_skill = you.skill_rdiv(SK_EVOCATIONS);
+    // 2 at min skill, 3-4 at mid, 4-6 at max
+    const int min_pals = 2 + div_rand_round(2 * evo_skill, 27);
+    const int max_buds = 2 + div_rand_round(4 * evo_skill, 27);
+    const int n_mons = random_range(min_pals, max(min_pals, max_buds));
     bool made_mons = false;
     for (int n = 0; n < n_mons; n++)
     {
@@ -946,64 +944,6 @@ static spret _condenser()
     return spret::success;
 }
 
-static bool _xoms_chessboard()
-{
-    vector<monster *> targets;
-    bool see_target = false;
-
-    for (monster_near_iterator mi(&you, LOS_NO_TRANS); mi; ++mi)
-    {
-        if (mi->friendly() || mi->neutral() && !mi->has_ench(ENCH_INSANE))
-            continue;
-        if (mons_is_firewood(**mi))
-            continue;
-        if (you.can_see(**mi))
-            see_target = true;
-
-        targets.emplace_back(*mi);
-    }
-
-    if (!see_target
-        && !yesno("You can't see anything. Try to make a move anyway?",
-                  true, 'n'))
-    {
-        canned_msg(MSG_OK);
-        return false;
-    }
-
-    const int power = 15 + you.skill(SK_EVOCATIONS, 7) / 2;
-
-    mpr("You make a move on Xom's chessboard...");
-
-    if (targets.empty())
-    {
-        canned_msg(MSG_NOTHING_HAPPENS);
-        return true;
-    }
-
-    bolt beam;
-    const monster * target = *random_iterator(targets);
-    beam.source = target->pos();
-    beam.target = target->pos();
-    beam.set_agent(&you);
-
-    // List of possible effects. Mostly debuffs, a few buffs to keep it
-    // exciting
-    zap_type zap = random_choose_weighted(5, ZAP_HASTE,
-                                          5, ZAP_INVISIBILITY,
-                                          5, ZAP_MIGHT,
-                                          10, ZAP_CORONA,
-                                          15, ZAP_SLOW,
-                                          15, ZAP_MALMUTATE,
-                                          15, ZAP_PETRIFY,
-                                          10, ZAP_PARALYSE,
-                                          10, ZAP_CONFUSE,
-                                          10, ZAP_SLEEP);
-    beam.origin_spell = SPELL_NO_SPELL; // let zapping reset this
-
-    return zapping(zap, power, beam, false) == spret::success;
-}
-
 static transformation _form_for_talisman(const item_def &talisman)
 {
     const transformation trans = form_for_talisman(talisman);
@@ -1231,7 +1171,9 @@ bool evoke_item(item_def& item, dist *preselect)
                     mpr("The sack is emptied!");
                 practise_evoking(1);
             }
-            return false;
+            else
+                return false;
+            break;
 
         case MISC_LIGHTNING_ROD:
             if (_lightning_rod(preselect))
@@ -1308,18 +1250,6 @@ bool evoke_item(item_def& item, dist *preselect)
                     practise_evoking(1);
                     break;
             }
-            break;
-
-        case MISC_XOMS_CHESSBOARD:
-            if (_xoms_chessboard())
-            {
-                expend_xp_evoker(item.sub_type);
-                if (!evoker_charges(item.sub_type))
-                    mpr("The chess piece greys!");
-                practise_evoking(1);
-            }
-            else
-                return false;
             break;
 
         default:

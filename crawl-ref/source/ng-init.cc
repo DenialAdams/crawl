@@ -95,7 +95,15 @@ void initialise_temples()
     map_def *main_temple = nullptr;
     int altar_count = 0;
 
-    if (one_chance_in(100))
+    if (crawl_state.game_is_descent())
+    {
+        main_temple
+            = const_cast<map_def*>(random_map_for_tag("temple_altars_0", false));
+
+        if (main_temple == nullptr)
+            end(1, false, "No temple of size 0");
+    }
+    else if (one_chance_in(100))
     {
         main_temple = const_cast<map_def*>(random_map_for_tag("temple_rare"));
 
@@ -115,7 +123,7 @@ void initialise_temples()
     else
     {
         // distribution of altar count has a mean at 13.5, with the extremes
-        // occuring approximately 2.5% of the time each (a much thicker tail
+        // occurring approximately 2.5% of the time each (a much thicker tail
         // than using 6 + random2avg(16,2)).
         if (coinflip())
             altar_count = max(6, 5 + random2max(9, 2));

@@ -132,7 +132,7 @@ static const struct spell_desc spelldata[] =
     spflag::area,
     5,
     200,
-    1, 1,
+    2, 2,
     10,
     TILEG_ARCJOLT,
 },
@@ -165,7 +165,7 @@ static const struct spell_desc spelldata[] =
     spschool::air | spschool::translocation,
     spflag::noisy | spflag::dir_or_target, // hack - should have spflag::needs_tracer
                    // and maybe spflag::hasty?
-    3,
+    4,
     50,
     4, 4,
     0,
@@ -1202,7 +1202,7 @@ static const struct spell_desc spelldata[] =
 {
     SPELL_PORTAL_PROJECTILE, "Portal Projectile",
     spschool::translocation | spschool::hexes,
-    spflag::none,
+    spflag::monster,
     3,
     50,
     -1, -1,
@@ -1969,7 +1969,7 @@ static const struct spell_desc spelldata[] =
 {
     SPELL_INNER_FLAME, "Inner Flame",
     spschool::hexes | spschool::fire,
-    spflag::target | spflag::not_self | spflag::WL_check | spflag::destructive,
+    spflag::target | spflag::not_self | spflag::destructive,
     3,
     100,
     LOS_RADIUS, LOS_RADIUS,
@@ -2944,17 +2944,6 @@ static const struct spell_desc spelldata[] =
 },
 
 {
-    SPELL_AWAKEN_EARTH, "Awaken Earth",
-    spschool::summoning | spschool::earth,
-    spflag::monster | spflag::target,
-    7,
-    0,
-    LOS_RADIUS, LOS_RADIUS,
-    0,
-    TILEG_GENERIC_MONSTER_SPELL,
-},
-
-{
     SPELL_AURA_OF_BRILLIANCE, "Aura of Brilliance",
     spschool::conjuration,
     spflag::area | spflag::monster,
@@ -3551,6 +3540,39 @@ static const struct spell_desc spelldata[] =
     TILEG_KISS_OF_DEATH,
 },
 
+{
+    SPELL_JINXBITE, "Jinxbite",
+    spschool::hexes,
+    spflag::neutral | spflag::selfench,
+    2,
+    50,
+    -1, -1,
+    0,
+    TILEG_ERROR,
+},
+
+{
+    SPELL_SIGIL_OF_BINDING, "Sigil of Binding",
+    spschool::hexes,
+    spflag::none,
+    3,
+    100,
+    -1, -1,
+    0,
+    TILEG_ERROR,
+},
+
+{
+    SPELL_DIMENSIONAL_BULLSEYE, "Dimensional Bullseye",
+    spschool::translocation | spschool::hexes,
+    spflag::target | spflag::not_self,
+    4,
+    200,
+    LOS_RADIUS, LOS_RADIUS,
+    0,
+    TILEG_PORTAL_PROJECTILE,
+},
+
 // Not an actual spell - dummy entry for (player) Green Draconian breath.
 {
     SPELL_MEPHITIC_BREATH, "Mephitic Breath",
@@ -3687,6 +3709,7 @@ AXED_SPELL(SPELL_STATUE_FORM, "Statue Form")
 AXED_SPELL(SPELL_STORM_FORM, "Storm Form")
 AXED_SPELL(SPELL_DRAGON_FORM, "Dragon Form")
 AXED_SPELL(SPELL_NECROMUTATION, "Necromutation")
+AXED_SPELL(SPELL_AWAKEN_EARTH, "Awaken Earth")
 #endif
 
 };

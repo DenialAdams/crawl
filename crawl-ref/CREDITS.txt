@@ -299,11 +299,13 @@
     Heinrich Ody
     Chris Oelmueller
     John Olender
+    Nephila Hirsch Oliveira
     Aaron Olowin
     Andrew O'Neill
     Oneirical
     Justin Clark Ong
     Yuuma Oohara
+    orjb1
     Julian Ospald
     Malwyn P
     palyth
@@ -344,6 +346,7 @@
     Nate Rook
     David Rose
     runrin
+    rypofalem
     Risto Saarelma
     Sebastian Salman
     Petri Salminen

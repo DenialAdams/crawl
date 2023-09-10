@@ -1048,7 +1048,7 @@ static const string _detailed_cost_description(ability_type ability)
     if (abil.flags & abflag::max_hp_drain
         && (ability != ABIL_EVOKE_TURN_INVISIBLE || _invis_causes_drain()))
     {
-        ret << "\nThis ability will temporarily drain your maximum hit points when used";
+        ret << "\nThis ability will temporarily drain your maximum health when used";
         if (ability == ABIL_EVOKE_TURN_INVISIBLE)
             ret << ", even unsuccessfully";
         ret << ".";
@@ -2508,6 +2508,7 @@ static spret _siphon_essence(bool fail)
         return spret::success;
 
     // no death's door check because death form is incompatible with doors
+    // TODO: move this into transform.cc, use proper scaling and scale meaningfully
     const int skillcap = 19 + get_form()->get_level(3);
     const int healing = div_rand_round(min(damage, skillcap), 2); // max 50
     inc_hp(healing);
@@ -3750,10 +3751,12 @@ bool player_has_ability(ability_type abil, bool include_unusable)
         return you.evokable_invis()
                && !you.get_mutation_level(MUT_NO_ARTIFICE);
     case ABIL_EVOKE_DISPATER:
-        return player_equip_unrand(UNRAND_DISPATER);
+        return player_equip_unrand(UNRAND_DISPATER)
+               && !you.has_mutation(MUT_NO_ARTIFICE);
     case ABIL_EVOKE_OLGREB:
         return you.weapon()
-               && is_unrandom_artefact(*you.weapon(), UNRAND_OLGREB);
+               && is_unrandom_artefact(*you.weapon(), UNRAND_OLGREB)
+               && !you.has_mutation(MUT_NO_ARTIFICE);
     default:
         // removed abilities handled here
         return false;

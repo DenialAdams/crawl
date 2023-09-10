@@ -536,6 +536,8 @@ tileidx_t tileidx_feature_base(dungeon_feature_type feat)
         return TILE_DNGN_UNKNOWN_ALTAR;
     case DNGN_UNKNOWN_PORTAL:
         return TILE_DNGN_UNKNOWN_PORTAL;
+    case DNGN_BINDING_SIGIL:
+        return TILE_SIGIL_RHOMBUS;
     default:
         return TILE_DNGN_ERROR;
     }
@@ -558,7 +560,9 @@ tileidx_t tileidx_feature(const coord_def &gc)
                         && feat != DNGN_FLOOR
                         && feat != DNGN_UNSEEN
                         && feat != DNGN_PASSAGE_OF_GOLUBRIA
-                        && feat != DNGN_MALIGN_GATEWAY;
+                        && feat != DNGN_MALIGN_GATEWAY
+                        && feat != DNGN_BINDING_SIGIL
+                        && feat != DNGN_UNKNOWN_PORTAL;
     if (override && can_override)
         return override;
 
@@ -2100,6 +2104,9 @@ tileidx_t tileidx_monster(const monster_info& mons)
         ch |= TILE_FLAG_GD_NEUTRAL;
     else if (mons.neutral())
         ch |= TILE_FLAG_NEUTRAL;
+    else if (Options.tile_show_threat_levels.find("unusual") != string::npos
+             && mons.has_unusual_items())
+        ch |= TILE_FLAG_UNUSUAL;
     else
         switch (mons.threat)
         {
@@ -2123,7 +2130,9 @@ tileidx_t tileidx_monster(const monster_info& mons)
             break;
         }
 
-    if (mons.is(MB_FLEEING))
+    if (mons.is(MB_PARALYSED))
+        ch |= TILE_FLAG_PARALYSED;
+    else if (mons.is(MB_FLEEING))
         ch |= TILE_FLAG_FLEEING;
     else if (mons.is(MB_STABBABLE) || mons.is(MB_SLEEPING)
              || mons.is(MB_DORMANT))
@@ -2220,6 +2229,7 @@ static const map<monster_info_flags, tileidx_t> status_icons = {
     { MB_INFESTATION, TILEI_INFESTED },
     { MB_CORROSION, TILEI_CORRODED },
     { MB_SWIFT, TILEI_SWIFT },
+    { MB_PURSUING, TILEI_SWIFT }, // ew
     { MB_VILE_CLUTCH, TILEI_VILE_CLUTCH },
     { MB_GRASPING_ROOTS, TILEI_CONSTRICTED }, // XXX placeholder
     { MB_POSSESSABLE, TILEI_POSSESSABLE },
@@ -2239,10 +2249,14 @@ static const map<monster_info_flags, tileidx_t> status_icons = {
     { MB_CONCENTRATE_VENOM, TILEI_CONC_VENOM },
     { MB_REPEL_MSL, TILEI_REPEL_MISSILES },
     { MB_INJURY_BOND, TILEI_INJURY_BOND },
-    { MB_REFLECTING, TILEI_REFLECTING },
     { MB_TELEPORTING, TILEI_TELEPORTING },
     { MB_EMPOWERED_SPELLS, TILEI_BRILLIANCE },
     { MB_RESISTANCE, TILEI_RESISTANCE },
+    { MB_CONTAM_LIGHT, TILEI_GLOW_LIGHT },
+    { MB_CONTAM_HEAVY, TILEI_GLOW_HEAVY },
+    { MB_PAIN_BOND, TILEI_PAIN_BOND },
+    { MB_BOUND, TILEI_CONSTRICTED},     // XXX: Terrible placeholder, since this doesn't do damage. Replace as soon as possible.
+    { MB_BULLSEYE_TARGET, TILEI_IDEALISED} // XXX: Another terrible placeholder, but at least it's unambiguous.
 };
 
 set<tileidx_t> status_icons_for(const monster_info &mons)
@@ -2359,7 +2373,7 @@ static tileidx_t _tileidx_weapon_base(const item_def &item)
     case WPN_SLING:                 return TILE_WPN_SLING;
     case WPN_SHORTBOW:              return TILE_WPN_SHORTBOW;
     case WPN_ORCBOW:                return TILE_WPN_ORCBOW;
-    case WPN_HAND_CROSSBOW:         return TILE_WPN_HAND_CROSSBOW;
+    case WPN_HAND_CANNON:           return TILE_WPN_HAND_CANNON;
     case WPN_ARBALEST:              return TILE_WPN_ARBALEST;
     case WPN_TRIPLE_CROSSBOW:       return TILE_WPN_TRIPLE_CROSSBOW;
     case WPN_SPEAR:                 return TILE_WPN_SPEAR;
@@ -2717,6 +2731,7 @@ static tileidx_t _tileidx_talisman(const item_def &item)
     switch (item.sub_type)
     {
     case TALISMAN_BEAST:    return TILE_TALISMAN_BEAST;
+    case TALISMAN_FLUX:    return TILE_TALISMAN_FLUX;
     case TALISMAN_SERPENT:  return TILE_TALISMAN_SNAKE;
     case TALISMAN_MAW:      return TILE_TALISMAN_MAW;
     case TALISMAN_BLADE:    return TILE_TALISMAN_BLADE;
@@ -2756,9 +2771,6 @@ static tileidx_t _tileidx_misc(const item_def &item)
     case MISC_CONDENSER_VANE:
             return evoker_charges(item.sub_type) ? TILE_MISC_CONDENSER_VANE
                                                  : TILE_MISC_CONDENSER_VANE_INERT;
-
-    case MISC_XOMS_CHESSBOARD:
-            return _modrng(item.rnd, TILE_MISC_CHESSPIECE_FIRST, TILE_MISC_CHESSPIECE_LAST);
 
 #if TAG_MAJOR_VERSION == 34
     case MISC_BUGGY_LANTERN_OF_SHADOWS:
@@ -3555,6 +3567,8 @@ tileidx_t tileidx_gametype(const game_type gtype)
     case GAME_TYPE_NORMAL:
     case GAME_TYPE_CUSTOM_SEED:
         return TILEG_STARTUP_STONESOUP;
+    case GAME_TYPE_DESCENT:
+        return TILEG_STARTUP_IRONSOUP;
     case GAME_TYPE_TUTORIAL:
         return TILEG_STARTUP_TUTORIAL;
     case GAME_TYPE_HINTS:

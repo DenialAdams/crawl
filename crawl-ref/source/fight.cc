@@ -112,8 +112,17 @@ int to_hit_pct(const monster_info& mi, attack &atk, bool melee)
         adjusted_mhit += atk.post_roll_to_hit_modifiers(adjusted_mhit, false);
 
         // Duplicates ranged_attack::post_roll_to_hit_modifiers().
-        if (!melee && mi.is(MB_REPEL_MSL))
-            adjusted_mhit -= (adjusted_mhit + 1) / 2;
+        if (!melee)
+        {
+            if (mi.is(MB_BULLSEYE_TARGET))
+            {
+                adjusted_mhit += calc_spell_power(SPELL_DIMENSIONAL_BULLSEYE)
+                                 / 2 / BULLSEYE_TO_HIT_DIV;
+            }
+
+            if (mi.is(MB_REPEL_MSL))
+                adjusted_mhit -= (adjusted_mhit + 1) / 2;
+        }
 
         if (adjusted_mhit >= ev)
             hits++;
@@ -236,7 +245,7 @@ static bool _autoswitch_to_melee()
 
 static bool _can_shoot_with(const item_def *weapon)
 {
-    // TOOD: dedup elsewhere.
+    // TODO: dedup elsewhere.
     return weapon
         && is_range_weapon(*weapon)
         && !you.attribute[ATTR_HELD]
@@ -287,7 +296,7 @@ bool fight_melee(actor *attacker, actor *defender, bool *did_hit, bool simu)
         // Friendly and good neutral monsters won't attack unless confused.
         if (attacker->as_monster()->wont_attack()
             && !mons_is_confused(*attacker->as_monster())
-            && !attacker->as_monster()->has_ench(ENCH_INSANE))
+            && !attacker->as_monster()->has_ench(ENCH_FRENZIED))
         {
             return false;
         }
@@ -773,7 +782,7 @@ static bool _dont_harm(const actor &attacker, const actor &defender)
     {
         return defender.wont_attack()
                || mons_attitude(*defender.as_monster()) == ATT_NEUTRAL
-                  && !defender.as_monster()->has_ench(ENCH_INSANE);
+                  && !defender.as_monster()->has_ench(ENCH_FRENZIED);
     }
 
     return false;
@@ -827,7 +836,7 @@ bool weapon_cleaves(const item_def &weap)
 
 int weapon_hits_per_swing(const item_def &weap)
 {
-    if (weap.sub_type != WPN_QUICK_BLADE)
+    if (!weap.is_type(OBJ_WEAPONS, WPN_QUICK_BLADE))
         return 1;
     if (is_unrandom_artefact(weap, UNRAND_GYRE))
         return 4;
@@ -1044,7 +1053,7 @@ bool bad_attack(const monster *mon, string& adj, string& suffix,
         return true;
     }
 
-    if (mon->neutral() && is_good_god(you.religion) && !mon->has_ench(ENCH_INSANE))
+    if (mon->neutral() && is_good_god(you.religion) && !mon->has_ench(ENCH_FRENZIED))
     {
         adj += "neutral ";
         if (you_worship(GOD_SHINING_ONE) || you_worship(GOD_ELYVILON))

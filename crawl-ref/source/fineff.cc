@@ -32,6 +32,7 @@
 #include "mon-place.h"
 #include "ouch.h"
 #include "religion.h"
+#include "spl-damage.h"
 #include "spl-summoning.h"
 #include "state.h"
 #include "stringutil.h"
@@ -342,7 +343,7 @@ void trj_spawn_fineff::fire()
         ? attitude_creation_behavior(trj->as_monster()->attitude)
         : BEH_HOSTILE;
 
-    // No permanent friendly jellies from an enslaved TRJ.
+    // No permanent friendly jellies from a charmed TRJ.
     if (spawn_beh == BEH_FRIENDLY && !crawl_state.game_is_arena())
         return;
 
@@ -568,9 +569,16 @@ void explosion_fineff::fire()
     }
 
     if (typ == EXPLOSION_FINEFF_INNER_FLAME)
+    {
+        // Cloud chance scales from 50% at 0 power to 80% at 100 power (the max)
+        int cloud_chance = 50 + div_rand_round(beam.ench_power * 3, 10);
+        int cloud_dur = 5 + div_rand_round(beam.ench_power, 20);
         for (adjacent_iterator ai(beam.target, false); ai; ++ai)
-            if (!cell_is_solid(*ai) && !cloud_at(*ai) && !one_chance_in(5))
-                place_cloud(CLOUD_FIRE, *ai, 10 + random2(10), flame_agent);
+        {
+            if (!cell_is_solid(*ai) && !cloud_at(*ai) && x_chance_in_y(cloud_chance, 100))
+                place_cloud(CLOUD_FIRE, *ai, cloud_dur + random2(cloud_dur), flame_agent);
+        }
+    }
 
     beam.explode();
 
@@ -702,37 +710,38 @@ void infestation_death_fineff::fire()
 
 void make_derived_undead_fineff::fire()
 {
-    if (monster *undead = create_monster(mg))
+    monster *undead = create_monster(mg);
+    if (!undead)
+        return;
+
+    if (!message.empty() && you.can_see(*undead))
+        mpr(message);
+
+    // If the original monster has been levelled up, its HD might be
+    // different from its class HD, in which case its HP should be
+    // rerolled to match.
+    if (undead->get_experience_level() != experience_level)
     {
-        if (!message.empty() && you.can_see(*undead))
-            mpr(message);
-
-        // If the original monster has been levelled up, its HD might be
-        // different from its class HD, in which case its HP should be
-        // rerolled to match.
-        if (undead->get_experience_level() != experience_level)
-        {
-            undead->set_hit_dice(max(experience_level, 1));
-            roll_zombie_hp(undead);
-        }
-
-        // Fix up custom names
-        if (!mg.mname.empty())
-            name_zombie(*undead, mg.base_type, mg.mname);
-
-        if (mg.god != GOD_YREDELEMNUL)
-        {
-            if (undead->type == MONS_ZOMBIE)
-                undead->props[ANIMATE_DEAD_KEY] = true;
-            else
-            {
-                int dur = undead->type == MONS_SKELETON ? 3 : 5;
-                undead->add_ench(mon_enchant(ENCH_FAKE_ABJURATION, dur));
-            }
-        }
-        if (!agent.empty())
-            mons_add_blame(undead, "animated by " + agent);
+        undead->set_hit_dice(max(experience_level, 1));
+        roll_zombie_hp(undead);
     }
+
+    // Fix up custom names
+    if (!mg.mname.empty())
+        name_zombie(*undead, mg.base_type, mg.mname);
+
+    if (mg.god != GOD_YREDELEMNUL)
+    {
+        if (undead->type == MONS_ZOMBIE)
+            undead->props[ANIMATE_DEAD_KEY] = true;
+        else
+        {
+            int dur = undead->type == MONS_SKELETON ? 3 : 5;
+            undead->add_ench(mon_enchant(ENCH_FAKE_ABJURATION, dur));
+        }
+    }
+    if (!agent.empty())
+        mons_add_blame(undead, "animated by " + agent);
 }
 
 const actor *mummy_death_curse_fineff::fixup_attacker(const actor *a)
@@ -900,6 +909,13 @@ void spectral_weapon_fineff::fire()
 
 void lugonu_meddle_fineff::fire() {
     lucy_check_meddling();
+}
+
+void jinxbite_fineff::fire()
+{
+    actor* defend = defender();
+    if (defend && defend->alive())
+        attempt_jinxbite_hit(*defend);
 }
 
 // Effects that occur after all other effects, even if the monster is dead.

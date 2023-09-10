@@ -319,8 +319,12 @@ static void _equip_artefact_effect(item_def &item, bool *show_msgs, bool unmeld,
     if (proprt[ARTP_CONTAM] && msg && !unmeld)
         mpr("You feel a build-up of mutagenic energy.");
 
-    if (proprt[ARTP_RAMPAGING] && msg && !unmeld && !you.has_mutation(MUT_ROLLPAGE))
+    if (proprt[ARTP_RAMPAGING] && msg && !unmeld
+        && !you.has_mutation(MUT_ROLLPAGE)
+        && !you_worship(GOD_WU_JIAN))
+    {
         mpr("You feel ready to rampage towards enemies.");
+    }
 
     if (proprt[ARTP_ARCHMAGI] && msg && !unmeld)
     {
@@ -392,8 +396,12 @@ static void _unequip_artefact_effect(item_def &item,
         contaminate_player(7000, true);
     }
 
-    if (proprt[ARTP_RAMPAGING] && !you.rampaging() && msg && !meld)
+    if (proprt[ARTP_RAMPAGING] && msg && !meld
+        && !you.rampaging()
+        && !you_worship(GOD_WU_JIAN))
+    {
         mpr("You no longer feel able to rampage towards enemies.");
+    }
 
     if (proprt[ARTP_ARCHMAGI] && msg && !meld)
         mpr("You feel strangely numb.");
@@ -835,7 +843,7 @@ static void _equip_armour_effect(item_def& arm, bool unmeld,
             break;
 
         case SPARM_RAMPAGING:
-            if (!you.has_mutation(MUT_ROLLPAGE))
+            if (!you.has_mutation(MUT_ROLLPAGE) && !you_worship(GOD_WU_JIAN))
                 mpr("You feel ready to rampage towards enemies.");
             break;
 
@@ -978,7 +986,7 @@ static void _unequip_armour_effect(item_def& item, bool meld,
         break;
 
     case SPARM_RAMPAGING:
-        if (!you.rampaging())
+        if (!you.rampaging() && !you_worship(GOD_WU_JIAN))
             mpr("You no longer feel able to rampage towards enemies.");
         break;
 
@@ -1074,7 +1082,7 @@ static void _equip_regeneration_item(const item_def &item)
 
 bool acrobat_boost_active()
 {
-    return you.wearing(EQ_AMULET, AMU_ACROBAT)
+    return player_acrobatic()
            && you.duration[DUR_ACROBAT]
            && (!you.caught())
            && (!you.is_constricted());
@@ -1189,7 +1197,10 @@ static void _equip_jewellery_effect(item_def &item, bool unmeld,
         break;
 
     case AMU_ACROBAT:
-        mpr("You feel ready to tumble and roll out of harm's way.");
+        if (you.has_mutation(MUT_TENGU_FLIGHT))
+            mpr("You feel no more acrobatic than usual.");
+        else
+            mpr("You feel ready to tumble and roll out of harm's way.");
         break;
 
     case AMU_MANA_REGENERATION:

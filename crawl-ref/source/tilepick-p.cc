@@ -240,8 +240,8 @@ tileidx_t tilep_equ_weapon(const item_def &item)
     case WPN_ORCBOW:
         tile = TILEP_HAND1_ORCBOW;
         break;
-    case WPN_HAND_CROSSBOW:
-        tile = TILEP_HAND1_HAND_CROSSBOW;
+    case WPN_HAND_CANNON:
+        tile = TILEP_HAND1_HAND_CANNON;
         break;
     case WPN_ARBALEST:
         tile = TILEP_HAND1_ARBALEST;
@@ -491,6 +491,7 @@ tileidx_t tileidx_player()
     {
     // equipment-using forms are handled regularly
     case transformation::beast:
+    case transformation::flux:
     case transformation::maw:
     case transformation::statue:
     case transformation::death:

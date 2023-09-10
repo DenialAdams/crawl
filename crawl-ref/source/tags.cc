@@ -1159,6 +1159,9 @@ static void _ensure_exit(branch_type br)
 
 static void _add_missing_branches()
 {
+    if (crawl_state.game_is_descent())
+        return;
+
     const level_id lc = level_id::current();
 
     // Could do all just in case, but this seems safer:
@@ -1349,7 +1352,8 @@ void tag_read(reader &inf, tag_type tag_id)
         // 0d5cf04, put the branch exit on the closest floor or shallow water
         // square we can find near the first down stairs.
         if (you.where_are_you == BRANCH_SWAMP
-            && you.depth == 1)
+            && you.depth == 1
+            && !crawl_state.game_is_descent())
         {
             _ensure_exit(BRANCH_SWAMP);
         }
@@ -1359,7 +1363,9 @@ void tag_read(reader &inf, tag_type tag_id)
         // all cells have been filled. We mustn't crash when it returns
         // from those excursions, and generate_abyss will check_map_validity
         // itself after the grid is fully populated.
-        if (!player_in_branch(BRANCH_ABYSS))
+        // Descent mode breaks levels by destroying the entrances; don't check
+        // validity on a reload.
+        if (!player_in_branch(BRANCH_ABYSS) && !crawl_state.game_is_descent())
         {
             unwind_var<coord_def> you_pos(you.position, coord_def());
             check_map_validity();
@@ -3189,7 +3195,7 @@ static void _tag_read_you(reader &th)
                 && th.getMinorVersion() < TAG_MINOR_SPIT_POISON_AGAIN_AGAIN
                 && j == MUT_SPIT_POISON)
             {
-                // this special case needs to be handled diferently or
+                // this special case needs to be handled differently or
                 // the level will be set too high; innate is what's corrupted.
                 you.mutation[j] = you.innate_mutation[j] = 1;
                 you.temp_mutation[j] = 0;
@@ -3385,6 +3391,8 @@ static void _tag_read_you(reader &th)
     SP_MUT_FIX(MUT_FORLORN, SP_DEMIGOD);
     SP_MUT_FIX(MUT_DIVINE_ATTRS, SP_DEMIGOD);
     SP_MUT_FIX(MUT_DAYSTALKER, SP_BARACHI);
+    SP_MUT_FIX(MUT_TENGU_FLIGHT, SP_TENGU);
+    SP_MUT_FIX(MUT_ACROBATIC, SP_TENGU);
 
     if (you.has_innate_mutation(MUT_NIMBLE_SWIMMER)
         || you.species == SP_MERFOLK || you.species == SP_OCTOPODE)
@@ -4502,7 +4510,7 @@ static void _tag_read_you_items(reader &th)
     if (th.getMinorVersion() < TAG_MINOR_REMOVE_DECKS)
         reclaim_decks();
 
-    // Reset training arrays for transfered gnolls that didn't train all skills.
+    // Reset training arrays for transferred gnolls that didn't train all skills.
     if (th.getMinorVersion() < TAG_MINOR_GNOLLS_REDUX)
         reset_training();
 
@@ -5653,7 +5661,7 @@ void unmarshallItem(reader &th, item_def &item)
 
 #if TAG_MAJOR_VERSION == 34
     if (item.is_type(OBJ_WEAPONS, WPN_FUSTIBALUS))
-        item.sub_type = WPN_HAND_CROSSBOW;
+        item.sub_type = WPN_HAND_CANNON;
 #endif
 
     bind_item_tile(item);

@@ -3903,8 +3903,10 @@ mons_list::mons_spec_slot mons_list::parse_mons_spec(string spec)
         }
 
         mspec.genweight = find_weight(mon_str);
-        if (mspec.genweight == TAG_UNFOUND || mspec.genweight <= 0)
+        if (mspec.genweight == TAG_UNFOUND)
             mspec.genweight = 10;
+        else if (mspec.genweight <= 0)
+            mspec.genweight = 0;
 
         mspec.generate_awake = strip_tag(mon_str, "generate_awake");
         mspec.patrolling     = strip_tag(mon_str, "patrolling");
@@ -4452,7 +4454,7 @@ mons_spec mons_list::get_slime_spec(const string &name) const
 
 /**
  * Build a monster specification for a specified pillar of salt. The pillar of
- * salt won't crumble over time, since that seems unuseful for any version of
+ * salt won't crumble over time, since that seems useful for any version of
  * this function.
  *
  * @param name      The description of the pillar of salt; e.g.
@@ -4484,7 +4486,7 @@ mons_spec mons_list::get_salt_spec(const string &name) const
 //    yellow draconian or draconian knight - the monster specified.
 //
 // Others:
-//    any draconian => any random draconain
+//    any draconian => any random draconian
 //    any base draconian => any unspecialised coloured draconian.
 //    any nonbase draconian => any specialised coloured draconian.
 //    any <colour> draconian => any draconian of the colour.

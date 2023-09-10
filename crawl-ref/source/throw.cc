@@ -28,6 +28,7 @@
 #include "item-status-flag-type.h"
 #include "items.h"
 #include "item-use.h"
+#include "los.h" // fallback_ray
 #include "macro.h"
 #include "message.h"
 #include "misc.h"
@@ -72,11 +73,8 @@ public:
     {
         set_prompt();
         need_redraw = false; // XX simplify
-        if (!targeted()
-            || is_pproj_active() && action.affected_by_pproj())
-        {
+        if (!targeted())
             needs_path = false;
-        }
     }
 
     // targeting_behaviour API
@@ -206,7 +204,7 @@ vector<string> fire_target_behaviour::get_monster_desc(const monster_info& mi)
     if (!targeted() || !item || item->base_type != OBJ_MISSILES)
         return descs;
 
-    ranged_attack attk(&you, nullptr, item, is_pproj_active());
+    ranged_attack attk(&you, nullptr, item, false);
     descs.emplace_back(make_stringf("%d%% to hit", to_hit_pct(mi, attk, false)));
 
     if (get_ammo_brand(*item) == SPMSL_SILVER && mi.is(MB_CHAOTIC))
@@ -366,10 +364,10 @@ bool fire_warn_if_impossible(bool silent, item_def *weapon)
     return false;
 }
 
-// Portal Projectile requires MP per shot.
-bool is_pproj_active()
+// Dimensional Bullseye requires MP per shot.
+bool is_bullseye_active()
 {
-    return !you.confused() && you.duration[DUR_PORTAL_PROJECTILE]
+    return !you.confused() && you.duration[DUR_DIMENSIONAL_BULLSEYE]
            && enough_mp(1, true, false);
 }
 
@@ -544,6 +542,68 @@ static bool _setup_missile_beam(const actor *agent, bolt &beam, item_def &item,
     return false;
 }
 
+static void _handle_cannon_fx(actor &act, const item_def &weapon, coord_def targ)
+{
+    if (!weapon.is_type(OBJ_WEAPONS, WPN_HAND_CANNON))
+        return;
+
+    const coord_def oldpos = act.pos();
+
+    // blast smoke
+    for (adjacent_iterator ai(oldpos, false); ai; ++ai)
+    {
+        if (!in_bounds(*ai)
+            || cell_is_solid(*ai)
+            || cloud_at(*ai)
+            || !one_chance_in(3))
+        {
+            continue;
+        }
+        place_cloud(CLOUD_BLACK_SMOKE, *ai, random_range(3, 6), &act);
+        break;
+    }
+
+    if (!is_unrandom_artefact(weapon, UNRAND_MULE))
+        return;
+
+    // knock back
+    if (coinflip()
+        || act.is_stationary()
+        || act.resists_dislodge("being knocked back"))
+    {
+        return;
+    }
+
+    ray_def ray;
+    fallback_ray(oldpos, targ, ray);
+    if (!ray.advance()) // !?
+        return;
+    const coord_def back_dir = oldpos - ray.pos();
+    const coord_def newpos = oldpos + back_dir;
+    if (!adjacent(newpos, oldpos)) // !?
+        return;
+
+    // copied from actor::knockback, ew
+    if (!in_bounds(newpos)
+        || cell_is_solid(newpos)
+        || actor_at(newpos)
+        || !act.can_pass_through(newpos)
+        || !act.is_habitable(newpos))
+    {
+        return;
+    }
+
+    if (act.is_player())
+        mpr("Mule's kick sends you backwards.");
+    else
+        simple_monster_message(*act.as_monster(), " is knocked back by Mule's kick.");
+
+    act.move_to_pos(newpos);
+    act.apply_location_effects(oldpos, act.is_player() ? KILL_YOU_MISSILE
+                                                       : KILL_MON_MISSILE,
+                               actor_to_death_source(&act));
+}
+
 static void _throw_noise(actor* act, const item_def &ammo)
 {
     ASSERT(act); // XXX: change to actor &act
@@ -556,6 +616,7 @@ static void _throw_noise(actor* act, const item_def &ammo)
         return; // moooom, players are tossing their weapons again
 
     const char* msg   = nullptr;
+    int noise = 5;
 
     // XXX: move both messages into item-prop.cc?
     switch (launcher->sub_type)
@@ -568,12 +629,15 @@ static void _throw_noise(actor* act, const item_def &ammo)
     case WPN_LONGBOW:
         msg   = "You hear a bow twang.";
         break;
-    case WPN_HAND_CROSSBOW:
     case WPN_ARBALEST:
         msg   = "You hear a crossbow thunk.";
         break;
     case WPN_TRIPLE_CROSSBOW:
         msg   = "You hear a triple crossbow go thunk-thunk-thunk.";
+        break;
+    case WPN_HAND_CANNON:
+        noise *= 2;
+        msg = "You hear a hand cannon's boom.";
         break;
 
     default:
@@ -581,10 +645,12 @@ static void _throw_noise(actor* act, const item_def &ammo)
                  launcher->name(DESC_PLAIN).c_str());
         return;
     }
+
     if (act->is_player() || you.can_see(*act))
         msg = nullptr;
 
-    noisy(5, act->pos(), msg, act->mid);
+
+    noisy(noise, act->pos(), msg, act->mid);
 }
 
 // throw_it - handles player throwing/firing only. Monster throwing is handled
@@ -601,7 +667,7 @@ void throw_it(quiver::action &a)
     const int ammo_slot = launcher ? -1 : a.get_item();
 
     bool returning   = false;    // Item can return to pack.
-    const bool teleport = is_pproj_active();
+    const bool teleport = is_bullseye_active();
 
     if (you.confused())
     {
@@ -618,29 +684,10 @@ void throw_it(quiver::action &a)
         direction_chooser_args args;
         args.behaviour = &beh;
         args.mode = TARG_HOSTILE;
-        // Makes no sense to aim in a cardinal direction while teleporting
-        // projectiles.
-        args.allow_shift_dir = !teleport;
         direction(a.target, args);
     }
     if (!a.target.isValid || a.target.isCancel)
         return;
-
-    if (teleport)
-    {
-        if (!in_bounds(a.target.target))
-        {
-            // The player hit shift-dir. Boo! Bad player!
-        }
-        else if (cell_is_solid(a.target.target))
-        {
-            // why doesn't the targeter check this?
-            const char *feat = feat_type_name(env.grid(a.target.target));
-            mprf("There is %s there.", article_a(feat).c_str());
-            a.target.isValid = false;
-            return;
-        }
-    }
 
     bolt pbolt;
     pbolt.set_target(a.target);
@@ -681,56 +728,25 @@ void throw_it(quiver::action &a)
     bool cancelled = false;
     if (!you.confused())
     {
-        // Kludgy. Ideally this would handled by the same code.
-        // Perhaps some notion of a zero length bolt, with the source and
-        // target both set to the target?
-        if (teleport)
-        {
-            // This block is roughly equivalent to bolt::affect_cell for
-            // normal projectiles.
-            monster *m = monster_at(a.target.target);
-            if (m)
-                cancelled = stop_attack_prompt(m, false, a.target.target);
+        // Set values absurdly high to make sure the tracer will
+        // complain if we're attempting to fire through allies.
+        pbolt.damage = dice_def(1, 100);
 
-            if (!cancelled && (pbolt.is_explosion || pbolt.special_explosion))
-            {
-                for (adjacent_iterator ai(a.target.target); ai; ++ai)
-                {
-                    if (cancelled)
-                        break;
-                    monster *am = monster_at(*ai);
-                    if (am)
-                        cancelled = stop_attack_prompt(am, false, *ai);
-                    else if (*ai == you.pos())
-                    {
-                        cancelled = !yesno("That is likely to hit you. Continue anyway?",
-                                           false, 'n');
-                    }
-                }
-            }
-        }
-        else
-        {
-            // Set values absurdly high to make sure the tracer will
-            // complain if we're attempting to fire through allies.
-            pbolt.damage = dice_def(1, 100);
+        // Init tracer variables.
+        pbolt.foe_info.reset();
+        pbolt.friend_info.reset();
+        pbolt.foe_ratio = 100;
+        pbolt.is_tracer = true;
+        pbolt.overshoot_prompt = false;
 
-            // Init tracer variables.
-            pbolt.foe_info.reset();
-            pbolt.friend_info.reset();
-            pbolt.foe_ratio = 100;
-            pbolt.is_tracer = true;
-            pbolt.overshoot_prompt = false;
+        pbolt.fire();
 
-            pbolt.fire();
+        cancelled = pbolt.beam_cancelled;
 
-            cancelled = pbolt.beam_cancelled;
-
-            pbolt.hit    = 0;
-            pbolt.damage = dice_def();
-            if (pbolt.friendly_past_target)
-                pbolt.aimed_at_spot = true;
-        }
+        pbolt.hit    = 0;
+        pbolt.damage = dice_def();
+        if (pbolt.friendly_past_target)
+            pbolt.aimed_at_spot = true;
     }
 
     // Should only happen if the player answered 'n' to one of those
@@ -748,8 +764,7 @@ void throw_it(quiver::action &a)
 
     // Even though direction is allowed, we're throwing so we
     // want to use tx, ty to make the missile fly to map edge.
-    if (!teleport)
-        pbolt.set_target(a.target);
+    pbolt.set_target(a.target);
 
     const int bow_brand = launcher ? get_weapon_brand(*launcher) : SPWPN_NORMAL;
     const int ammo_brand = get_ammo_brand(item);
@@ -771,14 +786,14 @@ void throw_it(quiver::action &a)
     }
 
     // check for returning ammo
+    // XXX: Is it still necessary not to do this?
     if (teleport)
         returning = false;
 
     you.time_taken = you.attack_delay(&item).roll();
 
     // Create message.
-    mprf("You %s%s %s.",
-          teleport ? "magically " : "",
+    mprf("You %s %s.",
           is_thrown ? "throw" : launcher ? "shoot" : "toss away",
           ammo_name.c_str());
 
@@ -796,27 +811,12 @@ void throw_it(quiver::action &a)
         item.flags |= ISFLAG_THROWN;
     pbolt.item_mulches = !tossing && _thrown_object_destroyed(item);
     pbolt.drop_item = !pbolt.item_mulches && !returning;
+    pbolt.hit = 0;
 
-    pbolt.hit = teleport ? random2(1 + div_rand_round(you.attribute[ATTR_PORTAL_PROJECTILE], 4))
-                         : 0;
+    if (crawl_state.game_is_hints())
+        Hints.hints_throw_counter++;
 
-    if (teleport)
-    {
-        // Violating encapsulation somewhat...oh well.
-        pbolt.use_target_as_pos = true;
-        pbolt.affect_cell();
-        pbolt.affect_endpoint();
-        // Costs 1 MP per shot.
-        pay_mp(1);
-        finalize_mp_cost();
-    }
-    else
-    {
-        if (crawl_state.game_is_hints())
-            Hints.hints_throw_counter++;
-
-        pbolt.fire();
-    }
+    pbolt.fire();
 
     if (bow_brand == SPWPN_CHAOS || ammo_brand == SPMSL_CHAOS)
         did_god_conduct(DID_CHAOS, 2 + random2(3), bow_brand == SPWPN_CHAOS);
@@ -842,6 +842,9 @@ void throw_it(quiver::action &a)
     }
 
     _throw_noise(&you, thrown);
+
+    if (launcher)
+        _handle_cannon_fx(you, *launcher, pbolt.target);
 
     // ...any monster nearby can see that something has been thrown, even
     // if it didn't make any noise.
@@ -937,11 +940,15 @@ bool mons_throw(monster* mons, bolt &beam, bool teleport)
     else
         beam.fire();
 
-    if (beam.drop_item && dec_mitm_item_quantity(mons->inv[MSLOT_MISSILE], 1))
+    if (beam.drop_item && dec_mitm_item_quantity(mons->inv[MSLOT_MISSILE], 1, false))
         mons->inv[MSLOT_MISSILE] = NON_ITEM;
 
     if (beam.special_explosion != nullptr)
         delete beam.special_explosion;
+
+    // dubious...
+    if (mons->alive() && mons->weapon())
+        _handle_cannon_fx(*mons, *(mons->weapon()), beam.target);
 
     return true;
 }

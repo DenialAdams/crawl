@@ -804,7 +804,8 @@ ENDMAP
 NAME:    trove_hunter_1
 WEIGHT:  5
 ORIENT:  encompass
-TAGS:    no_item_gen no_monster_gen allow_dup no_species_fe no_species_op
+TAGS:    no_item_gen no_monster_gen allow_dup no_species_fe no_species_op \
+         no_species_dr
 # Loot:  15 items, this time.
 COLOUR:  x = blue
 MONS:    storm dragon zombie
@@ -909,9 +910,9 @@ NAME:    trove_misc_throne_room
 ORIENT:  encompass
 WEIGHT:  15
 TAGS:    no_item_gen no_monster_gen allow_dup
-ITEM:    manual of evocations, lightning rod, piece from Xom's chessboard
+ITEM:    manual of evocations, lightning rod, acquire magical staff
 ITEM:    any area misc, phial of floods, any ally misc, phantom mirror
-ITEM:    acquire wand w:15 / acquire magical staff w:5
+ITEM:    acquire wand
 SHUFFLE: efghij
 COLOUR:  x = blue
 COLOUR:  ' = yellow

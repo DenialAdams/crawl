@@ -149,7 +149,7 @@ static monster_list_colour_type _str_to_mlc(const string &s)
     static const char * const _monster_list_colour_names[NUM_MLC] =
     {
         "friendly", "neutral", "good_neutral",
-        "trivial", "easy", "tough", "nasty",
+        "trivial", "easy", "tough", "nasty", "unusual",
     };
     for (int i = 0; i < NUM_MLC; ++i)
         if (s == _monster_list_colour_names[i])
@@ -488,6 +488,15 @@ const vector<GameOption*> game_options::build_options_list()
         new BoolGameOption(SIMPLE_NAME(use_fake_player_cursor), true),
         new BoolGameOption(SIMPLE_NAME(show_player_species), false),
         new BoolGameOption(SIMPLE_NAME(use_modifier_prefix_keys), true),
+        new BoolGameOption(SIMPLE_NAME(prompt_menu),
+#ifdef USE_TILE_LOCAL
+            true
+#elif defined (USE_TILE_WEB)
+            tiles.is_controlled_from_web()
+#else
+            false
+#endif
+            ),
         new BoolGameOption(SIMPLE_NAME(ability_menu), true),
         new BoolGameOption(SIMPLE_NAME(spell_menu), false),
         new BoolGameOption(SIMPLE_NAME(easy_floor_use), false),
@@ -542,6 +551,9 @@ const vector<GameOption*> game_options::build_options_list()
             false
 #endif
             ),
+
+        new ListGameOption<text_pattern>(SIMPLE_NAME(unusual_monster_items), {}, true),
+
         new BoolGameOption(SIMPLE_NAME(arena_dump_msgs), false),
         new BoolGameOption(SIMPLE_NAME(arena_dump_msgs_all), false),
         new BoolGameOption(SIMPLE_NAME(arena_list_eq), false),
@@ -570,6 +582,8 @@ const vector<GameOption*> game_options::build_options_list()
                              CHATTR_HILITE | (GREEN << 8)),
         new CursesGameOption(SIMPLE_NAME(neutral_highlight),
                              CHATTR_HILITE | (LIGHTGREY << 8)),
+        new CursesGameOption(SIMPLE_NAME(unusual_highlight),
+                             CHATTR_HILITE | (MAGENTA << 8)),
         new CursesGameOption(SIMPLE_NAME(stab_highlight),
                              CHATTR_HILITE | (BLUE << 8)),
         new CursesGameOption(SIMPLE_NAME(may_stab_highlight),
@@ -660,7 +674,8 @@ const vector<GameOption*> game_options::build_options_list()
              {MLC_TRIVIAL, DARKGREY},
              {MLC_EASY, LIGHTGREY},
              {MLC_TOUGH, YELLOW},
-             {MLC_NASTY, LIGHTRED}
+             {MLC_NASTY, LIGHTRED},
+             {MLC_UNUSUAL, LIGHTMAGENTA}
             },
             false,
             [this]()
@@ -723,6 +738,7 @@ const vector<GameOption*> game_options::build_options_list()
         new MultipleChoiceGameOption<game_type>(NEWGAME_NAME(type),
             GAME_TYPE_NORMAL,
             {{"normal", GAME_TYPE_NORMAL},
+             {"descent", GAME_TYPE_DESCENT},
              {"seeded", GAME_TYPE_CUSTOM_SEED},
              {"arena", GAME_TYPE_ARENA},
              {"sprint", GAME_TYPE_SPRINT},
@@ -781,7 +797,7 @@ const vector<GameOption*> game_options::build_options_list()
         new BoolGameOption(SIMPLE_NAME(tile_show_minimagicbar), true),
         new BoolGameOption(SIMPLE_NAME(tile_show_demon_tier), false),
         new BoolGameOption(SIMPLE_NAME(tile_grinch), false),
-        new StringGameOption(SIMPLE_NAME(tile_show_threat_levels), "nasty"),
+        new StringGameOption(SIMPLE_NAME(tile_show_threat_levels), "nasty, unusual"),
         new StringGameOption(SIMPLE_NAME(tile_show_items), "!?/=([)}:|"),
         // disabled by default due to performance issues
         new BoolGameOption(SIMPLE_NAME(tile_water_anim), !USING_WEB_TILES),
@@ -984,7 +1000,7 @@ object_class_type item_class_by_sym(char32_t c)
         return OBJ_ORBS;
     case '}':
         return OBJ_MISCELLANY;
-    case 'T':
+    case '%':
         return OBJ_TALISMANS;
     case '&':
     case 'X':
@@ -1189,6 +1205,8 @@ string gametype_to_str(game_type type)
         return "sprint";
     case GAME_TYPE_HINTS:
         return "hints";
+    case GAME_TYPE_DESCENT:
+        return "descent";
     default:
         return "none";
     }
@@ -2453,7 +2471,7 @@ void save_player_name()
 // TODO: update all newgame prefs based on the current char, in this function?
 void save_game_prefs()
 {
-    if (!crawl_state.game_standard_levelgen() || Options.no_save)
+    if (!crawl_state.game_saves_prefs() || Options.no_save)
         return;
     // Read existing preferences
     const newgame_def old_prefs = read_startup_prefs();
@@ -2568,6 +2586,7 @@ void game_options::reset_aliases(bool clear)
     // Backwards compatibility:
     Options.add_alias("friend_brand", "friend_highlight");
     Options.add_alias("neutral_brand", "neutral_highlight");
+    Options.add_alias("unusual_brand", "unusual_highlight");
     Options.add_alias("stab_brand", "stab_highlight");
     Options.add_alias("may_stab_brand", "may_stab_highlight");
     Options.add_alias("heap_brand", "heap_highlight");
@@ -4429,7 +4448,7 @@ void get_system_environment()
     // The player's name
     SysEnv.crawl_name = check_string(getenv("CRAWL_NAME"));
 
-    // The directory which contians init.txt, macro.txt, morgue.txt
+    // The directory which contains init.txt, macro.txt, morgue.txt
     // This should end with the appropriate path delimiter.
     SysEnv.crawl_dir = check_string(getenv("CRAWL_DIR"));
 
@@ -4549,6 +4568,7 @@ enum commandline_option_type
     CLO_SAVE_JSON,
     CLO_GAMETYPES_JSON,
     CLO_EDIT_BONES,
+    CLO_DESCENT,
 #if defined(UNIX) || defined(USE_TILE_LOCAL)
     CLO_HEADLESS,
 #endif
@@ -4600,7 +4620,7 @@ static const char *cmd_ops[] =
     "print-charset", "tutorial", "wizard", "explore", "no-save",
     "no-player-bones", "gdb", "no-gdb", "nogdb", "throttle", "no-throttle",
     "lua-max-memory", "playable-json", "branches-json", "save-json",
-    "gametypes-json", "bones",
+    "gametypes-json", "bones", "descent",
 #if defined(UNIX) || defined(USE_TILE_LOCAL)
     "headless",
 #endif
@@ -4973,7 +4993,7 @@ static void _bones_ls(const string &filename, const string name_match,
         count++;
         if (long_output)
         {
-            // TOOD: line wrapping, some elements of this aren't meaningful at
+            // TODO: line wrapping, some elements of this aren't meaningful at
             // the command line
             describe_info inf;
             m.set_ghost(g);
@@ -5315,6 +5335,8 @@ static string _gametype_to_clo(game_type g)
         return cmd_ops[CLO_ARENA];
     case GAME_TYPE_SPRINT:
         return cmd_ops[CLO_SPRINT];
+    case GAME_TYPE_DESCENT: // no CLO?
+        return cmd_ops[CLO_DESCENT];
     case GAME_TYPE_HINTS: // no CLO?
     case GAME_TYPE_NORMAL:
     default:
@@ -5831,6 +5853,11 @@ bool parse_args(int argc, char **argv, bool rc_only)
         case CLO_SPRINT:
             if (!rc_only)
                 Options.game.type = GAME_TYPE_SPRINT;
+            break;
+
+        case CLO_DESCENT:
+            if (!rc_only)
+                Options.game.type = GAME_TYPE_DESCENT;
             break;
 
         case CLO_SPRINT_MAP:

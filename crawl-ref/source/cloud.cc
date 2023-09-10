@@ -937,7 +937,7 @@ bool actor_cloud_immune(const actor &act, cloud_type type)
 #endif
                    ;
         case CLOUD_MEPHITIC:
-            return act.res_poison() > 0;
+            return act.res_poison() > 0 || act.clarity();
         case CLOUD_POISON:
             return act.res_poison() > 0;
         case CLOUD_STEAM:
@@ -1422,7 +1422,7 @@ static bool _mons_avoids_cloud(const monster* mons, const cloud_struct& cloud,
     // Berserk monsters are less careful and will blindly plow through any
     // dangerous cloud, just to kill you. {due}
     // Fleeing monsters are heedless and will make very poor life choices.
-    if (!extra_careful && (mons->berserk_or_insane() || mons_is_fleeing(*mons)))
+    if (!extra_careful && (mons->berserk_or_frenzied() || mons_is_fleeing(*mons)))
         return false;
 
     switch (cloud.type)

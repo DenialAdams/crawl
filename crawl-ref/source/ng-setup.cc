@@ -349,6 +349,7 @@ void setup_game(const newgame_def& ng,
     switch (crawl_state.type)
     {
     case GAME_TYPE_NORMAL:
+    case GAME_TYPE_DESCENT:
     case GAME_TYPE_CUSTOM_SEED:
     case GAME_TYPE_TUTORIAL:
     case GAME_TYPE_SPRINT:
@@ -492,6 +493,8 @@ static void _setup_generic(const newgame_def& ng,
     give_items_skills(ng);
 
     roll_demonspawn_mutations();
+    if (you.has_mutation(MUT_MULTILIVED))
+        you.lives = 1;
 
     if (crawl_state.game_is_sprint())
         _give_bonus_items();
@@ -581,6 +584,7 @@ static void _setup_generic(const newgame_def& ng,
     // pregen temple -- it's quick and easy, and this prevents a popup from
     // happening. This needs to happen after you.save is created.
     if (normal_dungeon_setup && you.deterministic_levelgen &&
+        !crawl_state.game_is_descent() && // disables temple
         !pregen_dungeon(level_id(BRANCH_TEMPLE, 1)))
     {
         die("Builder failure while trying to generate temple!");

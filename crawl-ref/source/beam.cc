@@ -284,6 +284,7 @@ bool player_tracer(zap_type ztype, int power, bolt &pbolt, int range)
     pbolt.attitude      = ATT_FRIENDLY;
     pbolt.thrower       = KILL_YOU_MISSILE;
     pbolt.overshoot_prompt = false;
+    pbolt.passed_target = false;
 
     // Init tracer variables.
     pbolt.friend_info.reset();
@@ -653,7 +654,7 @@ static beam_type _chaos_beam_flavour(bolt* beam)
           5, BEAM_DAMNATION,
           5, BEAM_STICKY_FLAME,
           5, BEAM_MINDBURST,
-         // These are not actualy used by SPWPN_CHAOS, but are here to augment
+         // These are not actually used by SPWPN_CHAOS, but are here to augment
          // the list of effects, since not every SPWN_CHAOS effect has an
          // analogous BEAM_ type.
           4, BEAM_MIGHT,
@@ -840,7 +841,7 @@ void bolt::draw(const coord_def& p, bool force_refresh)
                                              : element_colour(colour);
     view_add_glyph_overlay(p, {glyph, c});
 
-    // If reduce_animations is set, the redraw is unnecesary and
+    // If reduce_animations is set, the redraw is unnecessary and
     // should be done only once outside the loop calling the bolt::draw
     if (Options.reduce_animations)
         return;
@@ -1744,7 +1745,7 @@ static bool _monster_resists_mass_enchantment(monster* mons,
             return true;
         }
         break;
-    case ENCH_INSANE:
+    case ENCH_FRENZIED:
         if (!mons->can_go_frenzy())
         {
             if (simple_monster_message(*mons, " is unaffected."))
@@ -1812,8 +1813,8 @@ spret mass_enchantment(enchant_type wh_enchant, int pow, bool fail)
         if (resisted)
             continue;
 
-        if ((wh_enchant == ENCH_INSANE && mi->go_frenzy(&you))
-            || (wh_enchant != ENCH_INSANE
+        if ((wh_enchant == ENCH_FRENZIED && mi->go_frenzy(&you))
+            || (wh_enchant != ENCH_FRENZIED
                 && mi->add_ench(mon_enchant(wh_enchant, 0, &you))))
         {
             // Do messaging.
@@ -1837,7 +1838,7 @@ spret mass_enchantment(enchant_type wh_enchant, int pow, bool fail)
     if (!did_msg)
         canned_msg(MSG_NOTHING_HAPPENS);
 
-    if (wh_enchant == ENCH_INSANE)
+    if (wh_enchant == ENCH_FRENZIED)
         did_god_conduct(DID_HASTY, 8, true);
 
     return spret::success;
@@ -2182,7 +2183,7 @@ void bolt_parent_init(const bolt &parent, bolt &child)
 
     child.flavour        = parent.flavour;
 
-    // We don't copy target since that is often overriden.
+    // We don't copy target since that is often overridden.
     child.thrower        = parent.thrower;
     child.source         = parent.source;
     child.source_name    = parent.source_name;
@@ -2410,6 +2411,21 @@ static void _waterlog_mon(monster &mon, int ench_pow)
 
 void bolt::affect_endpoint()
 {
+    // Test if this shot should trigger Dimensional Bullseye.
+    bool use_bullseye = false;
+    if (can_trigger_bullseye)
+    {
+        // We've already verified that at least one valid triggering target was
+        // aimed at, but we need to know that we didn't ALSO aim at the bullseye
+        // target (and that it's still in range)
+        monster* bullseye_targ = monster_by_mid(you.props[BULLSEYE_TARGET_KEY].get_int());
+        if (bullseye_targ && hit_count.count(bullseye_targ->mid) == 0
+            && you.can_see(*bullseye_targ))
+        {
+            use_bullseye = true;
+        }
+    }
+
     // hack: we use hit_verb to communicate whether a ranged
     // attack hit. (And ranged attacks should only explode if
     // they hit the target, to avoid silliness with . targeting.)
@@ -2431,7 +2447,9 @@ void bolt::affect_endpoint()
         ASSERT(item->defined());
         if (item->flags & ISFLAG_SUMMONED || item_mulches)
             item_was_destroyed(*item);
-        else if (drop_item)
+        // Dimensional bullseye should make objects drop at the bullseye target
+        // instead of the end of the ray
+        else if (drop_item && !use_bullseye)
             drop_object();
     }
 
@@ -2482,6 +2500,27 @@ void bolt::affect_endpoint()
 
     if (cloud != CLOUD_NONE)
         big_cloud(cloud, agent(), pos(), get_cloud_pow(), get_cloud_size());
+
+    if (use_bullseye)
+    {
+        monster* bullseye_targ = monster_by_mid(you.props[BULLSEYE_TARGET_KEY].get_int());
+        mpr("Your projectile teleports!");
+        use_target_as_pos = true;
+        target = bullseye_targ->pos();
+        affect_monster(bullseye_targ);
+        if (drop_item)
+        {
+            // This is a little hacky, but the idea is to make the beam think we only
+            // aimed at our bullseye target before dropping the item (so it will appear
+            // beneath them). I think this should work fine?
+            drop_object();
+        }
+
+        // We pay the per-shot mp cost here, so that it activates only on shots
+        // that fully trigger bullseye
+        pay_mp(1);
+        finalize_mp_cost();
+    }
 
     // you like special cases, right?
     switch (origin_spell)
@@ -2550,6 +2589,7 @@ void bolt::affect_endpoint()
     case SPELL_SEARING_BREATH:
         if (!path_taken.empty())
             place_cloud(CLOUD_FIRE, pos(), 5 + random2(5), agent());
+        break;
 
     default:
         break;
@@ -4263,8 +4303,11 @@ void bolt::handle_stop_attack_prompt(monster* mon)
 
     // If prompts for overshooting the target are disabled, instead
     // just let the caller know that there was something there. They
-    // should be resposible and keep the player from shooting friends.
-    if (passed_target && !overshoot_prompt && you.can_see(*mon))
+    // should be responsible and keep the player from shooting friends.
+    // (We skip this for explosions, since stopping at our target is not
+    // guaranteed to spare allies behind the target)
+    if (passed_target && !overshoot_prompt && you.can_see(*mon)
+       && !is_explosion)
     {
         string adj, suffix;
         bool penance;
@@ -4281,8 +4324,8 @@ void bolt::handle_stop_attack_prompt(monster* mon)
         beam_cancelled = true;
         finish_beam();
     }
-    // Handle enslaving monsters when a nasty dur is up: give a prompt for
-    // attempting to enslave monsters that might be affected.
+    // Handle charming monsters when a nasty dur is up: give a prompt for
+    // attempting to charm monsters that might be affected.
     else if (flavour == BEAM_CHARM)
     {
         monclass_flags_t flags = monster_info(mon).airborne() ? M_FLIES
@@ -4889,6 +4932,14 @@ void bolt::affect_monster(monster* mon)
 
     if (flavour == BEAM_MISSILE && item)
     {
+        // Test if this qualifies to trigger Dimensional Bullseye later on.
+        if (agent()->is_player() && you.duration[DUR_DIMENSIONAL_BULLSEYE]
+            && !can_trigger_bullseye && !special_explosion
+            && !mons_is_firewood(*mon) && mon->summoner != MID_PLAYER)
+        {
+            can_trigger_bullseye = true;
+        }
+
         actor *ag = agent(true);
         // if the immediate agent is now dead, check to see if we can get a
         // usable agent by factoring in reflections.
@@ -5180,6 +5231,7 @@ bool bolt::has_saving_throw() const
     case BEAM_VAMPIRIC_DRAINING:
     case BEAM_CONCENTRATE_VENOM:
     case BEAM_ENFEEBLE:
+    case BEAM_INNER_FLAME:
         return false;
     case BEAM_VULNERABILITY:
         return !one_chance_in(3);  // Ignores will 1/3 of the time
@@ -5596,7 +5648,7 @@ mon_resist_type bolt::apply_enchantment_to_monster(monster* mon)
         return MON_AFFECTED;
 
     case BEAM_BERSERK:
-        if (!mon->berserk_or_insane())
+        if (!mon->berserk_or_frenzied())
         {
             // currently from potion, hence voluntary
             mon->go_berserk(true);
@@ -5709,7 +5761,7 @@ mon_resist_type bolt::apply_enchantment_to_monster(monster* mon)
 
         // Being a puppet on magic strings is a nasty thing.
         // Mindless creatures shouldn't probably mind, but because of complex
-        // behaviour of enslaved neutrals, let's disallow that for now.
+        // behaviour of charmed neutrals, let's disallow that for now.
         mon->attitude = ATT_HOSTILE;
 
         // XXX: Another hackish thing for Pikel's band neutrality.
@@ -5761,6 +5813,11 @@ mon_resist_type bolt::apply_enchantment_to_monster(monster* mon)
             {
                 obvious_effect = true;
             }
+
+            // This is unpleasant, but currently this beam is only used by the
+            // spell itself and only players can cast it. Would be nice if there
+            // was somewhere nicer in the bolt struct to cache this, but there isn't?
+            mon->props[INNER_FLAME_POW_KEY] = calc_spell_power(SPELL_INNER_FLAME);
         }
         return MON_AFFECTED;
 
@@ -6133,7 +6190,7 @@ static sweep_type _radial_sweep(int r)
 
 /** How much noise does an explosion this big make?
  *
- *  @param the size of the explosion (radius, not diamater)
+ *  @param the size of the explosion (radius, not diameter)
  *  @returns how much noise it would make.
  */
 int explosion_noise(int rad)
@@ -6888,7 +6945,7 @@ int omnireflect_chance_denom(int SH)
 }
 
 /// Set up a beam aiming from the given monster to their target.
-bolt setup_targetting_beam(const monster &mons)
+bolt setup_targeting_beam(const monster &mons)
 {
     bolt beem;
 

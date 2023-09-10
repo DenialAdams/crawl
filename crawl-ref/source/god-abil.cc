@@ -1708,14 +1708,6 @@ void yred_make_bound_soul(monster* mon, bool force_hostile)
     // the proper stats from it.
     define_zombie(mon, mon->type, MONS_BOUND_SOUL);
 
-    // If the original monster has been levelled up, its HD might be different
-    // from its class HD, in which case its HP should be rerolled to match.
-    if (mon->get_experience_level() != orig.get_experience_level())
-    {
-        mon->set_hit_dice(max(orig.get_experience_level(), 1));
-        roll_zombie_hp(mon);
-    }
-
     mon->flags |= MF_NO_REWARD;
 
     // If the original monster type has melee abilities, make sure
@@ -1727,6 +1719,7 @@ void yred_make_bound_soul(monster* mon, bool force_hostile)
             mon->spells.push_back(slot);
     if (mon->spells.size())
         mon->props[CUSTOM_SPELLS_KEY] = true;
+    mon->props[KNOWN_MAX_HP_KEY] = mons_avg_hp(orig.type);
 
     name_zombie(*mon, orig);
 
@@ -1794,7 +1787,7 @@ bool kiku_gift_capstone_spells()
 #endif
     more();
     you.one_time_ability_used.set(you.religion);
-    take_note(Note(NOTE_GOD_GIFT, you.religion));
+    take_note(Note(NOTE_GOD_GIFT, you.religion, 0, "forbidden knowledge"));
     return true;
 }
 
@@ -1864,10 +1857,10 @@ static int _slouch_damage(monster *mon)
                          : mon->type == MONS_JIANGSHI ? 90
                                                       : 1;
 
-    const int player_numer = BASELINE_DELAY * BASELINE_DELAY * BASELINE_DELAY;
+    const int player_number = BASELINE_DELAY * BASELINE_DELAY * BASELINE_DELAY;
     return 4 * (mon->speed * BASELINE_DELAY * jerk_num
                            / mon->action_energy(EUT_MOVE) / jerk_denom
-                - player_numer / player_movement_speed() / player_speed());
+                - player_number / player_movement_speed() / player_speed());
 }
 
 static bool _slouchable(coord_def where)

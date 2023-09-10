@@ -609,7 +609,7 @@ static string _milestone_kill_verb(killer_type killer)
 {
     return killer == KILL_BANISHED ? "banished" :
            killer == KILL_PACIFIED ? "pacified" :
-           killer == KILL_CHARMD ? "enslaved" :
+           killer == KILL_CHARMD ? "charmed" :
            killer == KILL_SLIMIFIED ? "slimified" : "killed";
 }
 
@@ -662,16 +662,16 @@ static bool _is_pet_kill(killer_type killer, int i)
         return false;
 
     const monster* m = &env.mons[i];
-    if (m->friendly()) // This includes enslaved monsters.
+    if (m->friendly()) // This includes charmed monsters.
         return true;
 
     // Check if the monster was confused by you or a friendly, which
     // makes casualties to this monster collateral kills.
     const mon_enchant me = m->get_ench(ENCH_CONFUSION);
-    const mon_enchant me2 = m->get_ench(ENCH_INSANE);
+    const mon_enchant me2 = m->get_ench(ENCH_FRENZIED);
     return me.ench == ENCH_CONFUSION
            && (me.who == KC_YOU || me.who == KC_FRIENDLY)
-           || me2.ench == ENCH_INSANE
+           || me2.ench == ENCH_FRENZIED
               && (me2.who == KC_YOU || me2.who == KC_FRIENDLY);
 }
 
@@ -1142,7 +1142,7 @@ static string _killer_type_name(killer_type killer)
     case KILL_PACIFIED:
         return "pacified";
     case KILL_CHARMD:
-        return "enslaved";
+        return "charmed";
     case KILL_SLIMIFIED:
         return "slimified";
     }
@@ -1231,6 +1231,8 @@ static void _make_derived_undead(monster* mons, bool quiet,
                     0,
                     spell, god);
     mg.set_base(mons->type);
+    if (god == GOD_KIKUBAAQUDGHA) // kiku wrath
+        mg.extra_flags |= MF_NO_REWARD;
 
     if (!mons->mname.empty() && !(mons->flags & MF_NAME_NOCORPSE))
         mg.mname = mons->mname;
@@ -1265,7 +1267,9 @@ static void _make_derived_undead(monster* mons, bool quiet,
             agent_name = agent->as_monster()->full_name(DESC_A);
     }
 
-    const string message = quiet ? "" : _derived_undead_message(*mons, which_z, mist);
+    const string message = quiet ? "" :
+                           god == GOD_KIKUBAAQUDGHA ? "Kikubaaqudha cackles." :
+                           _derived_undead_message(*mons, which_z, mist);
     make_derived_undead_fineff::schedule(mons->pos(), mg,
             mons->get_experience_level(), agent_name, message);
 }
@@ -1350,7 +1354,7 @@ static bool _mons_reaped(actor &killer, monster& victim)
         beh = SAME_ATTITUDE(mon);
     }
 
-    _make_derived_undead(&victim, true, MONS_ZOMBIE, beh,
+    _make_derived_undead(&victim, false, MONS_ZOMBIE, beh,
                          SPELL_NO_SPELL, GOD_NO_GOD);
 
     return true;
@@ -1397,6 +1401,15 @@ static bool _reaping(monster &mons)
     return _mons_reaped(*killer, mons);
 }
 
+static void _kiku_wrath_raise(monster &mons, bool quiet, bool corpse_gone)
+{
+    monster_type which_z = MONS_SPECTRAL_THING;
+    if (!corpse_gone && mons_can_be_zombified(mons) && !one_chance_in(3))
+        which_z = coinflip() ? MONS_ZOMBIE : MONS_SIMULACRUM;
+    _make_derived_undead(&mons, quiet, which_z, BEH_HOSTILE,
+                         SPELL_NO_SPELL, GOD_KIKUBAAQUDGHA);
+}
+
 static bool _apply_necromancy(monster &mons, bool quiet, bool corpse_gone,
                               bool in_los, bool corpseworthy)
 {
@@ -1407,6 +1420,12 @@ static bool _apply_necromancy(monster &mons, bool quiet, bool corpse_gone,
         _make_derived_undead(&mons, quiet, MONS_SIMULACRUM,
                              SAME_ATTITUDE(&mons),
                              SPELL_BIND_SOULS, GOD_NO_GOD);
+        return true;
+    }
+
+    if (corpseworthy && you.penance[GOD_KIKUBAAQUDGHA] && one_chance_in(3))
+    {
+        _kiku_wrath_raise(mons, quiet, corpse_gone);
         return true;
     }
 
@@ -1670,6 +1689,9 @@ item_def* monster_die(monster& mons, killer_type killer,
     // and webbed monsters
     monster_web_cleanup(mons, true);
 
+    // Lose our bullseye target
+    mons.del_ench(ENCH_BULLSEYE_TARGET, true);
+
     // Clean up any blood from the flayed effect
     if (mons.has_ench(ENCH_FLAYED))
         heal_flayed_effect(&mons, true, true);
@@ -1844,7 +1866,7 @@ item_def* monster_die(monster& mons, killer_type killer,
     }
     else if (mons.type == MONS_FOXFIRE)
     {
-        // Foxfires are unkillable, they either dissapate by timing out
+        // Foxfires are unkillable, they either dissipate by timing out
         // or hit something.
         silent = true;
     }
@@ -2337,7 +2359,7 @@ item_def* monster_die(monster& mons, killer_type killer,
         }
         else if (mons_is_mons_class(&mons, MONS_PIKEL))
         {
-            // His slaves don't care if he's dead or not, just whether or not
+            // His band doesn't care if he's dead or not, just whether or not
             // he goes away.
             pikel_band_neutralise();
         }
@@ -2975,7 +2997,7 @@ bool mons_is_mons_class(const monster* mons, monster_type type)
  * Perform neutralisation for members of Pikel's band upon Pikel's 'death'.
  *
  * This neutralisation occurs in multiple instances: when Pikel is neutralised,
- * enslaved, when Pikel dies, when Pikel is banished.
+ * charmed, when Pikel dies, when Pikel is banished.
  * It is handled by a daction (as a fineff) to preserve across levels.
  **/
 void pikel_band_neutralise()
@@ -3124,7 +3146,7 @@ void elven_twin_died(monster* twin, bool in_transit, killer_type killer, int kil
     // is intended to cover the slimify case, we don't want to pacify the other
     // if a slimified twin dies.
     if (twin->neutral()
-        && !twin->has_ench(ENCH_INSANE)
+        && !twin->has_ench(ENCH_FRENZIED)
         && !is_fellow_slime(*twin))
     {
         elven_twins_pacify(twin);
@@ -3208,7 +3230,7 @@ void elven_twin_died(monster* twin, bool in_transit, killer_type killer, int kil
     }
 
     // Finally give them new energy
-    if (mons->can_see(you) && !mons->has_ench(ENCH_INSANE))
+    if (mons->can_see(you) && !mons->has_ench(ENCH_FRENZIED))
         elven_twin_energize(mons);
     else
         mons->props[ELVEN_ENERGIZE_KEY] = true;
@@ -3281,7 +3303,7 @@ void elven_twins_unpacify(monster* twin)
         return;
 
     // Don't consider already un-neutralised monsters or slimified twins.
-    if (!mons->neutral() || mons->has_ench(ENCH_INSANE)
+    if (!mons->neutral() || mons->has_ench(ENCH_FRENZIED)
         || is_fellow_slime(*mons))
     {
         return;
@@ -3336,7 +3358,7 @@ void mons_felid_revive(monster* mons)
     monster *newmons =
         create_monster(
             mgen_data(type, (mons->has_ench(ENCH_CHARM)
-                             || mons->has_ench(ENCH_INSANE) ? BEH_HOSTILE
+                             || mons->has_ench(ENCH_FRENZIED) ? BEH_HOSTILE
                              : SAME_ATTITUDE(mons)), revive_place, mons->foe));
 
     if (newmons)

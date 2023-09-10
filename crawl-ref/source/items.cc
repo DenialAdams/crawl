@@ -419,7 +419,7 @@ bool dec_inv_item_quantity(int obj, int amount)
 // Reduce quantity of a monster/grid item, do cleanup if item goes away.
 //
 // Returns true if stack of items no longer exists.
-bool dec_mitm_item_quantity(int obj, int amount)
+bool dec_mitm_item_quantity(int obj, int amount, bool player_action)
 {
     item_def &item = env.item[obj];
     if (amount > item.quantity)
@@ -428,11 +428,14 @@ bool dec_mitm_item_quantity(int obj, int amount)
     if (item.quantity == amount)
     {
         destroy_item(obj);
-        // If we're repeating a command, the repetitions used up the
-        // item stack being repeated on, so stop rather than move onto
-        // the next stack.
-        crawl_state.cancel_cmd_repeat();
-        crawl_state.cancel_cmd_again();
+        if (player_action)
+        {
+            // If we're repeating a command, the repetitions used up the
+            // item stack being repeated on, so stop rather than move onto
+            // the next stack.
+            crawl_state.cancel_cmd_repeat();
+            crawl_state.cancel_cmd_again();
+        }
         return true;
     }
 
@@ -1832,6 +1835,14 @@ void add_held_books_to_library()
     }
 }
 
+static bool _got_all_pan_runes()
+{
+    for (int rune = RUNE_DEMONIC; rune <= RUNE_GLOORX_VLOQ; ++rune)
+        if (!you.runes[rune])
+            return false;
+    return true;
+}
+
 /**
  * Place a rune into the player's inventory.
  *
@@ -1858,7 +1869,11 @@ static void _get_rune(const item_def& it, bool quiet)
                  nrunes);
         }
         else if (nrunes > 1)
+        {
+            if (player_in_branch(BRANCH_PANDEMONIUM) && _got_all_pan_runes())
+                mprf("You've emptied out Pandemonium! Nothing left here but demons.");
             mprf("You now have %d runes.", nrunes);
+        }
 
         mpr("Press } to see all the runes you have collected.");
     }
@@ -2184,24 +2199,6 @@ void clear_item_pickup_flags(item_def &item)
     item.flags &= ~(ISFLAG_THROWN | ISFLAG_DROPPED | ISFLAG_NO_PICKUP);
 }
 
-// Move gold to the the top of a pile if following Gozag.
-static void _gozag_move_gold_to_top(const coord_def p)
-{
-    if (have_passive(passive_t::detect_gold))
-    {
-        for (int gold = env.igrid(p); gold != NON_ITEM;
-             gold = env.item[gold].link)
-        {
-            if (env.item[gold].base_type == OBJ_GOLD)
-            {
-                unlink_item(gold);
-                move_item_to_grid(&gold, p, true);
-                break;
-            }
-        }
-    }
-}
-
 // Moves env.item[obj] to p... will modify the value of obj to
 // be the index of the final object (possibly different).
 //
@@ -2253,7 +2250,7 @@ bool move_item_to_grid(int *const obj, const coord_def& p, bool silent)
                 inc_mitm_item_quantity(si->index(), item.quantity);
                 destroy_item(ob);
                 ob = si->index();
-                _gozag_move_gold_to_top(p);
+                gozag_move_gold_to_top(p);
                 if (you.see_cell(p))
                 {
                     // XXX: Is it actually necessary to identify when the
@@ -2299,7 +2296,7 @@ bool move_item_to_grid(int *const obj, const coord_def& p, bool silent)
         env.orb_pos = p;
 
     if (item.base_type != OBJ_GOLD)
-        _gozag_move_gold_to_top(p);
+        gozag_move_gold_to_top(p);
 
     if (you.see_cell(p))
     {
@@ -3824,6 +3821,8 @@ colour_t item_def::talisman_colour() const
     {
     case TALISMAN_BEAST:
         return YELLOW; // brown taken by staves
+    case TALISMAN_FLUX:
+        return CYAN; // could maybe swap this and death
     case TALISMAN_MAW:
         return ETC_BLOOD;
     case TALISMAN_SERPENT:
@@ -3889,8 +3888,10 @@ colour_t item_def::miscellany_colour() const
             return BROWN;
         case MISC_CONDENSER_VANE:
             return WHITE;
+#if TAG_MAJOR_VERSION == 34
         case MISC_XOMS_CHESSBOARD:
             return ETC_RANDOM;
+#endif
         case MISC_QUAD_DAMAGE:
             return ETC_DARK;
         case MISC_ZIGGURAT:

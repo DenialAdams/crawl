@@ -282,7 +282,6 @@ const vector<vector<god_power>> & get_all_god_powers()
 
         // Ashenzari
         {   { 0, "Ashenzari warns you of distant threats and treasures.\n"
-                 "Ashenzari reveals the structure of the dungeon to you.\n"
                  "Ashenzari shows you where magical portals lie." },
             { 1, "Ashenzari will now identify your possessions.",
                  "Ashenzari will no longer identify your possesions.",
@@ -293,10 +292,11 @@ const vector<vector<god_power>> & get_all_god_powers()
             { 3, "Ashenzari will now keep your mind clear.",
                  "Ashenzari will no longer keep your mind clear.",
                  "Ashenzari keeps your mind clear." },
-            { 4, "Ashenzari will now protect you from malevolent surprises.",
-                 "Ashenzari no longer protects you from malevolent surprises.",
-                 "Ashenzari protects you from malevolent surprises." },
-
+            { 4, "Ashenzari will now protect you from the dungeon's malevolent forces.",
+                 "Ashenzari no longer protects you from the dungeon's malevolent forces.",
+                 "Ashenzari protects you from the dungeon's malevolent forces." },
+            { 4, "Ashenzari reveals the structure of the nearby dungeon.",
+                 "Ashenzari no longer reveals the structure of the nearby dungeon." },
         },
 
         // Dithmenos
@@ -983,11 +983,11 @@ static void _inc_gift_timeout(int val)
 }
 
 // These are sorted in order of power.
-// monsteres here come from genera: n, z, V and W
+// monsters here come from genera: n, z, V and W
 // - Vampire mages are excluded because they worship scholarly Kiku
 // - M genus is all Kiku's domain
 // - Curse *, putrid mouths, and bloated husks left out as they might
-//   do too much collatoral damage
+//   do too much collateral damage
 static monster_type _yred_servants[] =
 {
     MONS_WIGHT, MONS_NECROPHAGE, MONS_SHADOW, MONS_PHANTOM, MONS_WRAITH,
@@ -1053,7 +1053,7 @@ static void _calculate_yred_piety()
 
     for (monster_iterator mi; mi; ++mi)
     {
-        if (!is_yred_undead_slave(**mi) || mi->is_summoned()
+        if (!is_yred_undead_follower(**mi) || mi->is_summoned()
             || mons_is_tentacle_or_tentacle_segment(mi->type))
         {
             continue;
@@ -1101,29 +1101,29 @@ bool yred_reap_chance()
 }
 
 // When under penance or after removing faith,
-// Yredelemnulites can lose many nearby undead slaves.
+// Yredelemnulites can lose many nearby undead followers.
 bool yred_reclaim_souls(bool all)
 {
     int num_reclaim = 0;
-    int num_slaves = 0;
+    int num_followers = 0;
 
     // no hiding them in a closet to take of faith halfway through a level
     for (monster_iterator mi; mi; ++mi)
     {
-        if (!is_yred_undead_slave(**mi) || mi->is_summoned()
+        if (!is_yred_undead_follower(**mi) || mi->is_summoned()
             || mons_is_tentacle_or_tentacle_segment(mi->type)
             || mons_bound_soul(**mi))
         {
             continue;
         }
 
-        num_slaves++;
+        num_followers++;
         const int hd = mi->get_hit_dice();
 
         // the player gets to keep a few, particularly weaklings,
         // but always loses at least one
         if (!all && num_reclaim > 0
-            && (one_chance_in(num_slaves) || random2(20) < hd))
+            && (one_chance_in(num_followers) || random2(20) < hd))
         {
             continue;
         }
@@ -1135,9 +1135,9 @@ bool yred_reclaim_souls(bool all)
 
     if (num_reclaim > 0)
     {
-        if (num_reclaim == 1 && num_slaves > 1)
+        if (num_reclaim == 1 && num_followers > 1)
             simple_god_message(" reclaims one of your reaped souls!", GOD_YREDELEMNUL);
-        else if (num_reclaim == num_slaves)
+        else if (num_reclaim == num_followers)
             simple_god_message(" reclaims your reaped souls!", GOD_YREDELEMNUL);
         else
             simple_god_message(" reclaims some of your reaped souls!", GOD_YREDELEMNUL);
@@ -1154,7 +1154,7 @@ bool pay_yred_souls(unsigned int how_many, bool just_check)
     unsigned int seen = 0;
     for (monster_near_iterator mi(you.pos(), LOS_DEFAULT); mi; ++mi)
     {
-        if (!is_yred_undead_slave(**mi) || mi->is_summoned()
+        if (!is_yred_undead_follower(**mi) || mi->is_summoned()
             || mons_is_tentacle_or_tentacle_segment(mi->type)
             || mons_bound_soul(**mi))
         {
@@ -1709,7 +1709,7 @@ bool mons_is_god_gift(const monster& mon, god_type god)
     return (mon.flags & MF_GOD_GIFT) && mon.god == god;
 }
 
-bool is_yred_undead_slave(const monster& mon)
+bool is_yred_undead_follower(const monster& mon)
 {
     return mon.alive() && mon.holiness() & MH_UNDEAD
            && mon.attitude == ATT_FRIENDLY
@@ -1738,7 +1738,7 @@ static bool _is_plant_follower(const monster* mon)
 bool is_follower(const monster& mon)
 {
     if (you_worship(GOD_YREDELEMNUL))
-        return is_yred_undead_slave(mon);
+        return is_yred_undead_follower(mon);
     else if (will_have_passive(passive_t::convert_orcs))
         return is_orcish_follower(mon);
     else if (you_worship(GOD_JIYVA))
@@ -2531,7 +2531,8 @@ static void _gain_piety_point()
             auto_id_inventory();
 
         // TODO: add one-time ability check in have_passive
-        if (have_passive(passive_t::unlock_slime_vaults) && can_do_capstone_ability(you.religion))
+        if (have_passive(passive_t::unlock_slime_vaults)
+            && can_do_capstone_ability(you.religion))
         {
             simple_god_message(" will now unseal the treasures of the "
                                "Slime Pits.");
@@ -2539,8 +2540,11 @@ static void _gain_piety_point()
                         "fix_slime_vaults", true);
             // If we're on Slime:$, pretend we just entered the level
             // in order to bring down the vault walls.
-            if (level_id::current() == level_id(BRANCH_SLIME, brdepth[BRANCH_SLIME]))
+            if (level_id::current() == level_id(BRANCH_SLIME,
+                                                brdepth[BRANCH_SLIME]))
+            {
                 dungeon_events.fire_event(DET_ENTERED_LEVEL);
+            }
 
             you.one_time_ability_used.set(you.religion);
         }
@@ -3014,7 +3018,7 @@ void excommunication(bool voluntary, god_type new_god)
     case GOD_YREDELEMNUL:
         yred_reclaim_souls(true);
         for (monster_iterator mi; mi; ++mi)
-            if (is_yred_undead_slave(**mi))
+            if (is_yred_undead_follower(**mi))
                 monster_die(**mi, KILL_DISMISSED, NON_MONSTER);
         remove_all_companions(GOD_YREDELEMNUL);
         add_daction(DACT_OLD_CHARMD_SOULS_POOF);
@@ -3711,7 +3715,7 @@ static void _join_gozag()
 #endif
     }
 
-    // Move gold to top of piles & detect it.
+    // Move gold to top of piles.
     add_daction(DACT_GOLD_ON_TOP);
 }
 
@@ -4540,7 +4544,7 @@ int get_monster_tension(const monster& mons, god_type god)
         exper /= 4;
     }
 
-    if (mons.berserk_or_insane())
+    if (mons.berserk_or_frenzied())
     {
         // in addition to haste and might bonuses above
         exper *= 3;

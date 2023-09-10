@@ -327,32 +327,6 @@ Restlessness
 the Doldrums
 
 %%%%
-_mental_illness_armour_
-Agoraphobia
-
-Catatonia
-
-Claustrophobia
-
-Depression
-
-Dyspraxia
-
-Hysteria
-
-Kleptomania
-
-Masochism
-
-Melancholy
-
-Mental Paralysis
-
-Narcissism
-
-Paranoia
-
-%%%%
 _good_or_divine_
 
 # good things
@@ -1039,6 +1013,25 @@ the Sacrificial Victim
 the Slightly Bent
 
 the Storm King
+
+#pasta
+Ravioli
+
+Spaghetti
+
+Tortelloni
+
+Farfalle
+
+Rotini
+
+Vermicelli
+
+Macaroni
+
+w:1
+the Pastamancer
+
 
 %%%%
 _card_

@@ -147,6 +147,10 @@ Jessica title
 
 Jessica the Apprentice Sorceress
 %%%%
+Jeremiah title
+
+Jeremiah, Barachi Dreamer
+%%%%
 Jorgrun title
 
 Jorgrun Earthshaker
@@ -242,6 +246,10 @@ Nessos the Markscentaur
 Nikola title
 
 Nikola the Mad Inventor
+%%%%
+Norris title
+
+Norris the Philosopher
 %%%%
 Parghit title
 

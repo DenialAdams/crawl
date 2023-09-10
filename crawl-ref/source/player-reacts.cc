@@ -76,6 +76,7 @@
 #include "spl-clouds.h"
 #include "spl-damage.h"
 #include "spl-goditem.h"
+#include "spl-selfench.h"
 #include "spl-other.h"
 #include "spl-summoning.h"
 #include "spl-transloc.h"
@@ -167,7 +168,7 @@ static bool _decrement_a_duration(duration_type dur, int delay,
 
 static void _decrement_petrification(int delay)
 {
-    if (_decrement_a_duration(DUR_PETRIFIED, delay) && !you.paralysed())
+    if (_decrement_a_duration(DUR_PETRIFIED, delay))
     {
         you.redraw_armour_class = true;
         you.redraw_evasion = true;
@@ -178,8 +179,9 @@ static void _decrement_petrification(int delay)
                                             "flesh" :
                                             get_form()->flesh_equivalent;
 
-        mprf(MSGCH_DURATION, "You turn to %s and can move again.",
-             flesh_equiv.c_str());
+        mprf(MSGCH_DURATION, "You turn to %s%s.",
+             flesh_equiv.c_str(),
+             you.paralysed() ? "" : " and can move again");
 
         if (you.props.exists(PETRIFIED_BY_KEY))
             you.props.erase(PETRIFIED_BY_KEY);
@@ -192,11 +194,6 @@ static void _decrement_petrification(int delay)
         if ((dur -= delay) <= 0)
         {
             dur = 0;
-            // If we'd kill the player when active flight stops, this will
-            // need to pass the killer. Unlike monsters, almost all flight is
-            // magical, inluding tengu, as there's no flapping of wings. Should
-            // we be nasty to dragon and bat forms?  For now, let's not instakill
-            // them even if it's inconsistent.
             you.fully_petrify();
         }
         else if (dur < 15 && old_dur >= 15)
@@ -218,21 +215,29 @@ static void _decrement_paralysis(int delay)
 {
     _decrement_a_duration(DUR_PARALYSIS_IMMUNITY, delay);
 
-    if (you.duration[DUR_PARALYSIS])
-    {
-        _decrement_a_duration(DUR_PARALYSIS, delay);
+    if (!you.duration[DUR_PARALYSIS])
+        return;
 
-        if (!you.duration[DUR_PARALYSIS] && !you.petrified())
-        {
-            mprf(MSGCH_DURATION, "You can move again.");
-            you.redraw_armour_class = true;
-            you.redraw_evasion = true;
-            you.duration[DUR_PARALYSIS_IMMUNITY] = roll_dice(1, 3)
-            * BASELINE_DELAY;
-            if (you.props.exists(PARALYSED_BY_KEY))
-                you.props.erase(PARALYSED_BY_KEY);
-        }
+    _decrement_a_duration(DUR_PARALYSIS, delay);
+
+    if (you.duration[DUR_PARALYSIS])
+        return;
+
+    if (you.props.exists(PARALYSED_BY_KEY))
+        you.props.erase(PARALYSED_BY_KEY);
+
+    const int immunity = roll_dice(1, 3) * BASELINE_DELAY;
+    you.duration[DUR_PARALYSIS_IMMUNITY] = immunity;
+    if (you.petrified())
+    {
+        // no chain paralysis + petrification combos!
+        you.duration[DUR_PARALYSIS_IMMUNITY] += you.duration[DUR_PETRIFIED];
+        return;
     }
+
+    mprf(MSGCH_DURATION, "You can move again.");
+    you.redraw_armour_class = true;
+    you.redraw_evasion = true;
 }
 
 /**
@@ -248,6 +253,22 @@ static void _maybe_melt_armour()
     {
         you.props.erase(MELT_ARMOUR_KEY);
         mprf(MSGCH_DURATION, "The heat melts your icy armour.");
+    }
+}
+
+// Give a two turn grace period for the sprites to lose interest when no
+// valid enemies are in sight (and reset it if enemies come into sight again)
+static void _handle_jinxbite_interest()
+{
+    if (you.duration[DUR_JINXBITE])
+    {
+        if (!jinxbite_targets_available())
+        {
+            if (!you.duration[DUR_JINXBITE_LOST_INTEREST])
+                you.duration[DUR_JINXBITE_LOST_INTEREST] = 20;
+        }
+        else
+            you.duration[DUR_JINXBITE_LOST_INTEREST] = 0;
     }
 }
 
@@ -448,6 +469,8 @@ void player_reacts_to_monsters()
         mprf("The grasping roots release their grip on you.");
         you.stop_being_constricted(true);
     }
+
+    _handle_jinxbite_interest();
 
     _maybe_melt_armour();
     _update_cowardice();
@@ -978,6 +1001,10 @@ static void _handle_wereblood(int delay)
 
 void player_reacts()
 {
+    // don't allow reactions while stair peeking in descent mode
+    if (crawl_state.game_is_descent() && !env.properties.exists(DESCENT_STAIRS_KEY))
+        return;
+
     //XXX: does this _need_ to be calculated up here?
     const int stealth = player_stealth();
 
@@ -1050,6 +1077,8 @@ void player_reacts()
         xom_tick();
     else if (you_worship(GOD_QAZLAL))
         qazlal_storm_clouds();
+    else if (you_worship(GOD_ASHENZARI))
+        ash_scrying();
 
     if (you.props[EMERGENCY_FLIGHT_KEY].get_bool())
         _handle_emergency_flight();

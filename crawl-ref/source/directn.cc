@@ -46,6 +46,7 @@
 #include "output.h"
 #include "prompt.h"
 #include "showsymb.h"
+#include "spl-damage.h"
 #include "spl-goditem.h"
 #include "stash.h"
 #include "state.h"
@@ -1097,7 +1098,7 @@ bool direction_chooser::find_default_monster_target(coord_def& result) const
         result = mons_target->pos();
         return true;
     }
-    // If the previous targetted position is at all useful, use it.
+    // If the previous targeted position is at all useful, use it.
     if (!Options.simple_targeting && hitfunc && !prefer_farthest
         && _find_monster_expl(you.prev_grd_targ, mode, needs_path,
                               range, hitfunc, AFF_YES, AFF_MULTIPLE))
@@ -1135,7 +1136,7 @@ bool direction_chooser::find_default_monster_target(coord_def& result) const
     }
 
     // This is used for three things:
-    // * For all LRD targetting
+    // * For all LRD targeting
     // * To aim explosions so they try to miss you
     // * To hit monsters in LOS that are outside of normal range, but
     //   inside explosion/cloud range
@@ -2792,7 +2793,7 @@ static bool _want_target_monster(const monster *mon, targ_mode_type mode,
         return true;
     case TARG_HOSTILE:
         return mons_attitude(*mon) == ATT_HOSTILE
-            || mon->has_ench(ENCH_INSANE);
+            || mon->has_ench(ENCH_FRENZIED);
     case TARG_FRIEND:
         return mon->friendly();
     case TARG_INJURED_FRIEND:
@@ -3569,7 +3570,7 @@ static vector<string> _get_monster_behaviour_vector(const monster_info& mi)
 
     if ((mi.is(MB_SLEEPING) || mi.is(MB_DORMANT)))
     {
-        if (mi.is(MB_CONFUSED))
+        if (mi.sleepwalking)
             descs.emplace_back("sleepwalking");
         else if (mons_class_flag(mi.type, M_CONFUSED))
             descs.emplace_back("drifting");
@@ -3602,13 +3603,22 @@ static vector<string> _get_monster_desc_vector(const monster_info& mi)
                                         melee_confuse_chance(mi.hd)));
     }
 
+    if (you.duration[DUR_JINXBITE])
+    {
+        const int pow = calc_spell_power(SPELL_JINXBITE);
+        const int wl = you.wearing_ego(EQ_ALL_ARMOUR, SPARM_GUILE) ?
+            guile_adjust_willpower(mi.willpower()) : mi.willpower();
+        descs.emplace_back(make_stringf("chance to call a sprite on attack: %d%%",
+            hex_success_chance(wl, pow, 100)));
+    }
+
     if (mi.attitude == ATT_FRIENDLY)
         descs.emplace_back("friendly");
     else if (mi.fellow_slime())
         descs.emplace_back("fellow slime");
     else if (mi.attitude == ATT_GOOD_NEUTRAL)
         descs.emplace_back("peaceful");
-    else if (mi.attitude != ATT_HOSTILE && !mi.is(MB_INSANE))
+    else if (mi.attitude != ATT_HOSTILE && !mi.is(MB_FRENZIED))
     {
         // don't differentiate between permanent or not
         descs.emplace_back("indifferent");
@@ -3647,7 +3657,7 @@ static string _get_monster_desc(const monster_info& mi)
     {
         text += pronoun + " "
                 + conjugate_verb("appear", mi.pronoun_plurality()) + " to be "
-                + (mi.is(MB_CONFUSED) ? "sleepwalking" : "resting") + ".\n";
+                + (mi.sleepwalking ? "sleepwalking" : "resting") + ".\n";
     }
     // Applies to both friendlies and hostiles
     else if (mi.is(MB_FLEEING))
@@ -3673,7 +3683,7 @@ static string _get_monster_desc(const monster_info& mi)
         text += pronoun + " " + conjugate_verb("seem", mi.pronoun_plurality())
                 + " to be peaceful towards you.\n";
     }
-    else if (mi.attitude != ATT_HOSTILE && !mi.is(MB_INSANE))
+    else if (mi.attitude != ATT_HOSTILE && !mi.is(MB_FRENZIED))
     {
         // don't differentiate between permanent or not
         text += pronoun + " " + conjugate_verb("are", mi.pronoun_plurality())
@@ -3792,7 +3802,7 @@ string get_monster_equipment_desc(const monster_info& mi,
                 attributes.emplace_back("friendly");
             else if (mi.attitude == ATT_GOOD_NEUTRAL)
                 attributes.emplace_back("peaceful");
-            else if (mi.attitude != ATT_HOSTILE && !mi.is(MB_INSANE))
+            else if (mi.attitude != ATT_HOSTILE && !mi.is(MB_FRENZIED))
                 attributes.emplace_back("neutral");
             _append_container(attributes, mi.attributes());
 

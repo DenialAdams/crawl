@@ -133,13 +133,14 @@ struct game_state
 
     bool invisible_targeting;
 
-    bool player_moving;
-
     // Area beyond which view should be darkened,  0 = disabled.
     targeter *darken_range;
 
     // Monsters to highlight on the screen, 0 = disabled.
     vector<monster *> *flash_monsters;
+
+    // monsters which saw the player retreating.
+    set<monster*> potential_pursuers;
 
     // Any changes to macros that need to be changed?
     bool unsaved_macros;
@@ -219,7 +220,6 @@ public:
     void dump();
     bool player_is_dead() const;
 
-    bool game_standard_levelgen() const;
     bool game_is_valid_type() const;
     bool game_is_normal() const;
     bool game_is_tutorial() const;
@@ -227,6 +227,10 @@ public:
     bool game_is_sprint() const;
     bool game_is_hints() const;
     bool game_is_hints_tutorial() const;
+    bool game_is_descent() const;
+
+    bool game_has_random_floors() const;
+    bool game_saves_prefs() const;
 
     bool seed_is_known() const;
 

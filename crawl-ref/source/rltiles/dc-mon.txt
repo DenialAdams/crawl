@@ -244,6 +244,7 @@ boulder_beetle_rolling2
 ## Frogs ('F')
 %sdir mon/unique
 prince_ribbit MONS_PRINCE_RIBBIT
+jeremiah MONS_JEREMIAH
 %rim 1
 %sdir mon/animals
 bullfrog MONS_BULLFROG
@@ -600,7 +601,7 @@ margery MONS_MARGERY
 maurice MONS_MAURICE
 %rim 0
 nikola MONS_NIKOLA
-%rim 0
+norris MONS_NORRIS
 psyche MONS_PSYCHE
 rupert MONS_RUPERT
 sigmund MONS_SIGMUND
@@ -1232,6 +1233,7 @@ misc/unseen PLAYER
 ## Transformations
 %sdir player/transform
 bat_form TRAN_BAT
+beast_form TRAN_BEAST
 spider_form TRAN_SPIDER
 pig_form TRAN_PIG
 anaconda_form TRAN_ANACONDA

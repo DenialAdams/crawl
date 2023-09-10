@@ -70,7 +70,7 @@ using namespace ui;
 // enough memory allocated to snarf in the scorefile entries
 static unique_ptr<scorefile_entry> hs_list[SCORE_FILE_ENTRIES];
 static int hs_list_size = 0;
-static bool hs_list_initalized = false;
+static bool hs_list_initialized = false;
 
 static FILE *_hs_open(const char *mode, const string &filename);
 static void  _hs_close(FILE *handle);
@@ -96,10 +96,11 @@ static string _score_file_name()
     return ret;
 }
 
-static string _log_file_name()
+static string _log_file_name(bool milestones=false)
 {
     return catpath(Options.shared_dir,
-        "logfile" + crawl_state.game_type_qualifier());
+        (milestones ? "milestones" : "logfile")
+        + crawl_state.game_type_qualifier());
 }
 
 int hiscores_new_entry(const scorefile_entry &ne)
@@ -158,7 +159,7 @@ int hiscores_new_entry(const scorefile_entry &ne)
     }
 
     hs_list_size = i;
-    hs_list_initalized = true;
+    hs_list_initialized = true;
 
     // If we've still not inserted it, it's not a highscore.
     if (!inserted)
@@ -253,7 +254,7 @@ void hiscores_read_to_memory()
     }
 
     hs_list_size = i;
-    hs_list_initalized = true;
+    hs_list_initialized = true;
 
     //close off
     _hs_close(scores);
@@ -295,7 +296,7 @@ string hiscores_print_list(int display_count, int format, int newest_entry, int&
     string ret;
 
     // Additional check to preserve previous functionality
-    if (!hs_list_initalized)
+    if (!hs_list_initialized)
         hiscores_read_to_memory();
 
     int i, total_entries;
@@ -3095,8 +3096,8 @@ void mark_milestone(const string &type, const string &milestone,
 #endif
 
     const string xlog_line = xl.xlog_line();
-    const string milestone_file = catpath(
-        Options.save_dir, "milestones" + crawl_state.game_type_qualifier());
+    const string milestone_file = _log_file_name(true);
+
     if (FILE *fp = lk_open("a", milestone_file))
     {
         fprintf(fp, "%s\n", xlog_line.c_str());

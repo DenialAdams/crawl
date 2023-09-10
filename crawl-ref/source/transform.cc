@@ -289,7 +289,7 @@ int Form::scaling_value(const FormScaling &sc, bool random,
         return sc.base * scale;
 
     const int lvl = get_max ? max_skill * scale : get_level(scale);
-    const int over_min = max(0, lvl - min_skill * scale);
+    const int over_min = lvl - min_skill * scale; // may be negative
     const int denom = max_skill - min_skill;
     if (random)
         return sc.base * scale + div_rand_round(over_min * sc.scaling, denom);
@@ -315,15 +315,15 @@ int Form::divided_scaling(const FormScaling &sc, bool random,
  *          allow for pseudo-decimal flexibility (& to match
  *          player::armour_class())
  */
-int Form::get_ac_bonus(bool max) const
+int Form::get_ac_bonus(bool get_max) const
 {
-    return scaling_value(ac, false, max, 100);
+    return max(0, scaling_value(ac, false, get_max, 100));
 }
 
-int Form::get_base_unarmed_damage(bool random, bool max) const
+int Form::get_base_unarmed_damage(bool random, bool get_max) const
 {
     // All forms start with base 3 UC damage.
-    return 3 + divided_scaling(unarmed_bonus_dam, random, max, 100);
+    return 3 + max(0, divided_scaling(unarmed_bonus_dam, random, get_max, 100));
 }
 
 /// `force_talisman` means to calculate HP as if we were in a talisman form (i.e. with penalties with insufficient Shapeshifting skill),
@@ -596,6 +596,20 @@ public:
 };
 #endif
 
+class FormFlux : public Form
+{
+private:
+    FormFlux() : Form(transformation::flux) { }
+    DISALLOW_COPY_AND_ASSIGN(FormFlux);
+public:
+    static const FormFlux &instance() { static FormFlux inst; return inst; }
+
+    int contam_dam(bool random = true, bool max = false) const
+    {
+        return divided_scaling(FormScaling().Base(30).Scaling(20), random, max, 100);
+    }
+};
+
 class FormBlade : public Form
 {
 private:
@@ -782,7 +796,7 @@ public:
         const int normal = Form::get_ac_bonus(max);
         if (!species::is_draconian(you.species))
             return normal;
-        return normal + (12 - ac.base) * 100;
+        return normal - 600;
     }
     /**
      * How many levels of resistance against fire does this form provide?
@@ -1001,9 +1015,10 @@ private:
 public:
     static const FormStorm &instance() { static FormStorm inst; return inst; }
 
-    int ev_bonus(bool max) const override
+    int ev_bonus(bool get_max) const override
     {
-        return scaling_value(FormScaling().Base(20).Scaling(7), false, max);
+        return max(0, divided_scaling(FormScaling().Base(20).Scaling(7),
+                                    false, get_max, 100));
     }
 
     bool can_offhand_punch() const override { return true; }
@@ -1028,7 +1043,7 @@ public:
     static const FormBeast &instance() { static FormBeast inst; return inst; }
     int slay_bonus(bool random, bool max) const override
     {
-        return divided_scaling(FormScaling().Scaling(7), random, max, 100);
+        return divided_scaling(FormScaling().Scaling(4), random, max, 100);
     }
 
     vector<string> get_fakemuts(bool terse) const override {
@@ -1051,7 +1066,7 @@ public:
 
     int get_aux_damage(bool random, bool max) const override
     {
-        return divided_scaling(FormScaling().Base(16).Scaling(11), random, max, 100);
+        return divided_scaling(FormScaling().Base(12).Scaling(8), random, max, 100);
     }
 };
 
@@ -1102,6 +1117,7 @@ static const Form* forms[] =
     &FormStorm::instance(),
     &FormBeast::instance(),
     &FormMaw::instance(),
+    &FormFlux::instance(),
 };
 
 const Form* get_form(transformation xform)
@@ -1196,10 +1212,12 @@ bool form_likes_water(transformation form)
 }
 
 // Used to mark transformations which override species intrinsics.
+// TODO: time to dataify this.
 bool form_changed_physiology(transformation form)
 {
     return form != transformation::none
         && form != transformation::beast
+        && form != transformation::flux
         && form != transformation::maw
         && form != transformation::blade_hands;
 }
@@ -1558,7 +1576,7 @@ static int _transform_duration(transformation which_trans, int pow)
  * All undead can enter shadow form; vampires also can enter batform, and, when
  * full, other forms (excepting lichform).
  *
- * @param which_trans   The tranformation which the player is undergoing
+ * @param which_trans   The transformation which the player is undergoing
  *                      (default you.form).
  * @param involuntary   Whether the transformation is involuntary or not.
  * @param temp                   Whether to factor in temporary limits, e.g. wrong blood level.
@@ -1651,7 +1669,7 @@ bool check_transform_into(transformation which_trans, bool involuntary)
     {
         item_def nil_item;
         nil_item.link = -1;
-        if (check_old_item_warning(nil_item, OPER_WIELD, true))
+        if (!check_old_item_warning(nil_item, OPER_WIELD, true))
         {
             canned_msg(MSG_OK);
             return false;

@@ -1741,8 +1741,12 @@ void shillelagh(actor *wielder, coord_def where, int pow)
 
 dice_def scorch_damage(int pow, bool random)
 {
-    const int max_dam = 10 + (random ? div_rand_round(pow, 6) : pow / 6);
-    return calc_dice(2, max_dam);
+    if (random)
+    {
+        const int max_dam = 10 + div_rand_round(pow, 6);
+        return calc_dice(2, max_dam);
+    }
+    return dice_def(2, (10 + pow / 6) / 2);
 }
 
 static void _animate_scorch(coord_def p)
@@ -2621,7 +2625,7 @@ vector<coord_def> arcjolt_targets(const actor &agent, bool actual)
     to_check.push_back(agent.pos());
     seen.insert(agent.pos());
 
-    for (radius_iterator ri(you.pos(), 2, C_SQUARE, LOS_NO_TRANS, true); ri; ++ri)
+    for (radius_iterator ri(agent.pos(), 2, C_SQUARE, LOS_NO_TRANS, true); ri; ++ri)
     {
         to_check.push_back(*ri);
         seen.insert(*ri);
@@ -2858,7 +2862,7 @@ static ai_action::goodness _fire_plasma_beam_at(const actor &agent, int pow,
     beam.draw_delay   = 5;
     beam.foe_ratio    = 80; // default
     beam.is_tracer    = tracer;
-    zappy(ZAP_LIGHTNING_BOLT, pow, mon, beam);
+    zappy(ZAP_PLASMA_LIGHTNING, pow, mon, beam);
     beam.fire();
     const ai_action::goodness fire_good = beam.good_to_fire();
 
@@ -3888,6 +3892,11 @@ spret cast_starburst(int pow, bool fail, bool tracer)
         beam.target = you.pos() + offset;
         if (!tracer && !player_tracer(ZAP_BOLT_OF_FIRE, pow, beam))
             return spret::abort;
+        // If the player has already answered yes to shooting at at least one
+        // friendly, don't make them answer the question again for friendlies
+        // in every other direction.
+        else if (!tracer && beam.friend_info.dont_stop)
+            break;
 
         if (tracer)
         {
@@ -3912,6 +3921,106 @@ spret cast_starburst(int pow, bool fail, bool tracer)
     }
 
     return spret::success;
+}
+
+static string _get_jinxsprite_message(const monster& victim)
+{
+    string msg;
+
+    // This is *extremely* ripe ground for varied comical messages. Tie a snake's tail
+    // in a knot, unravel a mummy's bandages, tell Edmund he'll never be as scary as his brother.
+
+    if (get_mon_shape(victim.type) == MON_SHAPE_SNAKE && coinflip())
+    {
+        msg = make_stringf("ties %s tail in a knot.",
+                        victim.name(DESC_ITS).c_str());
+    }
+    else if (mon_shape_is_humanoid(get_mon_shape(victim.type)) && coinflip())
+    {
+        if (victim.inv[MSLOT_WEAPON] != NON_ITEM && coinflip())
+        {
+            return make_stringf("bonks %s with %s.",
+                                victim.name(DESC_THE).c_str(),
+                                env.item[victim.inv[MSLOT_WEAPON]].name(DESC_ITS).c_str());
+        }
+        else if (one_chance_in(3))
+        {
+            return make_stringf("insults %s ancestors.",
+                                victim.name(DESC_ITS).c_str());
+        }
+        else
+        {
+            return make_stringf("doodles on %s face.",
+                                victim.name(DESC_ITS).c_str());
+        }
+    }
+    else
+    {
+        switch (random2(2))
+        {
+            case 0:
+            return make_stringf("makes %s trip over %s own %s.",
+                                victim.name(DESC_THE).c_str(),
+                                victim.pronoun(PRONOUN_POSSESSIVE).c_str(),
+                                victim.foot_name(true).c_str());
+
+            case 1:
+            return make_stringf("smacks %s with %s own %s.",
+                                victim.name(DESC_THE).c_str(),
+                                victim.pronoun(PRONOUN_POSSESSIVE).c_str(),
+                                victim.hand_name(false).c_str());
+
+            case 2:
+            return make_stringf("does a pirouette on top of %s.",
+                                victim.name(DESC_THE).c_str());
+        }
+    }
+
+    return msg;
+}
+
+void attempt_jinxbite_hit(actor& victim)
+{
+    if (!victim.is_monster() || victim.wont_attack())
+        return;
+
+    // Test victim will to see if we should trigger.
+    // (Return silently if we don't pass the check.)
+    const int pow = calc_spell_power(SPELL_JINXBITE);
+    if (victim.check_willpower(&you, pow) > 0)
+        return;
+
+    // Show brief animation when we successfully trigger. (Helps sell to the
+    // player that this is a Will check, also.)
+    if ((Options.use_animations & UA_BEAM))
+    {
+#ifdef USE_TILE
+        view_add_tile_overlay(victim.pos(), tileidx_zap(LIGHTBLUE));
+#endif
+        view_add_glyph_overlay(victim.pos(), {dchar_glyph(DCHAR_FIRED_ZAP),
+                                static_cast<unsigned short>(LIGHTBLUE)});
+        animation_delay(50, true);
+    }
+
+    // XXX TODO: move this out and display it
+    const int dmg = roll_dice(2, 2 + div_rand_round(pow, 25));
+
+    monster* mons = victim.as_monster();
+    const int drain_dur = random_range(3 * BASELINE_DELAY, 5 * BASELINE_DELAY);
+    mons->add_ench(mon_enchant(ENCH_DRAINED, 2, &you, drain_dur));
+
+    if (you.can_see(victim))
+    {
+        mprf("A giggling sprite leaps out and %s",
+                _get_jinxsprite_message(*mons).c_str());
+    }
+
+    _player_hurt_monster(*mons, dmg, BEAM_MAGIC);
+
+    // Drain some duration every time we spawn a sprite.
+    you.duration[DUR_JINXBITE] -= 40;
+    if (you.duration[DUR_JINXBITE] < 1)
+        you.duration[DUR_JINXBITE] = 1;
 }
 
 void foxfire_attack(const monster *foxfire, const actor *target)
@@ -4491,7 +4600,7 @@ int siphon_essence_range() { return 2; }
 bool siphon_essence_affects(const monster &m)
 {
     return !m.wont_attack()
-        && !(m.holiness() & MH_NONLIVING)
+        && !m.res_torment()
         && !mons_is_conjured(m.type) // redundant?
         && !mons_is_tentacle_or_tentacle_segment(m.type); // dubious
         // intentionally allowing firewood, i guess..?

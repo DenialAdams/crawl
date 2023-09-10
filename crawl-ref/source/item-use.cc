@@ -1149,7 +1149,7 @@ bool use_an_item(operation_types oper, item_def *target)
  * This function generates a menu containing type_expect items based on the
  * object_class_type to be acted on by another function. First it will list
  * items in inventory, then items on the floor. If the prompt is cancelled,
- * false is returned. If something is successfully choosen, then true is
+ * false is returned. If something is successfully chosen, then true is
  * returned, and at function exit the parameter target points to the object the
  * player chose or to nullptr if the player chose to wield bare hands (this is
  * only possible if oper is OPER_WIELD).
@@ -1545,13 +1545,10 @@ static bool _do_wield_weapon(item_def *to_wield, bool adjust_time_taken)
 #endif
             canned_msg(MSG_EMPTY_HANDED_NOW);
 
-            // Switching to bare hands is extra fast.
+            // Switching to bare hands is the same speed as other weapon swaps.
             you.turn_is_over = true;
             if (adjust_time_taken)
-            {
-                you.time_taken *= 3;
-                you.time_taken /= 10;
-            }
+                you.time_taken /= 2;
         }
         else
             canned_msg(MSG_EMPTY_HANDED_ALREADY);
@@ -1685,7 +1682,7 @@ static string _cant_wear_barding_reason(bool ignore_temporary)
     if (!you.wear_barding())
         return "You can't wear that!";
 
-    if (!ignore_temporary && player_is_shapechanged())
+    if (!ignore_temporary && !get_form()->slot_available(EQ_BOOTS))
         return "You can wear that only in your normal form.";
 
     return "";
@@ -2080,7 +2077,7 @@ static bool _can_takeoff_armour(int item)
 bool takeoff_armour(int item, bool noask)
 {
     ASSERT_RANGE(item, 0, ENDOFPACK);
-    // We want to check non-item depedent stuff before prompting for the actual item
+    // We want to check non-item dependent stuff before prompting for the actual item
     if (!_can_generically_use_armour(false))
         return false;
 
@@ -3895,7 +3892,7 @@ bool read(item_def* scroll, dist *target)
     }
 
     case SCR_REVELATION:
-        magic_mapping(500, 100, false);
+        magic_mapping(GDM, 100, false, false, false, false, false);
         you.duration[DUR_REVELATION] = you.time_taken + 1;
         break;
 
@@ -3916,7 +3913,11 @@ bool read(item_def* scroll, dist *target)
                 continue;
 
             if (mi->add_ench(mon_enchant(ENCH_INNER_FLAME, 0, &you)))
+            {
+                // Equivalent to casting the spell at max power
+                mi->props[INNER_FLAME_POW_KEY] = 100;
                 had_effect = true;
+            }
         }
 
         if (had_effect)

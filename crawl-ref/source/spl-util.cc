@@ -250,7 +250,7 @@ int get_spell_slot_by_letter(char letter)
 static int _get_spell_slot(spell_type spell)
 {
     // you.spells is a FixedVector of spells in some arbitrary order. It
-    // doesn't corespond to letters.
+    // doesn't correspond to letters.
     auto i = find(begin(you.spells), end(you.spells), spell);
     return i == end(you.spells) ? -1 : i - begin(you.spells);
 }
@@ -1273,7 +1273,7 @@ string spell_uselessness_reason(spell_type spell, bool temp, bool prevent,
         }
         break;
 
-    case SPELL_PORTAL_PROJECTILE:
+    case SPELL_DIMENSIONAL_BULLSEYE:
         if (you.has_mutation(MUT_NO_GRASPING))
             return "this spell is useless without hands.";
         break;
@@ -1456,6 +1456,10 @@ string spell_uselessness_reason(spell_type spell, bool temp, bool prevent,
                 return no_charge_reason;
         }
         break;
+
+    case SPELL_SIGIL_OF_BINDING:
+        if (temp && cast_sigil_of_binding(0, false, true) == spret::abort)
+            return "there is no room nearby to place a sigil.";
 
     default:
         break;
@@ -1650,7 +1654,7 @@ bool spell_no_hostile_in_range(spell_type spell)
     if (testbits(flags, spflag::helpful))
         return false;
 
-    // For chosing default targets and prompting we don't treat Inner Flame as
+    // For choosing default targets and prompting we don't treat Inner Flame as
     // neutral, since the seeping flames trigger conducts and harm the monster
     // before it explodes.
     const bool allow_friends = testbits(flags, spflag::neutral)
@@ -1943,6 +1947,7 @@ const set<spell_type> removed_spells =
     SPELL_STORM_FORM,
     SPELL_DRAGON_FORM,
     SPELL_NECROMUTATION,
+    SPELL_AWAKEN_EARTH,
 #endif
 };
 

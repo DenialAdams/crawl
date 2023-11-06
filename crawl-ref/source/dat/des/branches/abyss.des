@@ -66,22 +66,6 @@ x311_x
 xxxxxx
 ENDMAP
 
-NAME:  marbit_kobold_abyss_entry
-TAGS:  no_monster_gen nolayout_encompass
-WEIGHT: 5
-MONS:  kobold brigand ; dart ego:dispersal, kobold demonologist
-KPROP: 1 = no_tele_into
-: abyss_entry(_G, '_')
-MAP
-xxxxxxxxxxxxxxx
-xxlllxx<.xlll.x
-xlllllxx.lll..x
-@x.llll..lll2_x
-x.xl1lllllll.>x
-xlllxlllx1lll.x
-xxxxxxxxxxxxxxx
-ENDMAP
-
 NAME:    abyss_entry_small_statue_room
 TAGS:    nolayout_encompass
 : abyss_entry(_G, 'O')
@@ -502,7 +486,7 @@ NAME:    hangedman_abyss_lost_library
 TAGS:    patrolling no_monster_gen no_item_gen
 MONS:    guardian serpent, great orb of eyes, glowing orange brain
 MONS:    boggart, rakshasa, cacodemon, shadow demon
-KMONS:   0 = wizard
+KMONS:   0 = occultist
 KMONS:   8 = orc sorcerer
 KMONS:   9 = sphinx
 KMONS:   & = lich
@@ -599,7 +583,7 @@ MONS:    shapeshifter / ugly thing / large abomination w:2, wretched star
 MONS:    large abomination / ghoul, ancient zyme
 MONS:    large slime creature w:12 / very large slime creature w:8 / rakshasa w:2
 KMONS:   8 = starcursed mass
-KMONS:   9 = floating eye / chaos spawn / anaconda perm_ench:shapeshifter w:2
+KMONS:   9 = glass eye / chaos spawn / anaconda perm_ench:shapeshifter w:2
 KMONS:   0 = tentacled starspawn
 KMONS:   A = patrolling shadow demon
 KMONS:   B = boggart
@@ -945,7 +929,7 @@ ENDMAP
 NAME:    hangedman_abyss_town
 TAGS:    no_monster_gen patrolling allow_dup
 WEIGHT:  5
-MONS:    rakshasa / efreet / smoke demon / wizard / base draconian w:5 / \
+MONS:    rakshasa / efreet / smoke demon / occultist / base draconian w:5 / \
          guardian serpent w:1 / vampire w:3 / necromancer w:3
 MONS:    thrashing horror / blink frog / ugly thing / \
          large abomination / unseen horror / shapeshifter / \
@@ -1068,7 +1052,7 @@ MONS:   ettin ; giant spiked club ego:distortion | giant club ego:distortion . \
                 giant spiked club ego:chaos | giant club ego:chaos
 MONS:   ettin skeleton w:6 / flayed ghost / shadow wraith w:4
 MONS:   place:Abyss:$, silent spectre
-KMONS:  O = floating eye
+KMONS:  O = glass eye
 KITEM:  O = abyssal rune of Zot
 KFEAT:  A = stone_arch
 KFEAT:  " = runelight
@@ -1153,7 +1137,7 @@ ENDMAP
 NAME:   hangedman_abyss_rune_macabre_mess
 TAGS:   abyss_rune unrand no_monster_gen
 KMONS:  1 = glowing orange brain
-KMONS:  2 = golden eye / floating eye w:2
+KMONS:  2 = golden eye / glass eye w:4
 KMONS:  3O = flying skull
 KMONS:  4 = large abomination / small abomination w:6
 KMONS:  5 = cacodemon
@@ -1303,7 +1287,6 @@ MAP
            ....
 ENDMAP
 
-
 NAME:   doesnt_abyss_rune_brain_food
 TAGS:   abyss_rune unrand patrolling no_pool_fixup
 MONS:   neqoxec, glowing orange brain, orange crystal statue, very ugly thing
@@ -1387,7 +1370,7 @@ MONS:   wretched star
 SUBST:  3=3334
 MONS:   tentacled starspawn / starcursed mass / demonic plant / oklob plant w:20
 # generic abyss badthings who don't mind if their target is moved around (4)
-MONS:   lich / wizard / thrashing horror
+MONS:   lich / occultist / thrashing horror
 KITEM:  O = abyssal rune of Zot
 COLOUR: cO = magenta
 SUBST:  c = ccccb
@@ -1416,6 +1399,47 @@ MAP
   -....-..-.--@
    3    PP P F A
                 3
+ENDMAP
+
+# Xom angels & daevas can spawn in the Abyss,
+# this seemed like the next logical step.
+NAME:   skrybe_abyss_rune_heretic_angels
+TAGS:   abyss_rune unrand
+MONS:   daeva god:Xom ; scimitar ego:chaos w:5 | demon blade ego:chaos w:1 | \
+                        eudemon blade | scimitar ego:holy_wrath | \
+                        long sword ego:holy_wrath w:20 . tower shield
+MONS:   angel god:Xom ; whip ego:chaos w:5 | demon whip ego:chaos w:1 | \
+                        sacred scourge | whip ego:holy_wrath w:30 . robe
+MONS:   holy swine
+MONS:   dancing weapon ; eudemon blade ego:holy_wrath w:2 | \
+                         scimitar ego:holy_wrath
+MONS:   large abomination, cacodemon / cacodemon band, apocalypse crab
+KITEM:  O = abyssal rune of Zot
+KFEAT:  _ = altar_xom
+KFEAT:  " = runelight
+NSUBST: A = 1:2 / 1:123 / 2 = 122 / *:.
+NSUBST: X = 1:3 / 1:5 / 1:6 / 4 = 33455 / *:.
+COLOUR: c = white
+TILE:   c = wall_church
+MAP
+"."..........""....""
+.ccccccccccccccccccc"
+"cO...ttX...tt..t..c.
+.c._...7t..t....t..c.
+.c..1...t..t.....ttc.
+.c...ccccccccc++cccc.
+.ct..ctt....t..Acc.c.
+.ct7.ctX...t...cc..c.
+.cXt.c...tX...cc...c.
+.c..tc..ttt..c+..t.c.
+"c..tc..Xt..cc..t..+"
+"c.t.c.t...cc..tA..+"
+.ct..ct...+c..t..t.c.
+.ct..c...cc..tA.t..c.
+.c.t.+..cc..t..t.Xtc.
+"c..t+Acc........tXc"
+.cccccccccccc++ccccc.
+"."..........""..."."
 ENDMAP
 
 ########################################
@@ -1475,7 +1499,7 @@ ENDMAP
 NAME:  evilmike_abyss_rune_siren_acolytes
 TAGS:  abyss_rune unrand patrolling no_pool_fixup
 # They really should have bend space instead of blink / other.
-MONS:   wizard hd:16 name:mad_acolyte_of_Lugonu n_rpl n_des col:lightgreen \
+MONS:   occultist hd:16 name:mad_acolyte_of_Lugonu n_rpl n_des col:lightgreen \
         tile:mons_mad_acolyte_of_lugonu \
         spells:smiting.20.priest;malign_gateway.20.priest;\
                blink.10.priest;blink_other.10.priest;\

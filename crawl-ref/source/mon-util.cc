@@ -383,6 +383,7 @@ resists_t get_mons_class_resists(monster_type mc)
     return _apply_holiness_resists(resists, mons_class_holiness(mc));
 }
 
+/// All resists intrinsic to a monster, excluding enchants, equip, etc.
 resists_t get_mons_resists(const monster& m)
 {
     const monster& mon = get_tentacle_head(m);
@@ -659,6 +660,20 @@ const char * holiness_name(mon_holy_type_flags which_holiness)
     default:
         return "bug";
     }
+}
+
+/// Hack for demonspawn monsters. TODO: de-bitfieldify!
+const char * single_holiness_description(mon_holy_type holiness)
+{
+    for (const auto bit : mon_holy_type::range())
+    {
+        if (!(holiness & bit))
+            continue;
+        if (bit == MH_NATURAL && holiness != MH_NATURAL)
+            continue;
+        return holiness_name(bit);
+    }
+    return "eggplant";
 }
 
 string holiness_description(mon_holy_type holiness)
@@ -1621,6 +1636,16 @@ bool mons_class_fast_regen(monster_type mc)
     return mons_class_flag(mc, M_FAST_REGEN);
 }
 
+int mons_class_regen_amount(monster_type mc)
+{
+    switch (mc)
+    {
+    case MONS_PARGHIT:         return 27;
+    case MONS_DEMONIC_CRAWLER: return 6;
+    default:                   return 1;
+    }
+}
+
 /**
  * Do monsters of the given type ever leave a hide?
  *
@@ -2099,6 +2124,22 @@ static int _mons_damage(monster_type mc, int rt)
     return smc->attack[rt].damage;
 }
 
+string mon_attack_name_short(attack_type attack)
+{
+    switch (attack)
+    {
+    case AT_SPORE:         return "spore";
+    case AT_TENTACLE_SLAP: return "tentacle";
+    case AT_TAIL_SLAP:     return "tail";
+    case AT_TRUNK_SLAP:    return "trunk";
+    case AT_POUNCE:        return "pounce";
+    case AT_CHERUB:
+    case AT_RANDOM:        return "hit"; // eh
+    default:
+        return mon_attack_name(attack, false);
+    }
+}
+
 /**
  * A short description of the given monster attack type.
  *
@@ -2234,6 +2275,10 @@ int flavour_damage(attack_flavour flavour, int HD, bool random)
             if (random)
                 return HD * 3 / 2 + random2(HD);
             return HD * 5 / 2;
+        case AF_DROWN:
+            if (random)
+                return HD * 3 / 4 + random2(HD * 3 / 4);
+            return HD * 3 / 2;
         default:
             return 0;
     }
@@ -2257,6 +2302,11 @@ bool flavour_has_reach(attack_flavour flavour)
         default:
             return false;
     }
+}
+
+bool flavour_has_mobility(attack_flavour flavour)
+{
+    return flavour == AF_SWOOP || flavour == AF_FLANK;
 }
 
 bool mons_invuln_will(const monster& mon)
@@ -2811,14 +2861,13 @@ void define_monster(monster& mons, bool friendly)
 
     switch (mcls)
     {
+    // Please keep describe.cc in sync if you change abominations.
     case MONS_ABOMINATION_SMALL:
         hd = 4 + random2(4);
-        mons.props[MON_SPEED_KEY] = 7 + random2avg(9, 2);
         break;
 
     case MONS_ABOMINATION_LARGE:
         hd = 8 + random2(4);
-        mons.props[MON_SPEED_KEY] = 6 + random2avg(7, 2);
         break;
 
     case MONS_SLIME_CREATURE:

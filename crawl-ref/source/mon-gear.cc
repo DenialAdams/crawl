@@ -686,6 +686,11 @@ int make_mons_weapon(monster_type type, int level, bool melee_only)
             { { { WPN_TRIDENT,          1 },
                 { WPN_SPEAR,            2 },
         } } },
+        { MONS_KOBOLD_BLASTMINER,
+            { { { WPN_ORCBOW,           8 },
+                { WPN_ARBALEST,         31 },
+                { WPN_HAND_CANNON,      1 },
+        } } },
         { MONS_CENTAUR,
             { { { WPN_SHORTBOW,         1 },
                 { WPN_ORCBOW,           1 },
@@ -1362,6 +1367,12 @@ static void _give_weapon(monster *mon, int level, bool second_weapon = false)
         _give_weapon(mon, level, true);
     }
 
+    if (mon->type == MONS_ERICA && i.is_type(OBJ_WEAPONS, WPN_SCIMITAR))
+    {
+        make_item_for_monster(mon, OBJ_JEWELLERY, OBJ_RANDOM,
+                              0, 1, ISFLAG_KNOW_TYPE);
+    }
+
     if (mon->type == MONS_FANNAR && i.is_type(OBJ_WEAPONS, WPN_QUARTERSTAFF))
     {
         make_item_for_monster(mon, OBJ_JEWELLERY, RING_ICE,
@@ -2024,7 +2035,6 @@ int make_mons_armour(monster_type type, int level)
         break;
     }
 
-    case MONS_ERICA:
     case MONS_JOSEPHINE:
     case MONS_PSYCHE:
         if (one_chance_in(5))

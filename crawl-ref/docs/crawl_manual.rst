@@ -852,9 +852,8 @@ shield (especially larger shields) slows your attacks, hampers your ability to
 cast spells, and lowers your evasion. Weaker characters are more affected by
 these penalties, but all characters can reduce and eventually eliminate these
 penalties by mastering the Shields skill. You also obviously cannot wield a
-two-handed weapon while wearing a shield. Shields are most effective against
-the first attack on you each turn, and become less useful for every one after
-that.
+two-handed weapon while wearing a shield. Shields are limited in how many
+attacks they can block each turn; larger shields can block more.
 
 Some magical armours have special powers. These powers are sometimes automatic,
 affecting you whenever you wear the armour, and sometimes must be activated with
@@ -1630,10 +1629,10 @@ Armataurs (At)
   terrorize the lands outside the Dungeon.
 
   Armataurs instinctively roll when moving toward foes, getting a free move.
-  Their long, nimble tongues drink every last drop from potions, doubling
-  their effects, but the strange syllables of magical scrolls slow them down.
-  They have great aptitudes with armour and shields, though their body shape
-  reduces the protection offered by body armour early on.
+  Their long, nimble tongues drink every last drop from potions, doubling their
+  effects. They have great aptitudes with armour and shields, though their body
+  shape reduces the protection offered by body armour early on. At higher levels
+  they regenerate health when rolling, making them truly resilient fighters.
 
 Gnolls (Gn)
   Gnolls are a species of caniform humanoids originally hailing from the arid

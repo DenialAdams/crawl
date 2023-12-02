@@ -1956,10 +1956,12 @@ static const map<monster_type, band_set> bands_by_leader = {
     { MONS_GRUNN,            { {}, {{ BAND_DOOM_HOUNDS, {2, 4}, true }}}},
     { MONS_NORRIS,           { {}, {{ BAND_SKYSHARKS, {2, 5}, true }}}},
     { MONS_UFETUBUS,         { {}, {{ BAND_UFETUBI, {1, 2} }}}},
+    { MONS_KOBOLD_BLASTMINER, { {}, {{ BAND_BLASTMINER, {0, 2} }}}},
 
     // special-cased band-sizes
     { MONS_SPRIGGAN_DRUID,  { {3}, {{ BAND_SPRIGGAN_DRUID, {0, 1}, true }}}},
     { MONS_THRASHING_HORROR, { {}, {{ BAND_THRASHING_HORRORS, {0, 1} }}}},
+    { MONS_BRAIN_WORM, { {}, {{ BAND_BRAIN_WORMS, {0, 1} }}}},
 };
 
 static band_type _choose_band(monster_type mon_type, int *band_size_p,
@@ -2062,9 +2064,14 @@ static band_type _choose_band(monster_type mon_type, int *band_size_p,
             band_size = (one_chance_in(4) ? 3 : 2);
         break;
 
+    case MONS_BRAIN_WORM:
+        if (player_in_branch(BRANCH_ABYSS))
+            band_size = random2(you.depth) / 2;
+        break;
+
     case MONS_THRASHING_HORROR:
-        // XXX: rewrite this - wrong & bad if horrors aren't in abyss
-        band_size = random2(min(brdepth[BRANCH_ABYSS], you.depth));
+        if (player_in_branch(BRANCH_ABYSS))
+            band_size = random2(min(brdepth[BRANCH_ABYSS], you.depth));
         break;
 
     default: ;
@@ -2130,6 +2137,7 @@ static const map<band_type, vector<member_possibilities>> band_membership = {
     { BAND_JELLYFISH,           {{{MONS_FORMLESS_JELLYFISH, 1}}}},
     { BAND_DEATH_YAKS,          {{{MONS_DEATH_YAK, 1}}}},
     { BAND_GREEN_RATS,          {{{MONS_RIVER_RAT, 1}}}},
+    { BAND_BRAIN_WORMS,         {{{MONS_BRAIN_WORM, 1}}}},
     { BAND_BLINK_FROGS,         {{{MONS_BLINK_FROG, 1}}}},
     { BAND_GOLDEN_EYE,          {{{MONS_GOLDEN_EYE, 1}}}},
     { BAND_HELL_HOUNDS,         {{{MONS_HELL_HOUND, 1}}}},
@@ -2163,6 +2171,7 @@ static const map<band_type, vector<member_possibilities>> band_membership = {
     { BAND_BONE_DRAGONS,        {{{MONS_BONE_DRAGON, 1}}}},
     { BAND_SPECTRALS,           {{{MONS_SPECTRAL_THING, 1}}}},
     { BAND_UFETUBI,             {{{MONS_UFETUBUS, 1}}}},
+    { BAND_BLASTMINER,          {{{MONS_KOBOLD_BLASTMINER, 1}}}},
     { BAND_DEEP_ELF_KNIGHT,     {{{MONS_DEEP_ELF_AIR_MAGE, 46},
                                   {MONS_DEEP_ELF_FIRE_MAGE, 46},
                                   {MONS_DEEP_ELF_KNIGHT, 24},

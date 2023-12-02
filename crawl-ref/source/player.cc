@@ -1171,6 +1171,10 @@ static int _player_bonus_regen()
     if (you.duration[DUR_POWERED_BY_DEATH])
         rr += you.props[POWERED_BY_DEATH_KEY].get_int() * 100;
 
+    // Rampage healing grants a variable regen boost while active.
+    if (you.duration[DUR_RAMPAGE_HEAL])
+        rr += you.props[RAMPAGE_HEAL_KEY].get_int() * REGEN_PIP;
+
     return rr;
 }
 
@@ -1622,7 +1626,7 @@ int player_res_poison(bool allow_random, bool temp, bool items)
 
 int player_res_sticky_flame()
 {
-    return get_form()->res_sticky_flame();
+    return you.is_insubstantial();
 }
 
 int player_spec_death()
@@ -1819,7 +1823,7 @@ int player_prot_life(bool allow_random, bool temp, bool items)
 
 // Even a slight speed advantage is very good... and we certainly don't
 // want to go past 6 (see below). -- bwr
-int player_movement_speed(bool check_terrain)
+int player_movement_speed(bool check_terrain, bool temp)
 {
     int mv = you.form == transformation::none
         ? 10
@@ -1853,7 +1857,7 @@ int player_movement_speed(bool check_terrain)
     else if (player_under_penance(GOD_CHEIBRIADOS))
         mv += 2 + min(div_rand_round(you.piety_max[GOD_CHEIBRIADOS], 20), 8);
 
-    if (you.duration[DUR_FROZEN])
+    if (temp && you.duration[DUR_FROZEN])
         mv += 3;
 
     // Mutations: -2, -3, -4, unless innate and shapechanged.
@@ -1866,7 +1870,7 @@ int player_movement_speed(bool check_terrain)
         mv /= 10;
     }
 
-    if (you.duration[DUR_SWIFTNESS] > 0)
+    if (temp && you.duration[DUR_SWIFTNESS] > 0)
     {
         if (you.attribute[ATTR_SWIFTNESS] > 0)
           mv = div_rand_round(3*mv, 4);
@@ -4811,6 +4815,28 @@ void dec_frozen_ramparts(int delay)
     }
 }
 
+void reset_rampage_heal_duration()
+{
+    const int heal_dur = random_range(3, 7);
+    you.set_duration(DUR_RAMPAGE_HEAL, heal_dur);
+}
+
+void apply_rampage_heal(const monster* mons)
+{
+    if (mons == nullptr
+        || you.get_mutation_level(MUT_ROLLPAGE) < 2
+        || mons_threat_level(*mons) < MTHRT_EASY)
+    {
+        return;
+    }
+
+    reset_rampage_heal_duration();
+
+    const int heal = you.props[RAMPAGE_HEAL_KEY].get_int();
+    if (heal < RAMPAGE_HEAL_MAX)
+        you.props[RAMPAGE_HEAL_KEY] = heal + 1;
+}
+
 bool invis_allowed(bool quiet, string *fail_reason, bool temp)
 {
     string msg;
@@ -5695,11 +5721,6 @@ bool player::liquefied_ground() const
 {
     return liquefied(pos())
            && ground_level() && !is_insubstantial();
-}
-
-int player::shield_block_penalty() const
-{
-    return 5 * shield_blocks * shield_blocks;
 }
 
 /**

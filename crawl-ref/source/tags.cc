@@ -3542,6 +3542,15 @@ static void _tag_read_you(reader &th)
             you.mutation[MUT_TELEPORT] = 2;
     }
 
+    if (th.getMinorVersion() < TAG_MINOR_RAMPAGE_HEAL
+        && you.species == SP_ARMATAUR)
+    {
+        _fixup_species_mutations(MUT_RUGGED_BROWN_SCALES);
+        _fixup_species_mutations(MUT_TOUGH_SKIN);
+        _fixup_species_mutations(MUT_ROLLPAGE);
+        _fixup_species_mutations(MUT_AWKWARD_TONGUE);
+    }
+
     // fully clean up any removed mutations
     for (auto m : get_removed_mutations())
         _clear_mutation(m);
@@ -6012,6 +6021,7 @@ void _marshallMonsterInfo(writer &th, const monster_info& mi)
     marshallUnsigned(th, mi.ac);
     marshallUnsigned(th, mi.ev);
     marshallUnsigned(th, mi.base_ev);
+    marshallUnsigned(th, mi.sh);
     marshallInt(th, mi.mresists);
     marshallUnsigned(th, mi.mitemuse);
     marshallByte(th, mi.mbase_speed);
@@ -6020,9 +6030,6 @@ void _marshallMonsterInfo(writer &th, const monster_info& mi)
     marshallByte(th, mi.menergy.attack);
     marshallByte(th, mi.menergy.missile);
     marshallByte(th, mi.menergy.spell);
-    marshallByte(th, mi.menergy.special);
-    marshallByte(th, mi.menergy.item);
-    marshallByte(th, mi.menergy.pickup_percent);
     for (int i = 0; i < MAX_NUM_ATTACKS; ++i)
         _marshall_mi_attack(th, mi.attack[i]);
     for (unsigned int i = 0; i <= MSLOT_LAST_VISIBLE_SLOT; ++i)
@@ -6141,6 +6148,13 @@ void _unmarshallMonsterInfo(reader &th, monster_info& mi)
     }
 #endif
 
+#if TAG_MAJOR_VERSION == 34
+    if (th.getMinorVersion() >= TAG_MINOR_MON_SH_INFO)
+        unmarshallUnsigned(th, mi.sh);
+    else
+#endif
+        mi.sh = 0;
+
     mi.mr = mons_class_willpower(mi.type, mi.base_type);
     mi.can_see_invis = mons_class_sees_invis(mi.type, mi.base_type);
 
@@ -6253,10 +6267,13 @@ void _unmarshallMonsterInfo(reader &th, monster_info& mi)
     mi.menergy.attack = unmarshallByte(th);
     mi.menergy.missile = unmarshallByte(th);
     mi.menergy.spell = unmarshallByte(th);
-    mi.menergy.special = unmarshallByte(th);
-    mi.menergy.item = unmarshallByte(th);
-    mi.menergy.pickup_percent = unmarshallByte(th);
 #if TAG_MAJOR_VERSION == 34
+    if (th.getMinorVersion() < TAG_MINOR_NO_SPECIAL_ENERGY)
+    {
+        unmarshallByte(th); // special
+        unmarshallByte(th); // item
+        unmarshallByte(th); // pickup_percent
+    }
     }
 #endif
 

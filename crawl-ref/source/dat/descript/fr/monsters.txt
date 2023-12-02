@@ -242,9 +242,7 @@ une assez bonne protection. Et distraire les hommes au combat est une qualité.
 %%%%
 Maurice
 
-Un voleur sournois et connivent. En sa profession, Maurice est considéré comme
-une légende — du moins, d'après lui-même. Il est expérimenté toutefois, et de
-tout les voleurs attirés par l'Orbe, Maurice est sans doute le plus astucieux.
+Un voleur sournois et connivent.
 %%%%
 Menkaure
 
@@ -2094,10 +2092,6 @@ ancient champion
 
 Un ancien squelette insondable. Il a des centaines de sceaux dorés gravés dans
 ses os, et il palpite d'un pouvoir terrible et malsain.
-%%%%
-antique lich
-
-Une liche qui est devenu très coûteuse au fil d'un temps incalculable.
 %%%%
 charred statue
 

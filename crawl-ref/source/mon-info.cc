@@ -24,6 +24,7 @@
 #include "god-passive.h" // passive_t::neutral_slimes
 #include "item-prop.h"
 #include "item-status-flag-type.h"
+#include "items.h" // item_is_unusual
 #include "libutil.h"
 #include "los.h"
 #include "message.h"
@@ -55,7 +56,7 @@ static map<enchant_type, monster_info_flags> trivial_ench_mb_mappings = {
     { ENCH_SILVER_CORONA,   MB_GLOWING },
     { ENCH_SLOW,            MB_SLOWED },
     { ENCH_SICK,            MB_SICK },
-    { ENCH_FRENZIED,          MB_FRENZIED },
+    { ENCH_FRENZIED,        MB_FRENZIED },
     { ENCH_HASTE,           MB_HASTED },
     { ENCH_MIGHT,           MB_STRONG },
     { ENCH_CONFUSION,       MB_CONFUSED },
@@ -360,6 +361,7 @@ monster_info::monster_info(monster_type p_type, monster_type p_base_type)
     hd = mons_class_hit_dice(type);
     ac = get_mons_class_ac(type);
     ev = base_ev = get_mons_class_ev(type);
+    sh = 0;
     mresists = get_mons_class_resists(type);
     mr = mons_class_willpower(type, base_type);
     can_see_invis = mons_class_sees_invis(type, base_type);
@@ -595,11 +597,12 @@ monster_info::monster_info(const monster* m, int milev)
     ac = m->armour_class();
     ev = m->evasion();
     base_ev = m->base_evasion();
+    sh = m->shield_class();
     mr = m->willpower();
     can_see_invis = m->can_see_invisible();
     if (m->nightvision())
         props[NIGHTVISION_KEY] = true;
-    mresists = get_mons_resists(*m);
+    mresists = m->all_resists();
     mitemuse = mons_itemuse(*m);
     mbase_speed = mons_base_speed(*m, true);
     menergy = mons_energy(*m);
@@ -882,7 +885,20 @@ string monster_info::get_max_hp_desc() const
         mhp *= slime_size;
 
     mhp /= scale;
-    return make_stringf("about %d", mhp);
+    return make_stringf("~%d", mhp);
+}
+
+/// HP regenerated every (scale) turns.
+int monster_info::regen_rate(int scale) const
+{
+    if (!can_regenerate() || is(MB_SICK) /* ? */)
+        return 0;
+    if (mons_class_fast_regen(type) || is(MB_REGENERATION) /* ? */)
+        return mons_class_regen_amount(type) * scale;
+
+    // Duplicates monster::natural_regen_rate.
+    const int divider = max(((15 - hd) + 2 /*round up*/) / 4, 1);
+    return min(scale, max(1, hd * scale / (divider * 25)));
 }
 
 /**
@@ -1629,6 +1645,7 @@ bool monster_info::net_immune() const
 {
     // nets go right through (but weapons don't..?)
     return mons_class_flag(type, M_INSUBSTANTIAL)
+        || mons_genus(type) == MONS_JELLY
     // tentacles are too weird. don't mess with em
         || mons_is_tentacle_or_tentacle_segment(type)
     // if you net something that doesn't move (positionally or attacking),
@@ -1661,24 +1678,15 @@ bool monster_info::fellow_slime() const {
 vector<string> monster_info::get_unusual_items() const
 {
     vector<string> names;
-    const auto &patterns = Options.unusual_monster_items;
-
-    for (unsigned i = 0; i <= MSLOT_LAST_VISIBLE_SLOT; ++i)
+    for (unsigned int i = 0; i <= MSLOT_LAST_VISIBLE_SLOT; ++i)
     {
         if (!inv[i])
             continue;
 
         const item_def* item = inv[i].get();
-        const string name = item->name(DESC_A, false, false, true, false);
-
-        if (any_of(begin(patterns), end(patterns),
-                   [&](const text_pattern &p) -> bool
-                   { return p.matches(name); }))
-        {
-            names.push_back(name);
-        }
+        if (item_is_unusual(*item))
+            names.push_back(item->name(DESC_A, false, false, true, false));
     }
-
     return names;
 }
 

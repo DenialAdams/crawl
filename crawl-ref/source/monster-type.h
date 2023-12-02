@@ -119,8 +119,8 @@ enum monster_type                      // env.mons[].type
     MONS_POLAR_BEAR,
     MONS_BLACK_BEAR,
     MONS_WORM,
-#if TAG_MAJOR_VERSION == 34
     MONS_BRAIN_WORM,
+#if TAG_MAJOR_VERSION == 34
     MONS_ROCK_WORM,
     MONS_SPINY_WORM,
 #endif
@@ -388,6 +388,9 @@ enum monster_type                      // env.mons[].type
     MONS_KOBOLD,
     MONS_KOBOLD_BRIGAND,
     MONS_KOBOLD_DEMONOLOGIST,
+#if TAG_MAJOR_VERSION > 34
+    MONS_KOBOLD_BLASTMINER,
+#endif
     MONS_ORC,
     MONS_ORC_WARRIOR,
     MONS_ORC_PRIEST,
@@ -767,6 +770,7 @@ enum monster_type                      // env.mons[].type
     MONS_PROFANE_SERVITOR,
 #if TAG_MAJOR_VERSION > 34
     MONS_ANCIENT_CHAMPION,
+    MONS_ANTIQUE_CHAMPION,
     MONS_REVENANT,
     MONS_LOST_SOUL,
     MONS_JIANGSHI,
@@ -1203,6 +1207,8 @@ enum monster_type                      // env.mons[].type
     MONS_BOULDER,
     MONS_ARCANIST,
     MONS_FLOATING_EYE,                 // genus
+    MONS_ANTIQUE_CHAMPION,
+    MONS_KOBOLD_BLASTMINER,
 #endif
 
     NUM_MONSTERS,               // used for polymorph
@@ -1212,7 +1218,6 @@ enum monster_type                      // env.mons[].type
     MONS_NO_MONSTER = 1000,
 
     RANDOM_MONSTER = 2000, // used to distinguish between a random monster and using program bugs for error trapping {dlb}
-    RANDOM_TOUGHER_MONSTER, // used for poly upgrading monsters.
     RANDOM_MOBILE_MONSTER, // used for monster generation (shadow creatures)
     RANDOM_COMPATIBLE_MONSTER, // used for player shadow creatures (prevents repulsing summons)
     RANDOM_BANDLESS_MONSTER,

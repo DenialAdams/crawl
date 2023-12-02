@@ -390,6 +390,10 @@ bool mcache_monster::get_weapon_offset(tileidx_t mon_tile,
         *ofs_x = -3;
         *ofs_y = 0;
         break;
+    case TILEP_MONS_MAURICE:
+        *ofs_x = -5;
+        *ofs_y = 0;
+        break;
     case TILEP_MONS_JACK_O_LANTERN:
         *ofs_x = -6;
         *ofs_y = 0;
@@ -495,6 +499,7 @@ bool mcache_monster::get_weapon_offset(tileidx_t mon_tile,
         break;
     case TILEP_MONS_SONJA:
     case TILEP_MONS_ANCIENT_CHAMPION:
+    case TILEP_MONS_ANTIQUE_CHAMPION:
     case TILEP_MONS_SKELETAL_WARRIOR:
     case TILEP_MONS_SALAMANDER:
     case TILEP_MONS_VINE_STALKER:
@@ -836,6 +841,10 @@ bool mcache_monster::get_weapon_offset(tileidx_t mon_tile,
         *ofs_x = -5;
         *ofs_y = 5;
         break;
+    case TILEP_MONS_KOBOLD_BLASTMINER: // left-handed
+        *ofs_x = 17;
+        *ofs_y = 5;
+        break;
     case TILEP_MONS_KILLER_KLOWN:
         *ofs_x = 0;
         *ofs_y = 4;
@@ -958,6 +967,8 @@ bool mcache_monster::get_shield_offset(tileidx_t mon_tile,
         break;
 
     case TILEP_MONS_TWO_HEADED_OGRE: // second weapon
+    case TILEP_MONS_ANTIQUE_CHAMPION:
+    case TILEP_MONS_ANCIENT_CHAMPION:
         *ofs_x = 0;
         *ofs_y = 2;
         break;
@@ -1040,6 +1051,11 @@ bool mcache_monster::get_shield_offset(tileidx_t mon_tile,
     case TILEP_MONS_WRAITH:
         *ofs_x = -3;
         *ofs_y = -2;
+        break;
+
+    case TILEP_MONS_MAURICE:
+        *ofs_x = -5;
+        *ofs_y = 4;
         break;
 
     case TILEP_MONS_JACK_O_LANTERN:

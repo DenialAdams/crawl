@@ -209,6 +209,7 @@ swamp_worm_water
 %rim 1
 %sdir mon/animals
 worm MONS_WORM
+brain_worm MONS_BRAIN_WORM
 tyrant_leech MONS_TYRANT_LEECH
 dart_slug MONS_DART_SLUG
 steelbarb_worm MONS_STEELBARB_WORM
@@ -486,6 +487,9 @@ abomination_small1
 %sdir mon/aquatic
 %rim 0
 octopode MONS_OCTOPODE
+%sdir mon/unique
+erica MONS_ERICA
+erica_swordless MONS_ERICA_SWORDLESS
 %sdir mon/animals
 bunyip MONS_BUNYIP
 
@@ -581,8 +585,6 @@ frostbound_tome MONS_FROSTBOUND_TOME
 donald MONS_DONALD
 edmund MONS_EDMUND
 edmund_weaponless MONS_EDMUND_WEAPONLESS
-erica MONS_ERICA
-erica_swordless MONS_ERICA_SWORDLESS
 eustachio MONS_EUSTACHIO
 frances MONS_FRANCES
 %rim 0
@@ -599,7 +601,6 @@ kirke MONS_KIRKE
 louise MONS_LOUISE
 maggie MONS_MAGGIE
 margery MONS_MARGERY
-maurice MONS_MAURICE
 %rim 0
 nikola MONS_NIKOLA
 norris MONS_NORRIS
@@ -853,6 +854,7 @@ pikel MONS_PIKEL
 kobold MONS_KOBOLD
 kobold_brigand MONS_KOBOLD_BRIGAND
 kobold_demonologist MONS_KOBOLD_DEMONOLOGIST
+kobold_blastminer MONS_KOBOLD_BLASTMINER
 
 ## Liches ('L')
 %sdir mon/unique
@@ -865,7 +867,6 @@ lich MONS_LICH
 ancient_lich MONS_ANCIENT_LICH
 dread_lich MONS_DREAD_LICH
 halazid_warlock MONS_HALAZID_WARLOCK
-mon/vault/zonguldrok_lich MONS_ZONGULDROK_LICH
 
 ## Mummies ('M')
 %sdir mon/unique
@@ -944,9 +945,11 @@ treant MONS_TREANT
 briar_patch MONS_BRIAR_PATCH
 %rim 1
 vine_stalker MONS_VINE_STALKER
+%rim 0
+%sdir mon/unique
+maurice MONS_MAURICE
 
 ## Trolls ('T')
-%sdir mon/unique
 pargi MONS_PARGI
 parghit MONS_PARGHIT
 snorg MONS_SNORG
@@ -1181,6 +1184,7 @@ wight MONS_WIGHT
 %rim 1
 skeletal_warrior MONS_SKELETAL_WARRIOR
 ancient_champion MONS_ANCIENT_CHAMPION
+mon/vault/antique_champion MONS_ANTIQUE_CHAMPION
 %rim 1
 %sdir mon/undead
 curse_skull MONS_CURSE_SKULL
@@ -1255,6 +1259,7 @@ dragon_form_grey TRAN_DRAGON_GREY
 dragon_form_black TRAN_DRAGON_BLACK
 dragon_form_purple TRAN_DRAGON_PURPLE
 dragon_form_pale TRAN_DRAGON_PALE
+dragon_form_octopode TRAN_DRAGON_OCTOPODE
 dragon_form_felid TRAN_DRAGON_FELID
 lich_form_humanoid TRAN_LICH_HUMANOID
 %syn TRAN_LICH_EQUIP_FIRST

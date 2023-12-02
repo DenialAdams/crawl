@@ -151,15 +151,11 @@ static void _monster_regenerate(monster* mons)
         return;
     }
 
-    if (mons->type == MONS_PARGHIT)
-        mons->heal(27); // go whoosh
-    else if (mons->type == MONS_DEMONIC_CRAWLER)
-        mons->heal(6); // go zoom
-    else if (mons_class_fast_regen(mons->type)
+    if (mons_class_fast_regen(mons->type)
         || mons->has_ench(ENCH_REGENERATION)
         || _mons_natural_regen_roll(mons))
     {
-        mons->heal(1);
+        mons->heal(mons_class_regen_amount(mons->type));
     }
 
     if (mons_is_hepliaklqana_ancestor(mons->type))
@@ -1097,7 +1093,8 @@ static void _handle_boulder_movement(monster& boulder)
             }
 
             for (int i = push_targs.size() - 1; i >= 0; --i)
-                push_targs[i]->knockback(boulder, 1, 10, "");
+                if (push_targs[i]->alive()) // died from earlier knockback?
+                    push_targs[i]->knockback(boulder, 1, 10, "");
         }
 
         // If there is still somehow something in our way (maybe we were unable to
@@ -2263,7 +2260,7 @@ static void _post_monster_move(monster* mons)
         // TODO: implement monster spectral ego
     }
 
-    if (mons->foe != MHITNOT && mons->behaviour == BEH_BATTY)
+    if (mons->behaviour == BEH_BATTY)
     {
         int &bat_turns = mons->props[BATTY_TURNS_KEY].get_int();
         bat_turns++;

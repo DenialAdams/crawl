@@ -2908,6 +2908,12 @@ void melee_attack::mons_apply_attack_flavour()
 
         if (one_chance_in(3))
         {
+            if (attk_type != AT_SPORE)
+            {
+                mprf("%s %s afflicted by dizzying energies!",
+                     defender->name(DESC_THE).c_str(),
+                     defender->conj_verb("are").c_str());
+            }
             defender->confuse(attacker,
                               1 + random2(3+attacker->get_hit_dice()));
         }
@@ -3215,8 +3221,7 @@ void melee_attack::mons_apply_attack_flavour()
 
         if (!defender->res_water_drowning())
         {
-            special_damage = attacker->get_hit_dice() * 3 / 4
-                            + random2(attacker->get_hit_dice() * 3 / 4);
+            special_damage = base_damage;
             special_damage_flavour = BEAM_WATER;
             kill_type = KILLED_BY_WATER;
 

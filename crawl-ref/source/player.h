@@ -55,6 +55,8 @@
 #define DESCENT_DEBT_KEY "descent_debt"
 #define DESCENT_WATER_BRANCH_KEY "descent_water_branch"
 #define DESCENT_POIS_BRANCH_KEY "descent_poison_branch"
+#define RAMPAGE_HEAL_KEY "rampage_heal_strength"
+#define RAMPAGE_HEAL_MAX 7
 
 // display/messaging breakpoints for penalties from Ru's MUT_HORROR
 #define HORROR_LVL_EXTREME  3
@@ -844,7 +846,6 @@ public:
 
     bool shielded() const override;
     int shield_bonus() const override;
-    int shield_block_penalty() const override;
     int shield_bypass_ability(int tohit) const override;
     void shield_block_succeeded(actor *attacker) override;
     bool missile_repulsion() const override;
@@ -1001,7 +1002,7 @@ bool player_effectively_in_light_armour();
 int player_shield_racial_factor();
 int player_armour_shield_spell_penalty();
 
-int player_movement_speed(bool check_terrain = true);
+int player_movement_speed(bool check_terrain = true, bool temp = true);
 
 int player_icemail_armour_class();
 int player_condensation_shield_class();
@@ -1165,6 +1166,8 @@ void dec_elixir_player(int delay);
 void dec_ambrosia_player(int delay);
 void dec_channel_player(int delay);
 void dec_frozen_ramparts(int delay);
+void reset_rampage_heal_duration();
+void apply_rampage_heal(const monster* mons);
 bool invis_allowed(bool quiet = false, string *fail_reason = nullptr,
                                                         bool temp = true);
 bool flight_allowed(bool quiet = false, string *fail_reason = nullptr);

@@ -847,7 +847,6 @@ static bool _cmd_is_repeatable(command_type cmd, bool is_again = false)
 
     // Miscellaneous non-repeatable commands.
     case CMD_TOGGLE_AUTOPICKUP:
-    case CMD_TOGGLE_TRAVEL_SPEED:
     case CMD_TOGGLE_SOUND:
     case CMD_ADJUST_INVENTORY:
     case CMD_QUIVER_ITEM:
@@ -1694,7 +1693,7 @@ static void _experience_check()
         you.lives < 2 ?
              mprf("You'll get an extra life in %d.%02d levels' worth of XP.", perc / 100, perc % 100) :
              mprf("If you died right now, you'd get an extra life in %d.%02d levels' worth of XP.",
-             (perc / 100) + 1 , perc % 100);
+             perc / 100 , perc % 100);
     }
 
     handle_real_time();
@@ -1714,25 +1713,13 @@ static void _experience_check()
                         << " turns if you stay in this branch and explore no"
                         << " new floors.";
         }
-        msg::stream << endl;
+        msg::stream << endl << gem_status();
     }
 
 #ifdef DEBUG_DIAGNOSTICS
     mprf(MSGCH_DIAGNOSTICS, "Turns spent on this level: %d",
          env.turns_on_level);
 #endif
-}
-
-static void _toggle_travel_speed()
-{
-    you.travel_ally_pace = !you.travel_ally_pace;
-    if (you.travel_ally_pace)
-        mpr("You pace your travel speed to your slowest ally.");
-    else
-    {
-        mpr("You travel at normal speed.");
-        you.running.travel_speed = 0;
-    }
 }
 
 static void _do_rest()
@@ -2126,8 +2113,6 @@ void process_command(command_type cmd, command_type prev_cmd)
         mprf("Sound effects are now %s.", Options.sounds_on ? "on" : "off");
         break;
 #endif
-
-    case CMD_TOGGLE_TRAVEL_SPEED:        _toggle_travel_speed(); break;
 
         // Map commands.
     case CMD_CLEAR_MAP:       clear_map_or_travel_trail(); break;

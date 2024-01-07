@@ -627,9 +627,9 @@ bool god_id_item(item_def& item, bool silent)
 
     if (have_passive(passive_t::identify_items))
     {
-        // Don't identify runes or the orb, since this has no gameplay purpose
+        // Don't identify runes, gems, or the orb, since this has no purpose
         // and might mess up other things.
-        if (item.base_type == OBJ_RUNES || item_is_orb(item))
+        if (item_is_collectible(item))
             return false;
 
         if ((item.base_type == OBJ_JEWELLERY || item.base_type == OBJ_STAVES)
@@ -794,23 +794,23 @@ void ash_scrying()
 
 void gozag_move_level_gold_to_top()
 {
-    for (rectangle_iterator ri(0); ri; ++ri)
-        gozag_move_gold_to_top(*ri);
+    if (you_worship(GOD_GOZAG))
+    {
+        for (rectangle_iterator ri(0); ri; ++ri)
+            gozag_move_gold_to_top(*ri);
+    }
 }
 
 void gozag_move_gold_to_top(const coord_def p)
 {
-    if (you_worship(GOD_GOZAG))
+    for (int gold = env.igrid(p); gold != NON_ITEM;
+         gold = env.item[gold].link)
     {
-        for (int gold = env.igrid(p); gold != NON_ITEM;
-             gold = env.item[gold].link)
+        if (env.item[gold].base_type == OBJ_GOLD)
         {
-            if (env.item[gold].base_type == OBJ_GOLD)
-            {
-                unlink_item(gold);
-                move_item_to_grid(&gold, p, true);
-                break;
-            }
+            unlink_item(gold);
+            move_item_to_grid(&gold, p, true);
+            break;
         }
     }
 }
@@ -1262,8 +1262,7 @@ void dithmenos_shadow_spell(bolt* orig_beam, spell_type spell)
     shadow_monster_reset(mon);
 }
 
-static void _wu_jian_trigger_serpents_lash(const coord_def& old_pos,
-                                           bool wall_jump)
+void wu_jian_trigger_serpents_lash(bool wall_jump, const coord_def& old_pos)
 {
     if (you.attribute[ATTR_SERPENTS_LASH] == 0)
        return;
@@ -1601,7 +1600,7 @@ bool wu_jian_post_move_effects(bool did_wall_jump,
         attacked = _wu_jian_trigger_martial_arts(old_pos, you.pos());
 
     if (you.turn_is_over)
-        _wu_jian_trigger_serpents_lash(old_pos, did_wall_jump);
+        wu_jian_trigger_serpents_lash(did_wall_jump, old_pos);
 
     return attacked;
 }

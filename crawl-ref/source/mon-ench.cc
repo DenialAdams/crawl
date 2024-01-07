@@ -58,7 +58,7 @@ static const unordered_map<enchant_type, cloud_type, std::hash<int>> _cloud_ring
     { ENCH_RING_OF_MUTATION,    CLOUD_MUTAGENIC },
     { ENCH_RING_OF_FOG,         CLOUD_GREY_SMOKE },
     { ENCH_RING_OF_ICE,         CLOUD_COLD },
-    { ENCH_RING_OF_DRAINING,    CLOUD_NEGATIVE_ENERGY },
+    { ENCH_RING_OF_MISERY,      CLOUD_MISERY },
     { ENCH_RING_OF_ACID,        CLOUD_ACID },
     { ENCH_RING_OF_MIASMA,      CLOUD_MIASMA },
 };
@@ -345,7 +345,7 @@ void monster::add_enchantment_effect(const mon_enchant &ench, bool quiet)
     case ENCH_RING_OF_MUTATION:
     case ENCH_RING_OF_FOG:
     case ENCH_RING_OF_ICE:
-    case ENCH_RING_OF_DRAINING:
+    case ENCH_RING_OF_MISERY:
     case ENCH_RING_OF_ACID:
     case ENCH_RING_OF_MIASMA:
         if (_has_other_cloud_ring(this, ench.ench))
@@ -502,7 +502,6 @@ void monster::remove_enchantment_effect(const mon_enchant &me, bool quiet)
         break;
 
     case ENCH_SWIFT:
-    case ENCH_PURSUING:
         if (!quiet)
         {
             if (type == MONS_ALLIGATOR)
@@ -1036,6 +1035,33 @@ void monster::remove_enchantment_effect(const mon_enchant &me, bool quiet)
             you.set_duration(DUR_DIMENSIONAL_BULLSEYE, 0);
         break;
 
+    case ENCH_PROTEAN_SHAPESHIFTING:
+    {
+        monster_type poly_target = (monster_type)props[PROTEAN_TARGET_KEY].get_int();
+
+        if (you.can_see(*this))
+        {
+            mprf(MSGCH_MONSTER_SPELL, "%s shapes itself into a furious %s!",
+                    name(DESC_THE).c_str(),
+                    mons_type_name(poly_target, DESC_PLAIN).c_str());
+        }
+
+        change_monster_type(this, poly_target, true);
+        add_ench(mon_enchant(ENCH_HASTE, 1, this, INFINITE_DURATION));
+        add_ench(mon_enchant(ENCH_MIGHT, 1, this, INFINITE_DURATION));
+
+        // We add the enchantment back with infinite duration to mark the new
+        // monster as having been created by a progenitor, so that it will be
+        // properly tracked as chaotic, no matter what it's turned into.
+        add_ench(mon_enchant(ENCH_PROTEAN_SHAPESHIFTING, 1,
+                             this, INFINITE_DURATION));
+    }
+    break;
+
+    case ENCH_CURSE_OF_AGONY:
+        simple_monster_message(*this, " is freed from its curse.");
+        break;
+
     default:
         break;
     }
@@ -1384,7 +1410,6 @@ void monster::apply_enchantment(const mon_enchant &me)
     case ENCH_SLOW:
     case ENCH_HASTE:
     case ENCH_SWIFT:
-    case ENCH_PURSUING:
     case ENCH_MIGHT:
     case ENCH_FEAR:
     case ENCH_PARALYSIS:
@@ -1436,11 +1461,13 @@ void monster::apply_enchantment(const mon_enchant &me)
     case ENCH_VILE_CLUTCH:
     case ENCH_GRASPING_ROOTS:
     case ENCH_WATERLOGGED:
-    case ENCH_SIMULACRUM:
     case ENCH_NECROTISE:
     case ENCH_CONCENTRATE_VENOM:
     case ENCH_BOUND:
     case ENCH_VITRIFIED:
+    case ENCH_INSTANT_CLEAVE:
+    case ENCH_PROTEAN_SHAPESHIFTING:
+    case ENCH_CURSE_OF_AGONY:
         decay_enchantment(en);
         break;
 
@@ -1553,7 +1580,8 @@ void monster::apply_enchantment(const mon_enchant &me)
             del_ench(ENCH_STICKY_FLAME);
             break;
         }
-        const int dam = resist_adjust_damage(this, BEAM_FIRE, roll_dice(2, 4));
+
+        const int dam = resist_adjust_damage(this, BEAM_FIRE, roll_dice(2, 7));
 
         if (dam > 0)
         {
@@ -1784,7 +1812,10 @@ void monster::apply_enchantment(const mon_enchant &me)
     case ENCH_INJURY_BOND:
         // It's hard to absorb someone else's injuries when you're dead
         if (!me.agent() || !me.agent()->alive()
-            || me.agent()->mid == MID_ANON_FRIEND)
+            || me.agent()->mid == MID_ANON_FRIEND
+            // XXX: A bit of a hack to end injury bond on allies of a martyred
+            //      shade that became a flayed ghost.
+            || me.agent()->type == MONS_FLAYED_GHOST)
         {
             del_ench(ENCH_INJURY_BOND, true, false);
         }
@@ -2020,7 +2051,7 @@ static const char *enchant_names[] =
      "battle_frenzy", "temp_pacif",
 #endif
     "petrifying",
-    "petrified", "lowered_mr", "soul_ripe", "slowly_dying",
+    "petrified", "lowered_wl", "soul_ripe", "slowly_dying",
 #if TAG_MAJOR_VERSION == 34
     "eat_items",
 #endif
@@ -2118,8 +2149,16 @@ static const char *enchant_names[] =
     "vile_clutch", "waterlogged", "ring_of_flames",
     "ring_chaos", "ring_mutation", "ring_fog", "ring_ice", "ring_neg",
     "ring_acid", "ring_miasma", "concentrate_venom", "fire_champion",
-    "anguished", "simulacra", "necrotizing", "glowing", "pursuing",
-    "bound", "bullseye_target", "vitrified",
+    "anguished",
+#if TAG_MAJOR_VERSION == 34
+    "simulacra",
+#endif
+    "necrotizing", "glowing",
+#if TAG_MAJOR_VERSION == 34
+    "pursuing",
+#endif
+    "bound", "bullseye_target", "vitrified", "cleaving_attack",
+    "protean_shapeshifting", "simulacrum_sculpting", "curse_of_agony",
     "buggy", // NUM_ENCHANTMENTS
 };
 
@@ -2256,6 +2295,7 @@ int mon_enchant::calc_duration(const monster* mons,
         break;
     case ENCH_HASTE:
     case ENCH_MIGHT:
+    case ENCH_WEAK:
     case ENCH_INVIS:
     case ENCH_AGILE:
     case ENCH_BLACK_MARK:
@@ -2263,12 +2303,8 @@ int mon_enchant::calc_duration(const monster* mons,
     case ENCH_IDEALISED:
     case ENCH_BOUND_SOUL:
     case ENCH_ANGUISH:
+    case ENCH_CONCENTRATE_VENOM:
         cturn = 1000 / _mod_speed(25, mons->speed);
-        break;
-    case ENCH_PURSUING:
-        // This is about 20 turns, or enough time for a same-speed monster to
-        // get four space closer before it expires.
-        cturn = 500 / _mod_speed(25, mons->speed);
         break;
     case ENCH_LIQUEFYING:
     case ENCH_SILENCE:
@@ -2277,7 +2313,6 @@ int mon_enchant::calc_duration(const monster* mons,
     case ENCH_MIRROR_DAMAGE:
     case ENCH_SAP_MAGIC:
     case ENCH_STILL_WINDS:
-    case ENCH_CONCENTRATE_VENOM:
         cturn = 300 / _mod_speed(25, mons->speed);
         break;
     case ENCH_SLOW:
@@ -2373,8 +2408,6 @@ int mon_enchant::calc_duration(const monster* mons,
         break;
     case ENCH_INNER_FLAME:
         return random_range(25, 35) * 10;
-    case ENCH_SIMULACRUM:
-        return random_range(30, 40) * 10;
     case ENCH_BERSERK:
         return (16 + random2avg(13, 2)) * 10;
     case ENCH_ROLLING:
@@ -2402,7 +2435,7 @@ int mon_enchant::calc_duration(const monster* mons,
     case ENCH_RING_OF_MUTATION:
     case ENCH_RING_OF_FOG:
     case ENCH_RING_OF_ICE:
-    case ENCH_RING_OF_DRAINING:
+    case ENCH_RING_OF_MISERY:
     case ENCH_RING_OF_ACID:
     case ENCH_RING_OF_MIASMA:
     case ENCH_GOZAG_INCITE:

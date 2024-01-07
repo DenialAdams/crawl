@@ -1670,7 +1670,6 @@ static void _tag_construct_you(writer &th)
 #endif
     marshallUByte(th, you.transit_stair);
     marshallByte(th, you.entering_level);
-    marshallBoolean(th, you.travel_ally_pace);
 
     marshallByte(th, you.deaths);
     marshallByte(th, you.lives);
@@ -1779,6 +1778,11 @@ static void _tag_construct_you_items(writer &th)
 
     _marshallFixedBitVector<NUM_RUNE_TYPES>(th, you.runes);
     marshallByte(th, you.obtainable_runes);
+
+    _marshallFixedBitVector<NUM_GEM_TYPES>(th, you.gems_found);
+    _marshallFixedBitVector<NUM_GEM_TYPES>(th, you.gems_shattered);
+    for (const int time_spent : you.gem_time_spent)
+        marshallInt(th, time_spent);
 
     // Item descrip for each type & subtype.
     // how many types?
@@ -2421,6 +2425,9 @@ static spell_type _fixup_removed_spells(spell_type s)
         case SPELL_IRON_SHOT:
             return SPELL_BOMBARD;
 
+        case SPELL_AGONIZING_TOUCH:
+            return SPELL_CURSE_OF_AGONY;
+
         default:
             return s;
     }
@@ -2438,8 +2445,8 @@ static spell_type _fixup_positional_monster_spell(spell_type s)
         case SPELL_ISKENDERUNS_MYSTIC_BLAST:
             return SPELL_FORCE_LANCE;
 
-        case SPELL_AGONY:
-            return SPELL_AGONY_RANGE;
+        case SPELL_AGONIZING_TOUCH:
+            return SPELL_AGONY;
 
         case SPELL_DISPEL_UNDEAD:
             return SPELL_DISPEL_UNDEAD_RANGE;
@@ -3058,6 +3065,19 @@ static void _tag_read_you(reader &th)
         // Based on this, reset skill distribution percentages.
         reset_training();
     }
+
+    if (th.getMinorVersion() < TAG_MINOR_ALCHEMY_MERGER)
+    {
+        if (you.species != SP_GNOLL)
+            you.skill_points[SK_ALCHEMY] += you.skill_points[SK_TRANSMUTATIONS];
+
+        you.train[SK_ALCHEMY] = max(you.train[SK_ALCHEMY],
+                                    you.train[SK_TRANSMUTATIONS]);
+        you.train_alt[SK_ALCHEMY] = max(you.train_alt[SK_ALCHEMY],
+                                        you.train_alt[SK_TRANSMUTATIONS]);
+        you.training_targets[SK_ALCHEMY] = max(you.training_targets[SK_ALCHEMY],
+                                               you.training_targets[SK_TRANSMUTATIONS]);
+    }
 #endif
 
     EAT_CANARY;
@@ -3296,7 +3316,7 @@ static void _tag_read_you(reader &th)
     }
 
     if (th.getMinorVersion() < TAG_MINOR_SAPROVOROUS
-        && you.species == SP_OGRE)
+        && you.species == SP_ONI)
     {
         // Remove the innate level of fast metabolism
         you.mutation[MUT_FAST_METABOLISM] -= 1;
@@ -3397,6 +3417,8 @@ static void _tag_read_you(reader &th)
     SP_MUT_FIX(MUT_DAYSTALKER, SP_BARACHI);
     SP_MUT_FIX(MUT_TENGU_FLIGHT, SP_TENGU);
     SP_MUT_FIX(MUT_ACROBATIC, SP_TENGU);
+    SP_MUT_FIX(MUT_DOUBLE_POTION_HEAL, SP_ONI);
+    SP_MUT_FIX(MUT_DRUNKEN_BRAWLING, SP_ONI);
 
     if (you.has_innate_mutation(MUT_NIMBLE_SWIMMER)
         || you.species == SP_MERFOLK || you.species == SP_OCTOPODE)
@@ -3422,6 +3444,9 @@ static void _tag_read_you(reader &th)
     {
         _fixup_species_mutations(MUT_UNBREATHING);
     }
+
+    if (you.species == SP_FELID && you.has_innate_mutation(MUT_FAST))
+        _fixup_species_mutations(MUT_FAST);
 
     #undef SP_MUT_FIX
 
@@ -3821,10 +3846,11 @@ static void _tag_read_you(reader &th)
     you.transit_stair  = unmarshallFeatureType(th);
     you.entering_level = unmarshallByte(th);
 #if TAG_MAJOR_VERSION == 34
-    if (th.getMinorVersion() >= TAG_MINOR_TRAVEL_ALLY_PACE)
+    if (th.getMinorVersion() >= TAG_MINOR_TRAVEL_ALLY_PACE
+        && th.getMinorVersion() < TAG_MINOR_UNTRAVEL_ALLY_PACE)
     {
 #endif
-        you.travel_ally_pace = unmarshallBoolean(th);
+        unmarshallBoolean(th);
 #if TAG_MAJOR_VERSION == 34
     }
 #endif
@@ -4346,6 +4372,17 @@ static void _tag_read_you_items(reader &th)
 
     _unmarshallFixedBitVector<NUM_RUNE_TYPES>(th, you.runes);
     you.obtainable_runes = unmarshallByte(th);
+
+#if TAG_MAJOR_VERSION == 34
+    if (th.getMinorVersion() >= TAG_MINOR_GEMS)
+#endif
+    {
+        _unmarshallFixedBitVector<NUM_GEM_TYPES>(th, you.gems_found);
+        _unmarshallFixedBitVector<NUM_GEM_TYPES>(th, you.gems_shattered);
+        for (int i = 0; i < NUM_GEM_TYPES; i++)
+            you.gem_time_spent[i] = unmarshallInt(th);
+    }
+    // Otherwise, it should be initialized to a reasonable zero value.
 
     // Item descrip for each type & subtype.
     // how many types?
@@ -5576,6 +5613,14 @@ void unmarshallItem(reader &th, item_def &item)
         && artefact_property(item, ARTP_TWISTER))
     {
         artefact_set_property(item, ARTP_TWISTER, 0);
+    }
+
+    if (th.getMinorVersion() < TAG_MINOR_ALCHEMY_MERGER
+        && is_artefact(item)
+        && item.base_type != OBJ_BOOKS
+        && artefact_property(item, ARTP_ENHANCE_TMUT))
+    {
+        artefact_set_property(item, ARTP_ENHANCE_TMUT, 0);
     }
 
     // Monsters could zap wands below zero from

@@ -882,7 +882,7 @@ int monster::armour_bonus(const item_def &item) const
     // where skill may be HD.
 
     const int armour_plus = item.plus;
-    ASSERT(abs(armour_plus) < 30); // sanity check
+    ASSERT(abs(armour_plus) <= 30); // sanity check
     return armour_ac + armour_plus;
 }
 
@@ -1325,7 +1325,7 @@ static bool _is_signature_weapon(const monster* mons, const item_def &weapon)
 
         if (mons->type == MONS_ARACHNE)
         {
-            return weapon.is_type(OBJ_STAVES, STAFF_POISON)
+            return weapon.is_type(OBJ_STAVES, STAFF_ALCHEMY)
                    || is_unrandom_artefact(weapon, UNRAND_OLGREB);
         }
 
@@ -3488,12 +3488,17 @@ int monster::known_chaos(bool check_spells_god) const
         || type == MONS_TIAMAT            // For her colour-changing.
         || type == MONS_BAI_SUZHEN
         || type == MONS_BAI_SUZHEN_DRAGON // For her transformation.
+        || type == MONS_PROTEAN_PROGENITOR
         || mons_genus(type) == MONS_DEMONSPAWN) // Like player demonspawn.
     {
         chaotic++;
     }
 
     if (is_shapeshifter() && (flags & MF_KNOWN_SHIFTER))
+        chaotic++;
+
+    // This includes both aspiring flesh and whatever they turn into.
+    if (has_ench(ENCH_PROTEAN_SHAPESHIFTING))
         chaotic++;
 
     // Knowing chaotic spells is not enough to make you "essentially"
@@ -3507,11 +3512,8 @@ int monster::known_chaos(bool check_spells_god) const
         chaotic++;
     }
 
-    if (has_attack_flavour(AF_MUTATE)
-        || has_attack_flavour(AF_CHAOTIC))
-    {
+    if (has_attack_flavour(AF_CHAOTIC))
         chaotic++;
-    }
 
     if (is_chaotic_god(god))
         chaotic++;
@@ -3735,7 +3737,7 @@ int monster::res_poison(bool temp) const
             u += get_jewellery_res_poison(env.item[jewellery], false);
 
         const item_def *w = primary_weapon();
-        if (w && w->is_type(OBJ_STAVES, STAFF_POISON))
+        if (w && w->is_type(OBJ_STAVES, STAFF_ALCHEMY))
             u++;
     }
 
@@ -4016,7 +4018,7 @@ int monster::skill(skill_type sk, int scale, bool /*real*/, bool /*temp*/) const
     case SK_NECROMANCY:
         return (has_spell_of_type(spschool::necromancy)) ? hd : hd/2;
 
-    case SK_POISON_MAGIC:
+    case SK_ALCHEMY:
     case SK_FIRE_MAGIC:
     case SK_ICE_MAGIC:
     case SK_EARTH_MAGIC:
@@ -4251,7 +4253,7 @@ int monster::hurt(const actor *agent, int amount, beam_type flavour,
 
         // Apply damage multiplier for vitrify
         if (amount != INSTANT_DEATH && has_ench(ENCH_VITRIFIED))
-            amount = amount * 130 / 100;
+            amount = amount * 150 / 100;
 
         // Apply damage multipliers for quad damage
         if (attacker_effects && agent && agent->is_player()
@@ -4272,7 +4274,7 @@ int monster::hurt(const actor *agent, int amount, beam_type flavour,
             hit_points = max_hit_points;
         }
 
-        if (flavour == BEAM_DEVASTATION || flavour == BEAM_MINDBURST)
+        if (flavour == BEAM_DESTRUCTION || flavour == BEAM_MINDBURST)
         {
             if (can_bleed())
                 blood_spray(pos(), type, amount / 5);
@@ -4464,6 +4466,15 @@ void monster::uglything_init(bool only_mutate)
     speed           = ghost->speed;
     speed_increment = 70;
     colour          = ghost->colour;
+}
+
+void monster::inugami_init()
+{
+    hit_dice            = ghost->xl;
+    // these `max`es let an incomplete inugami be valid long enough to get
+    // fully set up
+    max_hit_points      = max(static_cast<int>(ghost->max_hp), 1);
+    hit_points          = max(max_hit_points, 1);
 }
 
 void monster::ghost_demon_init()
@@ -5177,7 +5188,8 @@ static bool _mons_is_skeletal(int mc)
            || mc == MONS_SKELETAL_WARRIOR
            || mc == MONS_ANCIENT_CHAMPION
            || mc == MONS_REVENANT
-           || mc == MONS_FLYING_SKULL
+           || mc == MONS_WEEPING_SKULL
+           || mc == MONS_LAUGHING_SKULL
            || mc == MONS_CURSE_SKULL
            || mc == MONS_MURRAY;
 }
@@ -5314,6 +5326,44 @@ void monster::apply_location_effects(const coord_def &oldpos,
                 mprf("The bloodstain on %s disappears!", desc.c_str());
             }
         }
+    }
+}
+
+void monster::did_deliberate_movement()
+{
+    // Apply barbs damage
+    if (has_ench(ENCH_BARBS))
+    {
+        mon_enchant barbs = get_ench(ENCH_BARBS);
+
+        // Save these first because hurt() might kill the monster.
+        const coord_def _pos = pos();
+        const monster_type typ = type;
+        hurt(monster_by_mid(barbs.source), roll_dice(2, barbs.degree * 2 + 2));
+        bleed_onto_floor(_pos, typ, 2, false);
+        if (!alive())
+            return;
+
+        if (coinflip())
+        {
+            barbs.duration--;
+            update_ench(barbs);
+        }
+    }
+
+    // And then shake off sticky flame
+    if (has_ench(ENCH_STICKY_FLAME))
+    {
+        mon_enchant flame = get_ench(ENCH_STICKY_FLAME);
+
+        flame.duration -= 50;
+        if (flame.duration <= 0)
+        {
+            simple_monster_message(*this, " shakes off the sticky flame as it moves.");
+            del_ench(ENCH_STICKY_FLAME, true);
+        }
+        else
+            update_ench(flame);
     }
 }
 
@@ -5462,9 +5512,24 @@ void monster::weaken(actor *attacker, int pow)
 {
     if (!has_ench(ENCH_WEAK))
         simple_monster_message(*this, " looks weaker.");
+    else
+        simple_monster_message(*this, " looks even weaker.");
 
     add_ench(mon_enchant(ENCH_WEAK, 1, attacker,
                          (pow + random2(pow + 3)) * BASELINE_DELAY));
+}
+
+bool monster::strip_willpower(actor *attacker, int dur, bool quiet)
+{
+    // Infinite will enemies are immune
+    if (willpower() == WILL_INVULN)
+        return false;
+
+    if (!quiet && !has_ench(ENCH_LOWERED_WL) && you.can_see(*this))
+        mprf("%s willpower is stripped away!", name(DESC_ITS).c_str());
+
+    mon_enchant lowered_wl(ENCH_LOWERED_WL, 1, attacker, dur * BASELINE_DELAY);
+    return add_ench(lowered_wl);
 }
 
 void monster::check_awaken(int)
@@ -5481,6 +5546,32 @@ const monsterentry *monster::find_monsterentry() const
 {
     return (type == MONS_NO_MONSTER || type == MONS_PROGRAM_BUG) ? nullptr
                                                     : get_monster_data(type);
+}
+
+bool monster::matches_player_speed() const
+{
+    if (crawl_state.game_is_arena()
+        || !mons_is_recallable(&you, *this)
+        || is_summoned())
+    {
+        return false;
+    }
+    // Are there any hostiles around? If so, look slow.
+    // Only look at radius 5 for performance.
+    // Reduces worst-case tiles examined by ~6x.
+    for (radius_iterator ri(pos(), 5, C_SQUARE, LOS_NO_TRANS, true); ri; ++ri)
+    {
+        const monster* m = monster_at(*ri);
+        if (m && !m->wont_attack() && m->visible_to(this))
+            return false;
+    }
+    return true;
+}
+
+int monster::player_speed_energy() const
+{
+    const int pmove = player_movement_speed() * player_speed();
+    return div_rand_round(speed * pmove, 100);
 }
 
 int monster::action_energy(energy_use_type et) const
@@ -5507,9 +5598,6 @@ int monster::action_energy(energy_use_type et) const
     if (has_ench(ENCH_SWIFT))
         move_cost -= 3;
 
-    if (has_ench(ENCH_PURSUING))
-        move_cost -= 2;
-
     if (has_ench(ENCH_ROLLING))
         move_cost -= 5;
 
@@ -5526,6 +5614,11 @@ int monster::action_energy(energy_use_type et) const
     // penalty when leaving it.
     if (floundering() || has_ench(ENCH_LIQUEFYING))
         move_cost += 6;
+
+    // To avoid UI annoyance, make long-term allies match the player's speed
+    // if there are no enemies around.
+    if ((et == EUT_MOVE || et == EUT_SWIM) && matches_player_speed())
+        move_cost = min(move_cost, player_speed_energy());
 
     // Never reduce the cost to zero
     return max(move_cost, 1);
@@ -5721,7 +5814,7 @@ void monster::react_to_damage(const actor *oppressor, int damage,
         }
     }
 
-    else if (type == MONS_BAI_SUZHEN && hit_points < max_hit_points / 2
+    else if (type == MONS_BAI_SUZHEN && hit_points < max_hit_points * 2 / 3
                                      && hit_points - damage > 0)
     {
         int old_hp                = hit_points;
@@ -6278,6 +6371,7 @@ bool monster::angered_by_attacks() const
             && !mons_class_is_zombified(type)
             && type != MONS_BOUND_SOUL
             && type != MONS_SPELLFORGED_SERVITOR
+            && type != MONS_BLOCK_OF_ICE
             && !mons_is_conjured(type)
             && !testbits(flags, MF_DEMONIC_GUARDIAN)
             // allied fed plants, hep ancestor:

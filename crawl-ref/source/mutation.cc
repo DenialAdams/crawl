@@ -415,9 +415,6 @@ mutation_activity_type mutation_activity_level(mutation_type mut)
     if (mut == MUT_DEMONIC_GUARDIAN && you.allies_forbidden())
         return mutation_activity_type::INACTIVE;
 
-    if (mut == MUT_ROLLPAGE && you_worship(GOD_WU_JIAN))
-        return mutation_activity_type::INACTIVE;
-
     if (mut == MUT_NIMBLE_SWIMMER)
     {
         if (feat_is_water(env.grid(you.pos())))
@@ -3275,9 +3272,8 @@ void check_demonic_guardian()
                                MONS_SIXFIRHY, MONS_SUN_DEMON);
             break;
         case 4:
-            mt = random_choose(MONS_BALRUG, MONS_REAPER,
-                               MONS_LOROCYPROCA, MONS_CACODEMON,
-                               MONS_HELL_BEAST);
+            mt = random_choose(MONS_BALRUG, MONS_LOROCYPROCA,
+                               MONS_CACODEMON, MONS_HELL_BEAST);
             break;
         case 5:
             mt = random_choose(MONS_EXECUTIONER, MONS_HELL_SENTINEL,

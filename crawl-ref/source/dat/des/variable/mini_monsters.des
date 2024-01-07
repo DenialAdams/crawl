@@ -30,6 +30,7 @@
 {{
 -- Functionality for some Grunt vaults.
 function grunt_ministairs_setup(e, hatches)
+  e.tags("luniq_generic_threat_stair")
   if you.in_branch("Crypt") or you.in_branch("Zot") then
     e.shuffle("GT")
     if you.in_branch("Crypt") then
@@ -109,7 +110,7 @@ TAGS:   no_trap_gen transparent no_descent
 DEPTH:  D:9-, Spider
 MONS:   killer bee, meliai, queen bee, hornet
 KMASK:  1234*R = opaque
-KMONS:  *R = worm
+KMONS:  *R = ribbon worm
 KITEM:  * = *
 KITEM:  R = potion of ambrosia ident:type
 SUBST:  ? : .w
@@ -393,7 +394,7 @@ ENDMAP
 NAME:    nicolae_wormholes
 TAGS:    transparent
 DEPTH:   D:1-5
-KMONS:   1 = worm
+KMONS:   1 = ribbon worm
 KFEAT:   ^ = shaft trap
 NSUBST:  - = } / `
 SUBST:   D = x, E = x.
@@ -415,10 +416,10 @@ xxxxE.Exxxx
 ENDMAP
 
 NAME:   dreamdust_wasp_nest
-TAGS:   no_monster_gen
+TAGS:   no_monster_gen uniq_hornetnest
 DEPTH:  D:12-, Lair, Spider, Depths
 WEIGHT: 5
-NSUBST: . = 6=11. / 6=1.. / .
+NSUBST: . = 6 = 11. / 6 = 1.. / *:.
 : if you.in_branch("Depths") then
 SUBST:  x = b
 COLOUR: b = silver
@@ -707,8 +708,9 @@ KMONS:   1 = hell knight
 KMONS:   2 = hellion / balrug
 NSUBST:  2 = 3=23 / 3, 1 = 2 / 3=12 / 1
 : elseif you.in_branch("Zot") then
+# Chaos zoos.
 KMONS:   1 = very ugly thing / apocalypse crab w:5 / shapeshifter hd:14 / \
-             glowing shapeshifter / killer klown
+             glowing shapeshifter / protean progenitor / killer klown
 KMONS:   2 = killer klown
 NSUBST:  2 = 2=23 / 3
 : elseif you.in_branch("Geh") or you.in_branch("Dis") then
@@ -918,12 +920,12 @@ TAGS:   no_monster_gen no_pool_fixup uniq_introduction_to_nature transparent
 DEPTH:  D:8-13
 WEIGHT: 3
 ITEM:   any potion
-ITEM:   young poisoner's handbook / book of changes / \
-        randbook disc:Poison disc2:Transmutation slevels:8 w:5 / \
+ITEM:   young poisoner's handbook / fen folio / \
+        randbook disc:Alchemy slevels:8 w:5 / \
         randbook numspells:4 title:Nature \
         spells:summon_small_mammal&call_canine_familiar&hailstorm&summon_forest / \
-        randbook numspells:4 title:Nature \
-        spells:sting&wereblood&hailstorm&summon_forest
+        randbook numspells:3 title:Nature \
+        spells:sting&stone_arrow&hailstorm&summon_forest
 KITEM:  f = dart ego:poisoned / dart ego:curare / dart ego:atropa
 KITEM:  g = any potion q:2
 MONS:   plant, oklob sapling, ball python
@@ -968,12 +970,12 @@ NAME:   introduction_to_nature_2
 TAGS:   no_monster_gen no_pool_fixup uniq_introduction_to_nature
 DEPTH:  D:8-13
 ITEM:   any potion
-ITEM:   young poisoner's handbook / book of changes / \
-        randbook disc:Poison disc2:Transmutation slevels:8 w:5 / \
+ITEM:   young poisoner's handbook / fen folio / \
+        randbook disc:Alchemy slevels:8 w:5 / \
         randbook numspells:4 title:Nature \
         spells:summon_small_mammal&call_canine_familiar&hailstorm&summon_forest / \
         randbook numspells:4 title:Nature \
-        spells:sting&wereblood&hailstorm&summon_forest
+        spells:sting&stone_arrow&hailstorm&summon_forest
 KITEM:  f = dart ego:poisoned / dart ego:curare / dart ego:atropa
 KITEM:  g = any potion q:2 / any potion q:3
 MONS:   plant, oklob sapling, ball python
@@ -1019,13 +1021,13 @@ NAME:    hangedman_parallel_progression
 TAGS:    patrolling no_monster_gen transparent
 TAGS:    layout_rooms layout_corridors
 DEPTH:   D:11-
-MONS:    rat, bat, frilled lizard, worm, endoplasm
+MONS:    rat, bat, frilled lizard, dart slug, endoplasm
 MONS:    giant cockroach, jackal
 KMONS:   8 = ball python / adder w:8
 KMONS:   A = river rat
 KMONS:   B = vampire bat / fire bat w:8
 KMONS:   C = iguana / basilisk w:8
-KMONS:   D = worm / tyrant leech
+KMONS:   D = ribbon worm / tyrant leech
 KMONS:   E = jelly
 KMONS:   F = scorpion
 KMONS:   G = hound / wolf w:3
@@ -1585,7 +1587,7 @@ ENDMAP
 
 NAME:   nooodl_orcs_dogs
 TAGS:   transparent vaults_hard
-DEPTH:  D:10-, Orc, Vaults, !Vaults:$
+DEPTH:  D:11-, Orc, Vaults, !Vaults:$
 WEIGHT: 5 (Vaults), 10
 : if you.branch() == "Vaults" then
 TAGS:   no_monster_gen
@@ -3486,16 +3488,16 @@ DEPTH:   D:6-, Crypt
 :   if you.depth() < 10 then
 MONS:   adder zombie / scorpion zombie / \
         hound zombie w:20 / howler monkey zombie
-MONS:   flying skull / human zombie / elf zombie / centaur zombie w:20
+MONS:   weeping skull w:1 / human zombie / elf zombie / centaur zombie w:20
 MONS:   killer bee zombie / elephant zombie / ogre zombie
 :   else
 MONS:   wolf zombie / killer bee zombie / spriggan zombie / centaur zombie
 MONS:   small abomination / meliai zombie / \
         elephant zombie / two-headed ogre zombie
-MONS:   large abomination / harpy zombie / minotaur zombie / hydra zombie
+MONS:   large abomination / harpy zombie / laughing skull / hydra zombie
 :   end
 : else
-MONS:   large abomination / jiangshi / minotaur zombie / ettin zombie
+MONS:   large abomination / jiangshi / laughing skull / ettin zombie
 MONS:   spriggan defender zombie w:20 / dire elephant zombie / \
         iron dragon zombie
 MONS:   deep elf blademaster zombie / caustic shrike zombie / \
@@ -5408,7 +5410,8 @@ ENDMAP
 
 NAME:    minmay_lizard_king
 DEPTH:   D:1-13
-MONS:    frilled lizard, iguana, komodo dragon, basilisk, plant
+MONS:    frilled lizard, iguana w:20 / crocodile w:1
+MONS:    komodo dragon, basilisk, plant
 SUBST:   5 = 51, 1 = 1.
 : if you.absdepth() > 9 then
 SUBST:   1 = 32211
@@ -8047,16 +8050,16 @@ TAGS:    transparent
 DEPTH:   D:12-, Crypt
 WEIGHT:  3
 ITEM:    skullcrusher no_pickup ident:all
-MONS:    flying skull
+MONS:    laughing skull
 : if you.in_branch("Crypt") then
 MONS:    curse skull
-NSUBST:  d = d / *
+NSUBST:  d = 1:d / *:*
+NSUBST:  ' = 6:1 / 4 = 1.... / *:.
 : else
 MONS:    skeletal warrior
-NSUBST:  d = d / %
+NSUBST:  d = 1:d / *:%, ' = 4:1 / 6 = 1.... / *:.
 : end
-NSUBST:  ' = 12=1 / 14=1...... / .
-SUBST:   " = 1., ! = 2.
+SUBST:   " = 1.., ! = 2.
 MAP
      .........
    ...ccccc.....
@@ -8883,8 +8886,7 @@ MONS:   deep elf elementalist w:40 / fire giant / frost giant / iron dragon \
 : master_elementalist_setup(_G, "6")
 SUBST:  1 = 1..., 2 = 2..., 3 = 3..., 4 = 4...
 CLEAR:  @>
-# Depths
-: else
+: else -- Depths
 MONS:   fire dragon / fire giant
 MONS:   ice dragon / frost giant
 MONS:   stone giant / iron troll / deep troll earth mage / iron dragon
@@ -9819,8 +9821,8 @@ KMONS:  1 = shard shrike w:15 / titan / blizzard demon / tormentor / \
             ice fiend w:15 / ancient lich / dread lich / place:Coc:$ w:24
 : elseif you.in_branch("Zot") then
 KMONS:  1 = nonbase draconian / orb of fire / electric golem / \
-            killer klown /  ancient lich / dread lich / curse toe / \
-            place:Zot:$ w:20
+            killer klown / ancient lich / dread lich / curse toe / \
+            protean progenitor / place:Zot:$ w:20
 # Dungeon, Vaults, and Depths get 8 spawns.
 : else
 KMONS:  1 = 8

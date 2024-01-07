@@ -14,6 +14,7 @@
 #include "branch.h"
 #include "english.h"
 #include "hiscores.h"
+#include "item-prop.h" // gem_adj
 #include "message.h"
 #include "mutation.h"
 #include "options.h"
@@ -116,7 +117,10 @@ static bool _is_noteworthy(const Note& note)
         || note.type == NOTE_ANCESTOR_TYPE
         || note.type == NOTE_FOUND_UNRAND
         || note.type == NOTE_ZOT_TOUCHED
-        || note.type == NOTE_DREAMSHARD)
+        || note.type == NOTE_DREAMSHARD
+        || note.type == NOTE_GEM_LOST
+        || note.type == NOTE_GAIN_LIFE
+        || note.type == NOTE_LOSE_LIFE)
     {
         return true;
     }
@@ -263,6 +267,12 @@ string Note::describe(bool when, bool where, bool what) const
             break;
         case NOTE_GET_ITEM:
             result << "Got " << name;
+            if (first != 0) // gems
+            {
+                const int turns = (first + 9) / 10;
+                result << " with " << turns << " turn"
+                       << (first == 1 ? "" : "s") << " to spare";
+            }
             break;
         case NOTE_ACQUIRE_ITEM:
             result << "Acquired " << name;
@@ -385,6 +395,17 @@ string Note::describe(bool when, bool where, bool what) const
             break;
         case NOTE_DREAMSHARD:
             result << "Saved by the dreamshard amulet";
+            break;
+        case NOTE_GEM_LOST:
+            result << "Lost the "
+                   << gem_adj(static_cast<gem_type>(first))
+                   << " gem through the power of Zot.";
+            break;
+        case NOTE_GAIN_LIFE:
+            result << "Gained a life (" << first << (first == 1 ? " life " : " lives ") << "remaining)";
+            break;
+        case NOTE_LOSE_LIFE:
+            result << "Lost a life ("   << first << (first == 1 ? " life " : " lives ") << "remaining)";
             break;
         default:
             result << "Buggy note description: unknown note type";

@@ -587,7 +587,7 @@ static vector<pair<stave_type, int>> _base_staff_weights()
         { STAFF_COLD,        _skill_rdiv(SK_ICE_MAGIC) },
         { STAFF_AIR,         _skill_rdiv(SK_AIR_MAGIC) },
         { STAFF_EARTH,       _skill_rdiv(SK_EARTH_MAGIC) },
-        { STAFF_POISON,      _skill_rdiv(SK_POISON_MAGIC) },
+        { STAFF_ALCHEMY,     _skill_rdiv(SK_ALCHEMY) },
         { STAFF_DEATH,       _skill_rdiv(SK_NECROMANCY) },
         { STAFF_CONJURATION, _skill_rdiv(SK_CONJURATIONS) },
         { NUM_STAVES,        5 },
@@ -767,6 +767,7 @@ static const acquirement_subtype_finder _subtype_finders[] =
 #endif
     0, // no runes either
     0, // no talismans... for now. TODO: add talisman acquirement
+    0, // no gems either
 };
 
 static int _find_acquirement_subtype(object_class_type &class_wanted,
@@ -889,6 +890,9 @@ static bool _skill_useless_with_god(int skill)
     case GOD_TROG:
         return _is_magic_skill(skill);
     case GOD_ZIN:
+        if (skill == SK_SHAPESHIFTING)
+            return true;
+        // fallthrough to other good gods
     case GOD_SHINING_ONE:
     case GOD_ELYVILON:
         return skill == SK_NECROMANCY;
@@ -956,6 +960,8 @@ static bool _acquire_manual(item_def &book)
 
         // Greatly reduce the chances of getting a manual for a skill
         // you couldn't use unless you switched your religion.
+        // Note: manuals that gods actively hate, e.g. spellcasting under
+        // Trog, will be mulched and replaced later. This is silly!
         if (_skill_useless_with_god(sk))
             w /= 2;
 
@@ -1213,8 +1219,9 @@ int acquirement_create_item(object_class_type class_wanted,
 {
     ASSERT(class_wanted != OBJ_RANDOM);
 
-    // Trog/Xom gifts are generally lower quality than scroll acquirement or Oka gifts.
-    const int item_level = ((agent == GOD_TROG || agent == GOD_XOM) ? ISPEC_GIFT : ISPEC_GOOD_ITEM);
+    // Trog/Xom gifts are generally lower quality than scroll acquirement or
+    // Oka gifts. We also use lower quality for missile gifts.
+    const int item_level = ((agent == GOD_TROG || agent == GOD_XOM || class_wanted == OBJ_MISSILES) ? ISPEC_GIFT : ISPEC_GOOD_ITEM);
     int thing_created = NON_ITEM;
     int quant = 1;
 #define MAX_ACQ_TRIES 40

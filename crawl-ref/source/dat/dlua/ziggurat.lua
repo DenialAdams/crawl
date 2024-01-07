@@ -192,8 +192,8 @@ end
 -- Lair, Snake, Swamp, Shoals, Spider, Slime,
 -- Orc, Elf, Vaults, Crypt, Tomb,
 -- Abyss, Gehenna, Cocytus, Dis, Tartarus,
--- Fire, Ice, Air, Earth, Negative Energy, Holy, Chaos
--- Giants, Dragons, Draconians, Archers, Conjurers
+-- Fire, Ice, Air, Earth, Negative Energy, Holy, Chaos,
+-- Giants, Dragons, Draconians, Archers, Conjurers,
 -- Pan, Lair Roulette, Vestibule / all Hells
 -- By using spec_fn to wrap monster-spec functions, monster weights
 -- are adjusted per-set, sometimes scaling by depth and always by zig completion.
@@ -304,16 +304,16 @@ mset(with_props(spec_fn(function ()
   local d = math.max(20, 455 - you.zigs_completed() * 3)
   local e = 5 + you.zigs_completed() * 2
   local f = 10 + you.zigs_completed() * 5
-  return "place:Coc:$ w:" .. d .. " / shard shrike w:" .. e .. " / " ..
-         "titan w:" .. e .. " / ice fiend w:" .. f
+  return "place:Geh:$ w:" .. d .. " / hellion w:" .. e .. " / " ..
+         "hellephant w:" .. e .. " / brimstone fiend w:" .. f
 end), { weight = 5 }))
 
 mset(with_props(spec_fn(function ()
   local d = math.max(20, 455 - you.zigs_completed() * 3)
   local e = 5 + you.zigs_completed() * 2
   local f = 10 + you.zigs_completed() * 5
-  return "place:Geh:$ w:" .. d .. " / hellion w:" .. e .. " / " ..
-         "hellephant w:" .. e .. " / brimstone fiend w:" .. f
+  return "place:Coc:$ w:" .. d .. " / shard shrike w:" .. e .. " / " ..
+         "titan w:" .. e .. " / ice fiend w:" .. f
 end), { weight = 5 }))
 
 mset(with_props(spec_fn(function ()
@@ -344,9 +344,11 @@ end), { weight = 2 }))
 
 mset(with_props(spec_fn(function ()
   local d = 10 + you.zigs_completed() * 2
-  local e = 10 + you.zigs_completed() * 3
-  return "ice beast / ice devil / simulacrum / rime drake / " ..
-         "ice dragon w:" .. d .. " / frost giant w:" .. d .. " / " ..
+  local e = 10 + you.zigs_completed() * 4
+  return "ice devil w:5 / rime drake w:5 / azure jelly / " ..
+         "caustic shrike simulacrum w:5 / spriggan defender simulacrum w:5 / " ..
+         "juggernaut simulacrum w:5 / ironbound frostheart w:5 / " ..
+         "walking frostbound tome w:" .. d .. " / frost giant w:" .. d .. " / " ..
          "blizzard demon w:" .. d .. " / white draconian knight w:" .. e .. " / " ..
          "shard shrike w:" .. e .. " / ice fiend w:" .. e
 end), { weight = 2 }))
@@ -373,27 +375,6 @@ mset(with_props(spec_fn(function ()
 end), { weight = 2 }))
 
 mset(with_props(spec_fn(function ()
-  local d = 20 + you.zigs_completed() * 2
-  local e = 0
-  if you.depth() > (13 - you.zigs_completed()) then
-    e = math.max(1, math.floor(you.depth() / 3) + you.zigs_completed() - 8)
-  end
-  return "ophan w:20 / apis w:20 / cherub w:20 / angel w:20 / " ..
-         "sun moth / daeva w:" .. d .. " / " ..
-         "pearl dragon w:" .. d .. " / seraph w:" .. e
-end), { weight = 2 }))
-
-mset(spec_fn(function ()
-  local d = math.max(2, math.floor((32 - you.depth()) / 5))
-  local e = math.min(8, math.floor((you.depth()) / 5) + 4)
-  local f = math.max(1, you.depth() + you.zigs_completed() - 5)
-  return "chaos spawn w:" .. d .. " / very ugly thing w:" .. d .. " / " ..
-         "apocalypse crab w:4 / killer klown w:8 / " ..
-         "shapeshifter hd:16 w:" .. e .. " / glowing shapeshifter w:" .. e .. " / " ..
-         "greater demon w:2 / pandemonium lord w:" .. f
-end))
-
-mset(with_props(spec_fn(function ()
   local d = math.max(2, math.floor((32 - you.depth()) / 5))
   local e = math.min(8, math.floor((you.depth()) / 5) + 4)
   local f = math.max(1, you.depth() + you.zigs_completed() - 5)
@@ -403,6 +384,28 @@ mset(with_props(spec_fn(function ()
          "demonspawn black sun w:4 / curse skull w:4 / curse toe w:2 / " ..
          "player ghost w:" .. f
 end), { weight = 2 }))
+
+mset(with_props(spec_fn(function ()
+  local d = 20 + you.zigs_completed() * 2
+  local e = 0
+  if you.depth() > (13 - you.zigs_completed()) then
+    e = math.max(1, math.floor(you.depth() / 3) + you.zigs_completed() - 8)
+  end
+  return "ophan w:20 / apis w:20 / cherub w:20 / angel w:20 / " ..
+         "daeva w:" .. d .. " / pearl dragon w:" .. d .. " / seraph w:" .. e
+end), { weight = 2 }))
+
+mset(spec_fn(function ()
+  local d = math.max(2, math.floor((32 - you.depth()) / 5))
+  local e = math.min(8, math.floor((you.depth()) / 5) + 4)
+  local f = math.max(1, you.depth() + you.zigs_completed() - 4)
+  return "chaos spawn w:" .. d .. " / very ugly thing w:" .. d .. " / " ..
+         "apocalypse crab w:4 / killer klown w:8 / " ..
+         "shapeshifter hd:16 w:" .. e .. " / " ..
+         "glowing shapeshifter w:" .. e / 3 .. " / " ..
+         "protean progenitor w:" .. e .. " / " ..
+         "greater demon w:2 / pandemonium lord w:" .. f
+end))
 
 mset(with_props(spec_fn(function ()
   local d = 20 + you.zigs_completed() * 3

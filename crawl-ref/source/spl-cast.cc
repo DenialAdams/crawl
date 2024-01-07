@@ -532,17 +532,14 @@ static int _spell_enhancement(spell_type spell)
     if (typeflags & spschool::summoning)
         enhanced += player_spec_summ();
 
-    if (typeflags & spschool::poison)
-        enhanced += player_spec_poison();
+    if (typeflags & spschool::alchemy)
+        enhanced += player_spec_alchemy();
 
     if (typeflags & spschool::necromancy)
         enhanced += player_spec_death();
 
     if (typeflags & spschool::translocation)
         enhanced += player_spec_tloc();
-
-    if (typeflags & spschool::transmutation)
-        enhanced += player_spec_tmut();
 
     if (typeflags & spschool::fire)
         enhanced += player_spec_fire();
@@ -1279,11 +1276,10 @@ unique_ptr<targeter> find_spell_targeter(spell_type spell, int pow, int range)
                                             silence_max_range(pow),
                                             0, 0,
                                             silence_min_range(pow));
-    case SPELL_POISONOUS_VAPOURS:
-        return make_unique<targeter_poisonous_vapours>(&you, range);
+    case SPELL_MERCURY_VAPOURS:
+        return make_unique<targeter_smite>(&you, range, 0, 1);
 
-    // at player's position only but not a selfench (wait, why wereblood?)
-    case SPELL_WEREBLOOD:
+    // at player's position only but not a selfench
     case SPELL_ROT:
     case SPELL_SUBLIMATION_OF_BLOOD:
     case SPELL_BORGNJORS_REVIVIFICATION:
@@ -1323,7 +1319,6 @@ unique_ptr<targeter> find_spell_targeter(spell_type spell, int pow, int range)
     // Summons. Most summons have a simple range 2 radius, see
     // find_newmons_square
     case SPELL_SUMMON_SMALL_MAMMAL:
-    case SPELL_CALL_CANINE_FAMILIAR:
     case SPELL_ANIMATE_ARMOUR:
     case SPELL_SUMMON_ICE_BEAST:
     case SPELL_MONSTROUS_MENAGERIE:
@@ -1332,13 +1327,21 @@ unique_ptr<targeter> find_spell_targeter(spell_type spell, int pow, int range)
     case SPELL_SUMMON_MANA_VIPER:
     case SPELL_CONJURE_BALL_LIGHTNING:
     case SPELL_SHADOW_CREATURES: // used for ?summoning
-    case SPELL_SUMMON_GUARDIAN_GOLEM:
+    case SPELL_SUMMON_BLAZEHEART_GOLEM:
     case SPELL_CALL_IMP:
     case SPELL_SUMMON_HORRIBLE_THINGS:
     case SPELL_SPELLFORGED_SERVITOR:
     case SPELL_SUMMON_LIGHTNING_SPIRE:
     case SPELL_BATTLESPHERE:
         return make_unique<targeter_maybe_radius>(&you, LOS_NO_TRANS, 2, 0, 1);
+    case SPELL_CALL_CANINE_FAMILIAR:
+    {
+        const monster* dog = find_canine_familiar();
+        if (!dog)
+            return make_unique<targeter_maybe_radius>(&you, LOS_NO_TRANS, 2, 0, 1);
+        vector<coord_def> targ = { dog->pos() };
+        return make_unique<targeter_multiposition>(&you, targ);
+    }
     case SPELL_FOXFIRE:
         return make_unique<targeter_maybe_radius>(&you, LOS_NO_TRANS, 1, 0, 1);
     // TODO: these two actually have pretty wtf positioning that uses compass
@@ -1370,6 +1373,8 @@ unique_ptr<targeter> find_spell_targeter(spell_type spell, int pow, int range)
                                                    find_sigil_locations(true));
     case SPELL_BOULDER:
         return make_unique<targeter_boulder>(&you);
+    case SPELL_PETRIFY:
+        return make_unique<targeter_petrify>(&you, range);
 
     default:
         break;
@@ -1577,6 +1582,12 @@ static vector<string> _desc_airstrike_bonus(const monster_info& mi)
     return vector<string>{make_stringf("empty space bonus: %d/8", empty_spaces)};
 }
 
+static vector<string> _desc_vapor_weak_chance(const monster_info& mi, int pow)
+{
+    return vector<string>{make_stringf("chance to weaken: %d%%",
+                            get_mercury_weaken_chance(mi.hd, pow))};
+}
+
 static vector<string> _desc_meph_chance(const monster_info& mi)
 {
     if (get_resist(mi.resists(), MR_RES_POISON) >= 1 || mi.is(MB_CLARITY))
@@ -1668,6 +1679,14 @@ static string _mon_threat_string(const CrawlStoreValue &mon_store)
     int col;
     string desc;
     monster_info(&dummy).to_string(1, desc, col, true, nullptr, false);
+
+    // Ghost demons need their underlying monster name. Without this,
+    // we'll get e.g. a specific ugly thing colour based on what the
+    // dummy monster rolled, which may not match what the actual monster
+    // rolls.
+    if (mons_is_ghost_demon(dummy.type))
+        desc = get_monster_data(dummy.type)->name;
+
     const string col_name = colour_to_str(col);
 
     return "<" + col_name + ">" + article_a(desc) + "</" + col_name + ">";
@@ -1801,6 +1820,8 @@ desc_filter targeter_addl_desc(spell_type spell, int powc, spell_flags flags,
             return bind(_desc_insubstantial, placeholders::_1, "unstickable");
         case SPELL_PLASMA_BEAM:
             return bind(_desc_plasma_hit_chance, placeholders::_1, powc);
+        case SPELL_MERCURY_VAPOURS:
+            return bind(_desc_vapor_weak_chance, placeholders::_1, powc);
         default:
             break;
     }
@@ -2081,13 +2102,6 @@ spret your_spells(spell_type spell, int powc, bool actual_spell,
 
     dprf("Spell #%d, power=%d", spell, powc);
 
-    // Have to set aim first, in case the spellcast kills its first target
-    if (you.props.exists(BATTLESPHERE_KEY)
-        && (actual_spell || you.divine_exegesis))
-    {
-        aim_battlesphere(&you, spell);
-    }
-
     const coord_def orig_target_pos = beam.target;
     const auto orig_target = monster_at(beam.target);
     const bool self_target = you.pos() == beam.target;
@@ -2334,8 +2348,8 @@ static spret _do_cast(spell_type spell, int powc, const dist& spd,
     case SPELL_SUMMON_LIGHTNING_SPIRE:
         return cast_summon_lightning_spire(powc, god, fail);
 
-    case SPELL_SUMMON_GUARDIAN_GOLEM:
-        return cast_summon_guardian_golem(powc, god, fail);
+    case SPELL_SUMMON_BLAZEHEART_GOLEM:
+        return cast_summon_blazeheart_golem(powc, god, fail);
 
     case SPELL_CALL_IMP:
         return cast_call_imp(powc, god, fail);
@@ -2351,6 +2365,9 @@ static spret _do_cast(spell_type spell, int powc, const dist& spd,
 
     case SPELL_ANIMATE_DEAD:
         return cast_animate_dead(powc, fail);
+
+    case SPELL_MARTYRS_KNELL:
+        return cast_martyrs_knell(&you, powc, god, fail);
 
     case SPELL_HAUNT:
         return cast_haunt(powc, beam.target, god, fail);
@@ -2408,8 +2425,8 @@ static spret _do_cast(spell_type spell, int powc, const dist& spd,
     case SPELL_SILENCE:
         return cast_silence(powc, fail);
 
-    case SPELL_WEREBLOOD:
-        return cast_wereblood(powc, fail);
+    case SPELL_FUGUE_OF_THE_FALLEN:
+        return cast_fugue_of_the_fallen(powc, fail);
 
     case SPELL_DIMENSIONAL_BULLSEYE:
         return cast_dimensional_bullseye(powc, monster_at(target), fail);
@@ -2464,8 +2481,8 @@ static spret _do_cast(spell_type spell, int powc, const dist& spd,
     case SPELL_GLACIATE:
         return cast_glaciate(&you, powc, target, fail);
 
-    case SPELL_POISONOUS_VAPOURS:
-        return cast_poisonous_vapours(powc, spd, fail);
+    case SPELL_MERCURY_VAPOURS:
+        return cast_mercury_vapours(powc, spd.target, fail);
 
     case SPELL_BLINKBOLT:
         return blinkbolt(powc, beam, fail);

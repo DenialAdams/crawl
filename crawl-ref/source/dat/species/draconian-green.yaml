@@ -11,7 +11,7 @@ aptitudes:
   xp: -1
   hp: 1
   mp_mod: 0
-  mr: 3
+  wl: 3
   fighting: 1
   ranged weapons: -1
   throwing: -1
@@ -22,7 +22,7 @@ aptitudes:
   shapeshifting: -1
   invocations: 1
   # Green Draconian specific
-  poison_magic: 2
+  alchemy: 2
 str: 10
 int: 8
 dex: 6

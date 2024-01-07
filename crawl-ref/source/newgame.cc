@@ -648,10 +648,14 @@ static void _choose_name(newgame_def& ng, newgame_def& choice)
         switch (id)
         {
             case '*':
+                if (overwrite_prompt)
+                    break; // too weird
                 reader.putkey(CK_END);
                 reader.putkey(CONTROL('U'));
                 for (char ch : newgame_random_name())
                     reader.putkey(ch);
+                good_name = is_good_name(buf, true);
+                ok_switcher->current() = good_name ? 0 : 1;
                 break;
             case CK_ESCAPE: // redundant with key_exits_popup check below
                 done = cancel = true;
@@ -1120,7 +1124,7 @@ static job_group jobs_order[] =
         coord_def(2, 0), 22,
         { JOB_HEDGE_WIZARD, JOB_CONJURER, JOB_SUMMONER, JOB_NECROMANCER,
           JOB_FIRE_ELEMENTALIST, JOB_ICE_ELEMENTALIST,
-          JOB_AIR_ELEMENTALIST, JOB_EARTH_ELEMENTALIST, JOB_VENOM_MAGE }
+          JOB_AIR_ELEMENTALIST, JOB_EARTH_ELEMENTALIST, JOB_ALCHEMIST }
     }
 };
 
@@ -1577,9 +1581,6 @@ void species_group::attach(const newgame_def& ng, const newgame_def& defaults,
     {
         if (this_species == SP_UNKNOWN)
             break;
-
-        if (this_species == SP_METEORAN && ng.type == GAME_TYPE_SPRINT)
-            continue;
 
         if (ng.job == JOB_UNKNOWN && !species::is_starting_species(this_species))
             continue;

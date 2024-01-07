@@ -96,6 +96,7 @@ static void _player_moveto(const coord_def &c, bool real_movement, bool clear_ne
 
     // clear invalid constrictions even with fake movement
     you.clear_invalid_constrictions();
+    you.clear_far_engulf();
 }
 
 player_vanishes::player_vanishes(bool _movement)
@@ -139,6 +140,11 @@ void player::apply_location_effects(const coord_def &oldpos,
                                     int /*killernum*/)
 {
     moveto_location_effects(env.grid(oldpos));
+}
+
+void player::did_deliberate_movement()
+{
+    player_did_deliberate_movement();
 }
 
 void player::set_position(const coord_def &c)
@@ -819,9 +825,7 @@ bool player::go_berserk(bool intentional, bool potion)
 
     mpr("You feel mighty!");
 
-    int dur = 20 + random2avg(19,2);
-    if (!you.has_mutation(MUT_LONG_TONGUE))
-        dur /= 2;
+    int dur = (20 + random2avg(19,2)) / 2;
     you.increase_duration(DUR_BERSERK, dur);
 
     // Apply Berserk's +50% Current/Max HP.

@@ -138,7 +138,7 @@ static bool _cancel_barbed_move(bool rampaging)
     return false;
 }
 
-void apply_barbs_damage(bool rampaging)
+static void _apply_barbs_damage(bool rampaging)
 {
     if (you.duration[DUR_BARBS])
     {
@@ -154,6 +154,14 @@ void apply_barbs_damage(bool rampaging)
         if (you.duration[DUR_BARBS])
             you.duration[DUR_BARBS] += (rampaging ? 0 : you.time_taken);
     }
+}
+
+// For effects that should happen whenever the player actively moves with their
+// limbs, but NOT if the player blinks/teleports or is otherwise displaced.
+void player_did_deliberate_movement(bool rampaging)
+{
+    _apply_barbs_damage(rampaging);
+    shake_off_sticky_flame();
 }
 
 static bool _cancel_ice_move()
@@ -726,14 +734,18 @@ static spret _rampage_forward(coord_def move)
     // stepped = true, we're flavouring this as movement, not a blink.
     move_player_to_grid(rampage_destination, true);
 
+    // Verify the new position is valid, in case something unexpected happened.
+    ASSERT(!in_bounds(you.pos()) || !cell_is_solid(you.pos())
+            || you.wizmode_teleported_into_rock);
+
     you.clear_far_engulf(false, true);
     // No full-LOS stabbing.
     if (enhanced)
         behaviour_event(mon_target, ME_ALERT, &you, you.pos());
 
     // Lastly, apply post-move effects unhandled by move_player_to_grid().
-    apply_rampage_heal(mon_target);
-    apply_barbs_damage(true);
+    apply_rampage_heal();
+    player_did_deliberate_movement(true);
     remove_ice_movement();
     you.clear_far_engulf(false, true);
     apply_cloud_trail(old_pos);
@@ -749,13 +761,6 @@ static void _apply_move_time_taken()
 {
     you.time_taken *= player_movement_speed();
     you.time_taken = div_rand_round(you.time_taken, 10);
-
-    if (you.running && you.running.travel_speed)
-    {
-        you.time_taken = max(you.time_taken,
-                             div_round_up(100, you.running.travel_speed));
-    }
-
     if (you.duration[DUR_NO_HOP])
         you.duration[DUR_NO_HOP] += you.time_taken;
 }
@@ -859,30 +864,36 @@ void move_player_action(coord_def move)
     }
 
     bool rampaged = false;
-    const monster* rampage_targ_monst = get_rampage_target(move);
+    bool did_wu_jian_attack = false;
 
     if (you.rampaging())
     {
+        const monster *rampage_targ = get_rampage_target(move);
         switch (_rampage_forward(move))
         {
-            // Check the player's position again; rampage may have moved us.
-
             // Cancel the move entirely if rampage was aborted from a prompt.
             case spret::abort:
-                ASSERT(!in_bounds(you.pos()) || !cell_is_solid(you.pos())
-                       || you.wizmode_teleported_into_rock);
                 return;
 
             case spret::success:
                 rampaged = true;
+                if (you_worship(GOD_WU_JIAN)
+                    && wu_jian_post_move_effects(false, initial_position))
+                {
+                    did_wu_jian_attack = true;
+                    // If you kill something with a lunge, don't continue
+                    // rampaging into its space. That could be a nasty surprise
+                    // for players who land on traps, clouds, exclusions, etc,
+                    // even if we prevented moving into solid terrain or lava.
+                    if (rampage_targ && !rampage_targ->alive())
+                        moving = false;
+                }
                 // If we've rampaged, reset initial_position for the second
                 // move.
                 initial_position = you.pos();
-                // intentional fallthrough
-            default:
+                break;
             case spret::fail:
-                ASSERT(!in_bounds(you.pos()) || !cell_is_solid(you.pos())
-                       || you.wizmode_teleported_into_rock);
+            default:
                 break;
         }
     }
@@ -903,7 +914,7 @@ void move_player_action(coord_def move)
     // XX generalize?
     const string walkverb = you.airborne()                     ? "fly"
                           : you.swimming()                     ? "swim"
-                          : you.form == transformation::anaconda ? "slither"
+                          : you.form == transformation::serpent ? "slither"
                           : you.form != transformation::none   ? "walk" // XX
                           : walk_verb_to_present(lowercase_first(species::walking_verb(you.species)));
 
@@ -1102,9 +1113,9 @@ void move_player_action(coord_def move)
             _clear_constriction_data();
             _mark_potential_pursuers(targ);
             move_player_to_grid(targ, true);
-            if (rampaged && rampage_targ_monst)
-                apply_rampage_heal(rampage_targ_monst);
-            apply_barbs_damage();
+            if (rampaged)
+                apply_rampage_heal();
+            player_did_deliberate_movement();
             remove_ice_movement();
             you.clear_far_engulf(false, true);
             apply_cloud_trail(old_pos);
@@ -1198,11 +1209,12 @@ void move_player_action(coord_def move)
         did_god_conduct(DID_HASTY, 1, true);
     }
 
-    bool did_wu_jian_attack = false;
-    if (you_worship(GOD_WU_JIAN) && !attacking && !dug && !rampaged)
+    if (you_worship(GOD_WU_JIAN) && !attacking && !dug)
         did_wu_jian_attack = wu_jian_post_move_effects(false, initial_position);
+    else if (you_worship(GOD_WU_JIAN) && attacking && rampaged)
+        wu_jian_trigger_serpents_lash(false, initial_position);
 
-    // If you actually moved you are eligible for amulet of the acrobat.
+    // If you actually moved without attacking, acrobatics may kick in.
     if (!attacking && moving && !did_wu_jian_attack)
         update_acrobat_status();
 }

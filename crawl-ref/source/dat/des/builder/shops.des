@@ -61,7 +61,7 @@ end
 # XXX: Don't change the name of this vault!
 # Gozag code uses it to find out where shops can normally place.
 NAME: serial_shops
-TAGS: allow_dup extra luniq
+TAGS: nolayout_encompass allow_dup extra luniq
 DEPTH: D, Depths, Orc, Elf, Shoals, Snake, Vaults
 CHANCE: 15% (D)
 CHANCE: 20% (Depths)
@@ -842,18 +842,14 @@ KMASK:  DEFH = no_item_gen
 KMASK:  DEFH = no_trap_gen
 KMASK:  DEFH = opaque
 {{
--- The skellingtons are purely decorative, but also the only decorations, and
--- unlike other kinds of vaults, it's likely that the player will come back to a
--- shop after a long time on other levels. So, set them to be fully never_decay
--- rather than using a delayed_decay trigger. That way, players don't come back
--- to empty gibbets once they've gone and rounded up some cash.
+-- The skellingtons are purely decorative.
 local skeletons = {"human", "elf", "orc", "ogre", "merfolk", "naga", "kobold",
                    "gnoll", "minotaur", "spriggan", "troll", "felid",
                    "draconian", "tengu", "demonspawn", "demigod"}
-kitem("D = never_decay " .. util.random_from(skeletons) .. " skeleton" )
-kitem("E = never_decay " .. util.random_from(skeletons) .. " skeleton" )
-kitem("F = never_decay " .. util.random_from(skeletons) .. " skeleton" )
-kitem("H = never_decay " .. util.random_from(skeletons) .. " skeleton" )
+kitem("D = " .. util.random_from(skeletons) .. " skeleton" )
+kitem("E = " .. util.random_from(skeletons) .. " skeleton" )
+kitem("F = " .. util.random_from(skeletons) .. " skeleton" )
+kitem("H = " .. util.random_from(skeletons) .. " skeleton" )
 }}
 MAP
    .---
@@ -879,15 +875,22 @@ ENDMAP
 NAME:    guppyfry_shop_venom
 TAGS:    no_monster_gen transparent
 DEPTH:   D:4-, Depths
-MONS:    ball python w:5 / adder / water moccasin, place:Snake:1
+MONS:    ball python w:5 / adder, water moccasin
+MONS:    black mamba w:20 / naga ; sling, naga mage / naga ritualist, nagaraja
 KFEAT:   v = general shop type:Serpentskin suffix:Sales count:7 ; \
          w:8 dart ego:poisoned | w:4 dart ego:curare | w:5 scroll of poison | \
          w:3 ring of poison resistance | w:6 randbook disc:alchemy | \
-         w:2 staff of alchemy | w:4 any weapon ego:venom | w:1 serpent talisman | \
-         w:4 any armour ego:poison_resistance | w:1 swamp dragon scales
-SUBST:   ? = 2..
-: if you.absdepth() < 13 then
-SUBST:   2 = 1
+         w:2 staff of alchemy | w:6 any weapon ego:venom | w:1 serpent talisman | \
+         w:6 any armour ego:poison_resistance | w:1 swamp dragon scales
+NSUBST:  ? = 2:? / 2 = ?.. / *:.
+: if you.absdepth() < 7 then
+SUBST:   ? = 1
+: elseif you.absdepth() < 12 then
+SUBST:   ? = 122
+: elseif you.absdepth() < 16 then
+SUBST:   ? = 334
+: else
+SUBST:   ? = 45
 : end
 MAP
 xxxxx
@@ -1380,6 +1383,7 @@ KFEAT:  S = general shop type:Last-Chance suffix:Deals greed:0 count:7 ; \
  triple sword randart | triple crossbow randart | longbow randart | \
  hand cannon randart | bardiche randart | eveningstar randart | \
  crystal plate armour randart | any armour good_item randart w:50
+KFEAT:  t = petrified_tree
 MAP
   t
  ...

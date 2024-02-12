@@ -71,7 +71,6 @@
 #include "view.h"
 
 static bool _handle_pickup(monster* mons);
-static void _mons_in_cloud(monster& mons);
 static bool _monster_move(monster* mons);
 static bool _monster_swaps_places(monster* mon, const coord_def& delta);
 static bool _do_move_monster(monster& mons, const coord_def& delta);
@@ -364,37 +363,30 @@ static bool _ranged_ally_in_dir(monster* mon, coord_def p)
 }
 
 // Check whether there's a monster of the same type and alignment adjacent
-// to the given monster in at least one of three given directions (relative to
+// to the given monster in the given direction (relative to
 // the monster position).
-static bool _allied_monster_at(monster* mon, coord_def a, coord_def b,
-                               coord_def c)
+static bool _allied_monster_at(monster* mon, coord_def delta)
 {
-    for (coord_def delta : { a, b, c })
+    coord_def pos = mon->pos() + delta;
+    if (!in_bounds(pos))
+        return false;
+
+    const monster* ally = monster_at(pos);
+    if (ally == nullptr)
+        return false;
+
+    if (ally->is_stationary() || ally->reach_range() > REACH_NONE)
+        return false;
+
+    // Hostile monsters of normal intelligence only move aside for
+    // monsters of the same genus.
+    if (_unfriendly_or_impaired(*mon)
+        && mons_genus(mon->type) != mons_genus(ally->type))
     {
-        coord_def pos = mon->pos() + delta;
-        if (!in_bounds(pos))
-            continue;
-
-        const monster* ally = monster_at(pos);
-        if (ally == nullptr)
-            continue;
-
-        if (ally->is_stationary() || ally->reach_range() > REACH_NONE)
-            continue;
-
-        // Hostile monsters of normal intelligence only move aside for
-        // monsters of the same genus.
-        if (_unfriendly_or_impaired(*mon)
-            && mons_genus(mon->type) != mons_genus(ally->type))
-        {
-            continue;
-        }
-
-        if (mons_aligned(mon, ally))
-            return true;
+        return false;
     }
 
-    return false;
+    return mons_aligned(mon, ally);
 }
 
 // Altars as well as branch entrances are considered interesting for
@@ -518,7 +510,11 @@ static void _set_mons_move_dir(const monster* mons,
     }
     else
     {
-        *delta = (mons->firing_pos.zero() ? mons->target : mons->firing_pos)
+        const bool use_firing_pos = !mons->firing_pos.zero()
+                                    && !mons_is_fleeing(*mons)
+                                    && !mons_is_confused(*mons)
+                                    && !mons->berserk_or_frenzied();
+        *delta = (use_firing_pos ? mons->firing_pos : mons->target)
                  - mons->pos();
     }
 
@@ -689,20 +685,23 @@ static void _handle_movement(monster* mons)
     {
         _fill_good_move(mons, &good_move);
         good_move_filled = true;
-        // If the monster is moving parallel to the x or y axis, check
-        // if there are other unblocked grids adjacent to the target and
-        // whether
+        // If the monster is moving parallel to the x or y axis, sometimes
+        // move diagonally in that direction instead. Do this if either
         //
-        // a) the neighbouring grids are blocked and an ally is behind us,
+        // a) an ally is behind us and can't easily move around us;
         // or
-        // b) we're intelligent and blocking a ranged attack
+        // b) we're intelligent and blocking a ranged attack.
         if (mmov.y == 0)
         {
             if ((good_move[mmov.x+1][0] || good_move[mmov.x+1][2])
-                && (_allied_monster_at(mons, coord_def(-mmov.x, -1),
-                                       coord_def(-mmov.x, 0),
-                                       coord_def(-mmov.x, 1))
+                && ((_allied_monster_at(mons, coord_def(-mmov.x, -1))
+                     || _allied_monster_at(mons, coord_def(-mmov.x, 0))
+                     || _allied_monster_at(mons, coord_def(-mmov.x, 1)))
                        && !good_move[1][0] && !good_move[1][2]
+                    || _allied_monster_at(mons, coord_def(-mmov.x, -1))
+                       && !good_move[1][0] && !good_move[1-mmov.x][1]
+                    || _allied_monster_at(mons, coord_def(-mmov.x, 1))
+                       && !good_move[1][2] && !good_move[1-mmov.x][1]
                     || mons_intel(*mons) >= I_HUMAN
                        && _ranged_ally_in_dir(mons, coord_def(-mmov.x, 0))))
             {
@@ -715,10 +714,14 @@ static void _handle_movement(monster* mons)
         else if (mmov.x == 0)
         {
             if ((good_move[0][mmov.y+1] || good_move[2][mmov.y+1])
-                && (_allied_monster_at(mons, coord_def(-1, -mmov.y),
-                                       coord_def(0, -mmov.y),
-                                       coord_def(1, -mmov.y))
+                && ((_allied_monster_at(mons, coord_def(-1, -mmov.y))
+                     || _allied_monster_at(mons, coord_def(0, -mmov.y))
+                     || _allied_monster_at(mons, coord_def(1, -mmov.y)))
                        && !good_move[0][1] && !good_move[2][1]
+                    || _allied_monster_at(mons, coord_def(-1, -mmov.y))
+                       && !good_move[0][1] && !good_move[1][1-mmov.y]
+                    || _allied_monster_at(mons, coord_def(1, -mmov.y))
+                       && !good_move[2][1] && !good_move[1][1-mmov.y]
                     || mons_intel(*mons) >= I_HUMAN
                        && _ranged_ally_in_dir(mons, coord_def(0, -mmov.y))))
             {
@@ -728,28 +731,44 @@ static void _handle_movement(monster* mons)
                     mmov.x = 1;
             }
         }
-        else // We're moving diagonally.
+        else
+        // We're moving diagonally now. Sometimes move horizontally or
+        // vertically in that direction instead, under similar conditions.
         {
-            if (good_move[mmov.x+1][1])
+            if (good_move[mmov.x+1][1] && !good_move[1][mmov.y+1])
             {
-                if (!good_move[1][mmov.y+1]
-                       && _allied_monster_at(mons, coord_def(-mmov.x, -1),
-                                           coord_def(-mmov.x, 0),
-                                           coord_def(-mmov.x, 1))
+                if ((_allied_monster_at(mons, coord_def(-mmov.x, -1))
+                     || _allied_monster_at(mons, coord_def(-mmov.x, 0))
+                     || _allied_monster_at(mons, coord_def(-mmov.x, 1)))
                     || mons_intel(*mons) >= I_HUMAN
                        && _ranged_ally_in_dir(mons, coord_def(-mmov.x, -mmov.y)))
                 {
                     mmov.y = 0;
                 }
             }
-            else if (good_move[1][mmov.y+1]
-                     && _allied_monster_at(mons, coord_def(-1, -mmov.y),
-                                            coord_def(0, -mmov.y),
-                                            coord_def(1, -mmov.y))
-                         || mons_intel(*mons) >= I_HUMAN
-                            && _ranged_ally_in_dir(mons, coord_def(-mmov.x, -mmov.y)))
+            else if (good_move[1][mmov.y+1] && !good_move[mmov.x+1][1])
             {
-                mmov.x = 0;
+                if ((_allied_monster_at(mons, coord_def(-1, -mmov.y))
+                     || _allied_monster_at(mons, coord_def(0, -mmov.y))
+                     || _allied_monster_at(mons, coord_def(1, -mmov.y)))
+                    || mons_intel(*mons) >= I_HUMAN
+                       && _ranged_ally_in_dir(mons, coord_def(-mmov.x, -mmov.y)))
+                {
+                    mmov.x = 0;
+                }
+            }
+            else if (good_move[mmov.x+1][1] && good_move[1][mmov.y+1])
+            {
+                if (_allied_monster_at(mons, coord_def(-mmov.x, -mmov.y))
+                    && !good_move[1-mmov.x][1] && !good_move[1][1-mmov.y]
+                    || mons_intel(*mons) >= I_HUMAN
+                       && _ranged_ally_in_dir(mons, coord_def(-mmov.x, -mmov.y)))
+                {
+                    if (coinflip())
+                        mmov.x = 0;
+                    else
+                        mmov.y = 0;
+                }
             }
         }
     }
@@ -957,7 +976,6 @@ static bool _handle_reaching(monster& mons)
         || range <= REACH_NONE
         || is_sanctuary(mons.pos())
         || is_sanctuary(foe->pos())
-        || mons.submerged()
         || (mons_aligned(&mons, foe) && !mons.has_ench(ENCH_FRENZIED))
         || mons_is_fleeing(mons)
         || mons.pacified())
@@ -1161,7 +1179,6 @@ static bool _handle_wand(monster& mons)
         || mons.confused()
         || mons_itemuse(mons) < MONUSE_STARTING_EQUIPMENT
         || !mons.likes_wand(*wand)
-        || mons.has_ench(ENCH_SUBMERGED)
 
         || x_chance_in_y(3, 4))
     {
@@ -1205,7 +1222,6 @@ bool handle_throw(monster* mons, bolt & beem, bool teleport, bool check_only)
 {
     // Yes, there is a logic to this ordering {dlb}:
     if (mons->incapacitated()
-        || mons->submerged()
         || mons->caught()
         || mons_is_confused(*mons))
     {
@@ -1518,7 +1534,7 @@ static void _pre_monster_move(monster& mons)
     // Handle clouds on nonmoving monsters.
     if (mons.speed == 0)
     {
-        _mons_in_cloud(mons);
+        actor_apply_cloud(&mons);
 
         // Update constriction durations
         mons.accum_has_constricted();
@@ -1763,7 +1779,7 @@ void handle_monster_move(monster* mons)
     mons->shield_blocks = 0;
     check_spectral_weapon(*mons);
 
-    _mons_in_cloud(*mons);
+    actor_apply_cloud(mons);
     actor_apply_toxic_bog(mons);
 
     if (!mons->alive())
@@ -1876,31 +1892,6 @@ void handle_monster_move(monster* mons)
         return;
     }
 
-    // Lurking monsters only stop lurking if their target is right
-    // next to them, otherwise they just sit there.
-    if (mons->has_ench(ENCH_SUBMERGED))
-    {
-        if (mons->foe != MHITNOT
-            && grid_distance(mons->target, mons->pos()) <= 1)
-        {
-            if (mons->submerged())
-            {
-                if (!mons->del_ench(ENCH_SUBMERGED))
-                {
-                    // Couldn't unsubmerge.
-                    mons->speed_increment -= non_move_energy;
-                    return;
-                }
-            }
-            mons->behaviour = BEH_SEEK;
-        }
-        else
-        {
-            mons->speed_increment -= non_move_energy;
-            return;
-        }
-    }
-
     if (mons->caught())
     {
         // Struggling against the net takes time.
@@ -1919,7 +1910,7 @@ void handle_monster_move(monster* mons)
             _confused_move_dir(mons);
         }
     }
-    if (!mons->asleep() && !mons->submerged())
+    if (!mons->asleep())
         maybe_mons_speaks(mons);
 
     if (!mons->alive())
@@ -2597,7 +2588,7 @@ static bool _handle_pickup(monster* mons)
     if (env.igrid(mons->pos()) == NON_ITEM
         // Summoned monsters never pick anything up.
         || mons->is_summoned() || mons->is_perm_summoned()
-        || mons->asleep() || mons->submerged())
+        || mons->asleep())
     {
         return false;
     }
@@ -2774,14 +2765,11 @@ static bool _mons_can_displace(const monster* mpusher,
     // can't push. Note that sleeping monsters can't be pushed
     // past, either, but they may be woken up by a crowd trying to
     // elbow past them, and the wake-up check happens downstream.
-    // Monsters caught in a net also can't be pushed past.
-    if (mons_is_confused(*mpusher) || mons_is_confused(*mpushee)
-        || mpusher->cannot_act() || mpusher->is_stationary()
-        || mpusher->is_constricted() || mpushee->is_constricted()
-        || mpusher->has_ench(ENCH_BOUND) || mpushee->has_ench(ENCH_BOUND)
-        || (!_same_tentacle_parts(mpusher, mpushee)
-           && (mpushee->cannot_act() || mpushee->is_stationary()))
-        || mpusher->asleep() || mpushee->caught())
+    if (mons_is_confused(*mpusher)
+        || mons_is_confused(*mpushee)
+        || !_same_tentacle_parts(mpusher, mpushee) && mpushee->unswappable()
+        || mpusher->unswappable()
+        || mpusher->asleep())
     {
         return false;
     }
@@ -2802,10 +2790,6 @@ static bool _mons_can_displace(const monster* mpusher,
     // Batty monsters are unpushable.
     if (mons_is_batty(*mpusher) || mons_is_batty(*mpushee))
         return false;
-
-    // Anyone can displace a submerged monster.
-    if (mpushee->submerged())
-        return true;
 
     if (!monster_shover(*mpusher))
         return false;
@@ -3749,22 +3733,14 @@ static bool _monster_move(monster* mons)
     {
         // trigger a re-evaluation of our wander target on our next move -cao
         mons->target = mons->pos();
-        if (!mons->is_patrolling())
+        if (!mons->is_patrolling() || mons->pacified())
         {
             mons->travel_target = MTRAV_NONE;
             mons->travel_path.clear();
+            mons->patrol_point.reset();
         }
         mons->firing_pos.reset();
     }
 
     return ret;
-}
-
-static void _mons_in_cloud(monster& mons)
-{
-    // Submerging in water or lava saves from clouds.
-    if (mons.submerged() && env.grid(mons.pos()) != DNGN_FLOOR)
-        return;
-
-    actor_apply_cloud(&mons);
 }

@@ -126,13 +126,10 @@ void player::moveto(const coord_def &c, bool clear_net)
 
 bool player::move_to_pos(const coord_def &c, bool clear_net, bool /*force*/)
 {
-    actor *target = actor_at(c);
-    if (!target || target->submerged())
-    {
-        moveto(c, clear_net);
-        return true;
-    }
-    return false;
+    if (actor_at(c))
+        return false;
+    moveto(c, clear_net);
+    return true;
 }
 
 void player::apply_location_effects(const coord_def &oldpos,
@@ -173,11 +170,6 @@ void player::set_position(const coord_def &c)
 bool player::swimming() const
 {
     return in_water() && can_swim();
-}
-
-bool player::submerged() const
-{
-    return false;
 }
 
 bool player::floundering() const
@@ -376,8 +368,6 @@ random_var player::attack_delay_with(const item_def *projectile, bool rescale,
     // TODO: does this really have to depend on `you.time_taken`?  In basic
     // cases at least, `you.time_taken` is just `player_speed()`. See
     // `_prep_input`.
-    // We could simplify some code elsewhere if we fixed this,
-    // e.g. cast_manifold_assault().
     return rv::max(div_rand_round(attk_delay * you.time_taken, BASELINE_DELAY),
                    random_var(1));
 }
@@ -443,11 +433,10 @@ bool player::can_wield(const item_def& item, bool ignore_curse,
  * what they're currently wielding, transformed into, or any other state.
  *
  * @param item              The item to wield.
- * @param ignore_brand      Whether to disregard the weapon's brand.
  * @return                  Whether the player could potentially wield the
  *                          item.
  */
-bool player::could_wield(const item_def &item, bool ignore_brand,
+bool player::could_wield(const item_def &item, bool /*ignore_brand*/,
                          bool ignore_transform, bool quiet) const
 {
     // Some lingering flavor from the days where sandblast ammo was wielded.
@@ -498,14 +487,6 @@ bool player::could_wield(const item_def &item, bool ignore_brand,
     if (get_mutation_level(MUT_MISSING_HAND)
         && you.hands_reqd(item) == HANDS_TWO)
     {
-        return false;
-    }
-
-    // don't let undead/demonspawn wield holy weapons/scrolls (out of spite)
-    if (!ignore_brand && undead_or_demonic() && is_holy_item(item))
-    {
-        if (!quiet)
-            mpr("This weapon is holy and will not allow you to wield it.");
         return false;
     }
 

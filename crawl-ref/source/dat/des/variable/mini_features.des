@@ -730,14 +730,14 @@ ENDMAP
 NAME:   minmay_misc_feat_hallway
 TAGS:   transparent extra decor
 DEPTH:  D, Depths, Crypt
-SUBST:  G : ..GGxb
+SUBST:  G : ..GGxv
 MAP
 xxxxxxxxx
-xGxGxGxGx
+xxxGxGxGx
 x.x.x.x.x
 @.......@
 x.x.x.x.x
-xGxGxGxGx
+xGxGxGxxx
 xxxxxxxxx
 ENDMAP
 
@@ -952,7 +952,7 @@ ENDMAP
 
 NAME:   minmay_crystal_water
 TAGS:   extra decor
-DEPTH:  D, Depths
+DEPTH:  D:8-, Depths
 MAP
 wwwwwwwww
 wbwwwwwbw
@@ -1014,7 +1014,7 @@ ENDMAP
 
 NAME:   minmay_curled_crystal
 TAGS:   transparent extra decor
-DEPTH:  D, Depths, Elf
+DEPTH:  D:8-, Depths, Elf
 WEIGHT: 3
 MAP
 ................
@@ -2282,10 +2282,22 @@ ccwwx...x.t.x...xwwcc
       cccFFFccc
 ENDMAP
 
-NAME:  kennysheep_cross_bottleneck
-TAGS:  extra decor
-DEPTH: D:2-, Depths, !D:$, !Depths:$
-: ks_random_setup(_G)
+NAME:    kennysheep_cross_bottleneck
+TAGS:    extra decor
+DEPTH:   D:2-, Depths, !D:$, !Depths:$
+KFEAT:   g = metal_statue
+SHUFFLE: DEFH / DEDE / FHFH / FHFH
+SUBST:   D = +, E = ., F = c, H = w, t = tGg
+KMASK:   W = no_monster_gen
+FTILE:   'tGg : floor_w_marble / floor_limestone
+TILE:    G = dngn_statue_angel
+: if crawl.coinflip() then
+TILE:    g = dngn_silver_statue
+:   set_feature_name("metal_statue", "silver statue")
+: else
+TILE:    g = dngn_golden_statue
+:   set_feature_name("metal_statue", "golden statue")
+: end
 MAP
         cFFFc
         cHHHc
@@ -2296,9 +2308,9 @@ MAP
         cw.wc
         cw.wc
 cccccccccx.xccccccccc
-+.wwwwwwxx.xxwwwwwwED
-+.........t........ED
-+.wwwwwwxx.xxwwwwwwED
++.wwwwwwxx'xxwwwwwwED
++........'t'.......ED
++.wwwwwwxx'xxwwwwwwED
 cccccccccx.xccccccccc
         cw.wc
         cw.wc
@@ -3616,8 +3628,9 @@ ENDMAP
 NAME:   water_maze_lemuel
 TAGS:   no_pool_fixup uniq_water_maze_lemuel no_descent
 WEIGHT: 5
-ITEM:   scroll of teleportation ident:type q:3
 DEPTH:  D:5-, Depths
+KITEM:  > = scroll of teleportation ident:type q:3
+KFEAT:  > = >
 MAP
    wwwwwwwww
   wwcccccccww
@@ -3668,7 +3681,7 @@ TAGS:   extra transparent no_descent
 WEIGHT: 1
 DEPTH:  D:5-, Depths, Lair, Elf, !Elf:$, Orc
 SUBST:  X = m.
- : dgn.delayed_decay(_G,'A', 'human skeleton')
+KITEM:  A = human skeleton
 # Prevent random teleportation getting you stuck
 KMASK:  AB = opaque
 KPROP:  AB = no_tele_into
@@ -4043,9 +4056,9 @@ MAP
   xx.....xx
  xx.G...G.xx
 xx.x.....x.xx
-x...G...G...x
+x...x...G...x
 +.....*.....+
-x...G...G...x
+x...G...x...x
 xx.x.....x.xx
  xx.G...G.xx
   xx.....xx

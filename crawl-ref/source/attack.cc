@@ -96,7 +96,6 @@ bool attack::handle_phase_damaged()
     // react to damage.
     if (defender->can_bleed()
         && !defender->is_summoned()
-        && !defender->submerged()
         && in_bounds(defender->pos())
         && !simu)
     {
@@ -174,7 +173,7 @@ int attack::calc_pre_roll_to_hit(bool random)
     {
         mhit = 15 + (you.dex() / 2);
         // fighting contribution
-        mhit += maybe_random_div(you.skill(SK_FIGHTING, 100), 100, random);
+        mhit += maybe_random2_div(you.skill(SK_FIGHTING, 100), 100, random);
 
         // weapon skill contribution
         if (using_weapon())
@@ -184,19 +183,19 @@ int attack::calc_pre_roll_to_hit(bool random)
                 if (you.skill(wpn_skill) < 1 && player_in_a_dangerous_place() && random)
                     xom_is_stimulated(10); // Xom thinks that is mildly amusing.
 
-                mhit += maybe_random_div(you.skill(wpn_skill, 100), 100,
+                mhit += maybe_random2_div(you.skill(wpn_skill, 100), 100,
                                          random);
             }
         }
         else if (you.form_uses_xl())
-            mhit += maybe_random_div(you.experience_level * 100, 100, random);
+            mhit += maybe_random2_div(you.experience_level * 100, 100, random);
         else
         {
             // UC gets extra acc to compensate for lack of weapon enchantment.
             if (wpn_skill == SK_UNARMED_COMBAT)
                 mhit += 6;
 
-            mhit += maybe_random_div(you.skill(wpn_skill, 100), 100,
+            mhit += maybe_random2_div(you.skill(wpn_skill, 100), 100,
                                      random);
         }
 
@@ -213,7 +212,7 @@ int attack::calc_pre_roll_to_hit(bool random)
         }
 
         // slaying bonus
-        mhit += slaying_bonus(wpn_skill == SK_THROWING);
+        mhit += slaying_bonus(wpn_skill == SK_THROWING, random);
 
         // vertigo penalty
         if (you.duration[DUR_VERTIGO])
@@ -620,7 +619,7 @@ static const vector<chaos_effect> chaos_effects = {
     },
     {
         "rage", 5, [](const actor &defender) {
-            return defender.can_go_berserk();
+            return defender.can_go_berserk() && !defender.clarity();
         }, BEAM_NONE, [](attack &attack) {
             if (attack.defender->is_monster())
             {
@@ -758,7 +757,15 @@ void attack::chaos_affects_defender()
         beam.fire();
 
         if (you_could_see)
+        {
             obvious_effect = beam.obvious_effect;
+            if (!defender->wont_attack() &&
+                (beam.flavour == BEAM_HASTE || beam.flavour == BEAM_MIGHT))
+            {
+                xom_is_stimulated(12);
+            }
+        }
+
     }
 
     if (!you.can_see(*attacker))
@@ -1096,7 +1103,7 @@ int attack::player_apply_slaying_bonuses(int damage, bool aux)
                         || (weapon && is_range_weapon(*weapon)
                                    && using_weapon());
     damage_plus += slaying_bonus(throwing);
-    damage_plus -= 4 * you.corrosion_amount();
+    damage_plus -= you.corrosion_amount();
 
     // XXX: should this also trigger on auxes?
     if (!aux && !ranged)
@@ -1399,6 +1406,9 @@ bool attack::apply_damage_brand(const char *what)
         break;
 
     case SPWPN_HOLY_WRATH:
+        if (attacker->undead_or_demonic())
+            break; // No holy wrath for thee!
+
         if (defender->holy_wrath_susceptible())
             special_damage = 1 + (random2(damage_done * 15) / 10);
 
@@ -1600,14 +1610,6 @@ bool attack::apply_damage_brand(const char *what)
 
     if (special_damage > 0)
         inflict_damage(special_damage, special_damage_flavour);
-
-    if (obvious_effect && attacker_visible && using_weapon())
-    {
-        if (is_artefact(*weapon))
-            artefact_learn_prop(*weapon, ARTP_BRAND);
-        else
-            set_ident_flags(*weapon, ISFLAG_KNOW_TYPE);
-    }
 
     return ret;
 }

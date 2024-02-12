@@ -213,6 +213,8 @@ tileidx_t tileidx_feature_base(dungeon_feature_type feat)
         return TILE_DNGN_PETRIFIED_TREE;
     case DNGN_DEMONIC_TREE:
         return TILE_DNGN_DEMONIC_TREE;
+    case DNGN_METAL_STATUE:
+        return TILE_DNGN_METAL_STATUE;
     case DNGN_GRANITE_STATUE:
         return TILE_DNGN_GRANITE_STATUE;
     case DNGN_LAVA:
@@ -700,9 +702,6 @@ static bool _mons_is_kraken_tentacle(const int mtype)
 tileidx_t tileidx_tentacle(const monster_info& mon)
 {
     ASSERT(mons_is_tentacle_or_tentacle_segment(mon.type));
-
-    // If the tentacle is submerged, we shouldn't even get here.
-    ASSERT(!mon.is(MB_SUBMERGED));
 
     // Get tentacle position.
     const coord_def t_pos = mon.pos;
@@ -1299,8 +1298,9 @@ static tileidx_t _zombie_tile_to_skeleton(const tileidx_t z_tile)
         return TILEP_MONS_SKELETON_TROLL;
     case TILEP_MONS_ZOMBIE_LARGE:
     case TILEP_MONS_ZOMBIE_OGRE:
-    case TILEP_MONS_ZOMBIE_JUGGERNAUT:
         return TILEP_MONS_SKELETON_LARGE;
+    case TILEP_MONS_ZOMBIE_JUGGERNAUT:
+        return TILEP_MONS_SKELETON_JUGGERNAUT;
     case TILEP_MONS_ZOMBIE_QUADRUPED_SMALL:
     case TILEP_MONS_ZOMBIE_RAT:
     case TILEP_MONS_ZOMBIE_QUOKKA:
@@ -1965,13 +1965,16 @@ static tileidx_t _tileidx_monster_no_props(const monster_info& mon)
 
         case MONS_BUSH:
             if (env.map_knowledge(mon.pos).cloud() == CLOUD_FIRE)
-                return TILEP_MONS_BUSH_BURNING;
+                return TILEP_MONS_BURNING_BUSH;
             return base;
 
         case MONS_BOULDER_BEETLE:
             return mon.is(MB_ROLLING)
                    ? _mon_random(TILEP_MONS_BOULDER_BEETLE_ROLLING, mon.number)
                    : base;
+
+        case MONS_BOULDER:
+            return _mon_random(TILEP_MONS_BOULDER_BEETLE_ROLLING, mon.number);
 
         case MONS_DANCING_WEAPON:
         {

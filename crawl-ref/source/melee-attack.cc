@@ -79,7 +79,7 @@ melee_attack::melee_attack(actor *attk, actor *defn,
 {
     attack_occurred = false;
     damage_brand = attacker->damage_brand(attack_number);
-    weapon = attacker->weapon(attack_number);
+    weapon = mutable_wpn = attacker->weapon(attack_number);
     init_attack(SK_UNARMED_COMBAT, attack_number);
     if (weapon && !using_weapon())
         wpn_skill = SK_FIGHTING;
@@ -214,13 +214,6 @@ bool melee_attack::handle_phase_attempted()
 
     if (attacker->is_player())
     {
-        // Set delay now that we know the attack won't be cancelled.
-        if (!is_riposte && !is_multihit && !cleaving
-            && wu_jian_attack == WU_JIAN_ATTACK_NONE)
-        {
-            you.time_taken = you.attack_delay().roll();
-        }
-
         const caction_type cact_typ = is_riposte ? CACT_RIPOSTE : CACT_MELEE;
         if (weapon)
         {
@@ -863,8 +856,8 @@ bool melee_attack::handle_phase_killed()
     // avoided triggering Wyrmbane's death effect earlier in the attack.
     if (unrand_entry && weapon && weapon->unrand_idx == UNRAND_WYRMBANE)
     {
-        unrand_entry->melee_effects(weapon, attacker, defender,
-                                               true, special_damage);
+        unrand_entry->melee_effects(mutable_wpn, attacker, defender,
+                                    true, special_damage);
     }
 
     return attack::handle_phase_killed();
@@ -876,6 +869,11 @@ static void _handle_spectral_brand(actor &attacker, const actor &defender)
         return;
     attacker.triggered_spectral = true;
     spectral_weapon_fineff::schedule(attacker, defender);
+}
+
+int melee_attack::roll_delay() const
+{
+    return you.attack_delay_with(nullptr, true, weapon).roll();
 }
 
 bool melee_attack::handle_phase_end()
@@ -997,8 +995,8 @@ bool melee_attack::attack()
     {
         saved_gyre_name = get_artefact_name(*weapon);
         const bool gimble = effective_attack_number % 2;
-        set_artefact_name(*weapon, gimble ? "quick blade \"Gimble\""
-                                          : "quick blade \"Gyre\"");
+        set_artefact_name(*mutable_wpn, gimble ? "quick blade \"Gimble\""
+                                                  : "quick blade \"Gyre\"");
     }
 
     // Restore gyre's name before we return. We cannot use an unwind_var here
@@ -1009,7 +1007,7 @@ bool melee_attack::attack()
         if (!saved_gyre_name.empty() && weapon
                 && is_unrandom_artefact(*weapon, UNRAND_GYRE))
         {
-            set_artefact_name(*weapon, saved_gyre_name);
+            set_artefact_name(*mutable_wpn, saved_gyre_name);
         }
     };
 
@@ -1157,7 +1155,7 @@ bool melee_attack::check_unrand_effects()
             return true;
 
         // Recent merge added damage_done to this method call
-        unrand_entry->melee_effects(weapon, attacker, defender,
+        unrand_entry->melee_effects(mutable_wpn, attacker, defender,
                                     died, damage_done);
         return !defender->alive(); // may have changed
     }
@@ -1493,15 +1491,12 @@ void melee_attack::player_aux_setup(unarmed_attack_type atk)
  */
 bool melee_attack::player_gets_aux_punch()
 {
-    if (!get_form()->can_offhand_punch())
-        return false;
-
+    return !weapon // UC only
+    // Bats like drinking punch, not throwing 'em.
+           && get_form()->can_offhand_punch()
     // No punching with a shield or 2-handed wpn.
     // Octopodes aren't affected by this, though!
-    if (you.arm_count() <= 2 && !you.has_usable_offhand())
-        return false;
-
-    return true;
+           && (you.arm_count() <= 2 || you.has_usable_offhand());
 }
 
 bool melee_attack::player_aux_test_hit()
@@ -1565,13 +1560,8 @@ bool melee_attack::player_aux_unarmed()
         handle_noise(defender->pos());
         alert_nearby_monsters();
 
-        // [ds] kraken can flee when near death, causing the tentacle
-        // the player was beating up to "die" and no longer be
-        // available to answer questions beyond this point.
-        // handle_noise stirs up all nearby monsters with a stick, so
-        // the player may be beating up a tentacle, but the main body
-        // of the kraken still gets a chance to act and submerge
-        // tentacles before we get here.
+        // Just about anything could've happened after all that racket.
+        // Let's be paranoid.
         if (!defender->alive())
             return true;
 
@@ -1755,17 +1745,13 @@ int melee_attack::player_apply_final_multipliers(int damage, bool aux)
     if (charge_pow > 0 && defender->res_elec() <= 0)
         damage += div_rand_round(damage * charge_pow, 150);
 
-    // Can't affect much of anything as a shadow.
-    if (you.form == transformation::shadow)
-        damage = div_rand_round(damage, 2);
-
     if (you.duration[DUR_WEAK])
         damage = div_rand_round(damage * 3, 4);
 
     if (you.duration[DUR_CONFUSING_TOUCH] && !aux)
         return 0;
 
-    return damage;
+    return attack::player_apply_final_multipliers(damage, aux);
 }
 
 int melee_attack::player_apply_postac_multipliers(int damage)

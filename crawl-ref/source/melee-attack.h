@@ -44,6 +44,7 @@ public:
     wu_jian_attack_type wu_jian_attack;
     int wu_jian_number_of_targets;
     coord_def attack_position;
+    item_def *mutable_wpn;
 
 public:
     melee_attack(actor *attacker, actor *defender,
@@ -58,6 +59,8 @@ public:
     bool would_prompt_player();
 
     static void chaos_affect_actor(actor *victim);
+
+    int roll_delay() const;
 
 private:
     /* Attack phases */

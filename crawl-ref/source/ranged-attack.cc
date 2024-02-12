@@ -27,16 +27,15 @@
 #include "traps.h"
 #include "xom.h"
 
-ranged_attack::ranged_attack(actor *attk, actor *defn, item_def *proj,
+ranged_attack::ranged_attack(actor *attk, actor *defn,
+                             const item_def *wpn, const item_def *proj,
                              bool tele, actor *blame, bool mulch)
     : ::attack(attk, defn, blame), range_used(0), reflected(false),
       projectile(proj), teleport(tele), orig_to_hit(0), mulched(mulch)
 {
-    if (is_launcher_ammo(*projectile))
-    {
-        weapon = attacker->weapon(0); // else null
+    weapon = wpn;
+    if (weapon)
         damage_brand = get_weapon_brand(*weapon);
-    }
 
     init_attack(SK_THROWING, 0);
     kill_type = KILLED_BY_BEAM;
@@ -79,7 +78,7 @@ int ranged_attack::post_roll_to_hit_modifiers(int mhit, bool random)
              && (mid_t)you.props[BULLSEYE_TARGET_KEY].get_int()
                  == defender->mid)
     {
-        modifiers += maybe_random_div(
+        modifiers += maybe_random2_div(
                          calc_spell_power(SPELL_DIMENSIONAL_BULLSEYE),
                          BULLSEYE_TO_HIT_DIV, random);
     }
@@ -436,9 +435,9 @@ bool ranged_attack::ignores_shield(bool verbose)
 special_missile_type ranged_attack::random_chaos_missile_brand()
 {
     special_missile_type brand = SPMSL_NORMAL;
-    // Assuming the chaos to be mildly intelligent, try to avoid brands
-    // that clash with the most basic resists of the defender,
-    // i.e. its holiness.
+    // Assuming chaos always wants to be flashy and fancy, and thus
+    // skip anything that'd be completely ignored by resists.
+    // FIXME: Unite this with chaos melee's chaos_types.
     while (true)
     {
         brand = (random_choose_weighted(
@@ -458,16 +457,24 @@ special_missile_type ranged_attack::random_chaos_missile_brand()
         switch (brand)
         {
         case SPMSL_FLAME:
-            if (defender->is_fiery())
+            if (!defender->is_player() && defender->res_fire() >= 3)
                 susceptible = false;
             break;
         case SPMSL_FROST:
-            if (defender->is_icy())
+            if (!defender->is_player() && defender->res_cold() >= 3)
                 susceptible = false;
             break;
         case SPMSL_POISONED:
-            if (defender->holiness() & MH_UNDEAD)
+        case SPMSL_BLINDING:
+            if (defender->holiness() & (MH_UNDEAD | MH_NONLIVING))
                 susceptible = false;
+            break;
+        case SPMSL_CURARE:
+            if ((defender->is_player() && defender->holiness() & (MH_UNDEAD | MH_NONLIVING))
+               || defender->res_poison() > 0)
+            {
+                susceptible = false;
+            }
             break;
         case SPMSL_DISPERSAL:
             if (defender->no_tele(true))

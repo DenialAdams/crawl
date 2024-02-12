@@ -341,13 +341,13 @@ bool fight_melee(actor *attacker, actor *defender, bool *did_hit, bool simu)
             return false;
         }
 
-        if (!attk.attack())
-        {
-            // Attack was cancelled or unsuccessful...
-            if (attk.cancel_attack)
-                you.turn_is_over = false;
+        const bool success = attk.attack();
+        if (attk.cancel_attack)
+            you.turn_is_over = false;
+        else
+            you.time_taken = attk.roll_delay();
+        if (!success)
             return !attk.cancel_attack;
-        }
 
         if (did_hit)
             *did_hit = attk.did_hit;
@@ -361,6 +361,17 @@ bool fight_melee(actor *attacker, actor *defender, bool *did_hit, bool simu)
     // If execution gets here, attacker != Player, so we can safely continue
     // with processing the number of attacks a monster has without worrying
     // about unpredictable or weird results from players.
+
+    // Spectral weapons should only attack when triggered by their summoner,
+    // which is handled via spectral_weapon_fineff. But if they bump into a
+    // valid attack target during their subsequent wanderings, they will still
+    // attempt to attack it via this method, which they should not.
+    if (attacker->as_monster()->type == MONS_SPECTRAL_WEAPON)
+    {
+        // Still consume energy so we don't cause an infinite loop
+        attacker->as_monster()->lose_energy(EUT_ATTACK);
+        return false;
+    }
 
     const int nrounds = attacker->as_monster()->has_hydra_multi_attack()
         ? attacker->heads() + MAX_NUM_ATTACKS - 1

@@ -511,7 +511,7 @@ player/mutations/octopode1 OCTOPODE_SPIKE
 ###Artefacts
 %sdir player/hand1/artefact
 # blades
-bloodbane BLOODBANE
+bloodbane BLOODBANE FIRST
 doom_knight DOOM_KNIGHT
 leech LEECH
 morg MORG
@@ -744,21 +744,6 @@ staff-artefact5
 staff-artefact6
 staff-artefact7
 
-# start TAG_MAJOR_VERSION == 34
-## rods
-# These 10 rods correspond to the same order as item/rod/
-rod_ruby ROD_FIRST
-rod_brown
-rod_emerald
-rod_hammer
-rod_blue
-rod_thick
-rod_moon
-rod_magenta
-rod_forked
-rod_aries
-# end TAG_MAJOR_VERSION
-
 ## axes
 axe_small AXE_SMALL
 hand_axe HAND_AXE
@@ -792,10 +777,6 @@ arbalest_two ARBALEST2
 arbalest_three ARBALEST3
 arbalest_four ARBALEST4
 triple_crossbow TRIPLE_CROSSBOW
-blowgun BLOWGUN
-
-##missiles
-dart DART
 
 ## lotr
 aragorn ARAGORN
@@ -807,19 +788,8 @@ gimli GIMLI
 legolas LEGOLAS
 saruman SARUMAN
 
-## misc items
+## non-weapons
 %sdir player/hand1/misc
-bone_lantern BONE_LANTERN
-fan FAN
-bottle BOTTLE
-box BOX
-crystal CRYSTAL
-horn HORN
-lantern LANTERN
-orb ORB
-stone STONE
-
-## other non-weapons
 fire_red FIRE_RED
 fire_blue FIRE_BLUE
 skull SKULL
@@ -836,8 +806,14 @@ fire_white2 FIRE_WHITE2
 
 bladehands BLADEHAND
 bladehands_op BLADEHAND_OP
-bladehands_fe BLADEHAND_FE
+bladehands_fe BLADEHAND_FE LAST
 %end_ctg
+
+%parts_ctg HAND1_MIRROR
+%mirror_horizontal
+%repeat_ctg HAND1
+%end_ctg
+%reset_mirror
 
 ### Hand 2
 %parts_ctg HAND2
@@ -951,24 +927,6 @@ pj PJ
 torch2 TORCH2
 
 bladehands BLADEHAND
-
-# The 1-2 "typos" are intentional; the equivalent tiles above have no
-# enums and become TILEP_GREAT_FLAIL_1 and TILEP_GREAT_MACE_1 respectively.
-dagger DAGGER
-dagger2 DAGGER_1
-rapier RAPIER
-rapier2 RAPIER_1
-short_sword_slant SHORT_SWORD_SLANT
-short_sword_slant2 SHORT_SWORD_SLANT_1
-flail_great GREAT_FLAIL
-flail_great2 GREAT_FLAIL_1
-great_mace GREAT_MACE
-great_mace2 GREAT_MACE_1
-giant_club GIANT_CLUB
-giant_club_slant GIANT_CLUB_SLANT
-giant_club_spike GIANT_CLUB_SPIKE
-giant_club_spike_slant GIANT_CLUB_SPIKE_SLANT
-giant_club_plain GIANT_CLUB_PLAIN
 %end_ctg
 
 ###Hair

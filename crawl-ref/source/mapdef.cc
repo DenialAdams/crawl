@@ -674,22 +674,12 @@ void map_lines::apply_grid_overlay(const coord_def &c, bool is_layout)
                 if (colour)
                     feat = tile_dngn_coloured(feat, colour);
 
-                int offset = 0;
-                if ((*overlay)(x, y).last_tile)
-                    offset = tile_dngn_count(feat) - 1;
-                else
-                    offset = random2(tile_dngn_count(feat));
-
                 if (!has_floor && env.grid(gc) == DNGN_FLOOR)
-                    tile_env.flv(gc).floor = feat + offset;
+                    tile_env.flv(gc).floor = feat;
                 else if (!has_rock && env.grid(gc) == DNGN_ROCK_WALL)
-                    tile_env.flv(gc).wall = feat + offset;
+                    tile_env.flv(gc).wall = feat;
                 else
-                {
-                    if ((*overlay)(x, y).no_random)
-                        offset = 0;
-                    tile_env.flv(gc).feat = feat + offset;
-                }
+                    tile_env.flv(gc).feat = feat;
             }
         }
 }
@@ -3016,6 +3006,9 @@ bool map_def::is_minivault() const
 // built on it.
 bool map_def::is_overwritable_layout() const
 {
+    // XX this code apparently does *not* check whether something is a layout.
+    // In almost all cases "overwritable" and "layout" coincide, but there are
+    // cases where they don't...
 #ifdef DEBUG_TAG_PROFILING
     ASSERT(cache_overwritable == has_tag("overwritable"));
 #endif

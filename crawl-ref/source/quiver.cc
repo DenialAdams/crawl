@@ -627,9 +627,6 @@ namespace quiver
             const int x_distance  = abs(delta.x);
             const int y_distance  = abs(delta.y);
             monster* mons = monster_at(target.target);
-            // don't allow targeting of submerged monsters
-            if (mons && mons->submerged())
-                mons = nullptr;
 
             if (x_distance > reach_range || y_distance > reach_range)
             {
@@ -697,7 +694,6 @@ namespace quiver
                 bool success = true;
                 monster *midmons;
                 if ((midmons = monster_at(middle))
-                    && !midmons->submerged()
                     && !god_protects(&you, midmons, true)
                     && (midmons->type != MONS_SPECTRAL_WEAPON
                         || !midmons->wont_attack())
@@ -1559,7 +1555,7 @@ namespace quiver
             }
             else
 #endif
-                qdesc.cprintf("%s", ability_name(ability));
+                qdesc.cprintf("%s", ability_name(ability).c_str());
 
             if (is_card_ability(ability))
                 qdesc.cprintf(" %s", nemelex_card_text(ability).c_str());
@@ -2300,6 +2296,26 @@ namespace quiver
     bool action_cycler::cycle(int dir, bool allow_disabled)
     {
         return set(next(dir, allow_disabled));
+    }
+
+    void action_cycler::on_item_pickup(int slot)
+    {
+        if (get()->is_valid()
+            || _fireorder_inscription_ok(slot, false) == false)
+        {
+            return;
+        }
+        const item_def &item = you.inv[slot];
+        for (unsigned int i_flags = 0; i_flags < Options.fire_order.size();
+             i_flags++)
+        {
+            const fire_type ftyp = (fire_type)Options.fire_order[i_flags];
+            if (_item_matches(item, ftyp, false))
+            {
+                set(make_shared<ammo_action>(slot));
+                return;
+            }
+        }
     }
 
     void action_cycler::on_actions_changed()
@@ -3122,6 +3138,11 @@ namespace quiver
     void on_actions_changed()
     {
         you.quiver_action.on_actions_changed();
+    }
+
+    void on_item_pickup(int slot)
+    {
+        you.quiver_action.on_item_pickup(slot);
     }
 
     void set_needs_redraw()

@@ -26,14 +26,6 @@ static tileidx_t _modrng(int mod, tileidx_t first, tileidx_t last)
     return first + mod % (last - first + 1);
 }
 
-#if TAG_MAJOR_VERSION == 34
-static tileidx_t _mon_mod(tileidx_t tile, int offset)
-{
-    int count = tile_player_count(tile);
-    return tile + offset % count;
-}
-#endif
-
 tileidx_t tilep_equ_weapon(const item_def &item)
 {
     if (item.base_type == OBJ_STAVES)
@@ -47,45 +39,6 @@ tileidx_t tilep_equ_weapon(const item_def &item)
         int orig_special = you.item_description[IDESC_STAVES][item.sub_type];
         int desc = (orig_special / NDSC_STAVE_PRI) % NDSC_STAVE_SEC;
         return TILEP_HAND1_STAFF_LARGE + desc;
-    }
-
-#if TAG_MAJOR_VERSION == 34
-    if (item.base_type == OBJ_RODS)
-        return _mon_mod(TILEP_HAND1_ROD_FIRST, item.rnd);
-#endif
-
-    if (item.base_type == OBJ_MISCELLANY)
-    {
-        switch (item.sub_type)
-        {
-#if TAG_MAJOR_VERSION == 34
-        case MISC_BOTTLED_EFREET:             return TILEP_HAND1_BOTTLE;
-        case MISC_FAN_OF_GALES:               return TILEP_HAND1_FAN;
-        case MISC_STONE_OF_TREMORS:           return TILEP_HAND1_STONE;
-#endif
-        case MISC_LIGHTNING_ROD:              return 0;
-
-#if TAG_MAJOR_VERSION == 34
-        case MISC_CRYSTAL_BALL_OF_ENERGY:     return TILEP_HAND1_CRYSTAL;
-        case MISC_LAMP_OF_FIRE:               return TILEP_HAND1_LANTERN;
-        case MISC_BUGGY_LANTERN_OF_SHADOWS:   return TILEP_HAND1_BONE_LANTERN;
-#endif
-        case MISC_HORN_OF_GERYON:             return TILEP_HAND1_HORN;
-        case MISC_BOX_OF_BEASTS:              return TILEP_HAND1_BOX;
-
-#if TAG_MAJOR_VERSION == 34
-        case MISC_DECK_OF_ESCAPE:
-        case MISC_DECK_OF_DESTRUCTION:
-        case MISC_DECK_OF_DUNGEONS:
-        case MISC_DECK_OF_SUMMONING:
-        case MISC_DECK_OF_WONDERS:
-        case MISC_DECK_OF_PUNISHMENT:
-        case MISC_DECK_OF_WAR:
-        case MISC_DECK_OF_CHANGES:
-        case MISC_DECK_OF_DEFENCE:
-            return 0;
-#endif
-        }
     }
 
     if (item.base_type != OBJ_WEAPONS)
@@ -249,15 +202,12 @@ tileidx_t tilep_equ_weapon(const item_def &item)
     case WPN_TRIPLE_CROSSBOW:
         tile = TILEP_HAND1_TRIPLE_CROSSBOW;
         break;
-#if TAG_MAJOR_VERSION == 34
-    case WPN_BLOWGUN:
-        tile = TILEP_HAND1_BLOWGUN;
-        break;
-#endif
     case WPN_LONGBOW:
         tile = TILEP_HAND1_ORCBOW;
         break;
-
+#if TAG_MAJOR_VERSION == 34
+    case WPN_BLOWGUN:
+#endif
     default: tile = 0;
     }
 
@@ -1122,6 +1072,60 @@ void tilep_calc_flags(const dolls_data &doll, int flag[])
     {
         flag[TILEP_PART_ARM] = TILEP_FLAG_HIDE;
     }
+}
+
+// Take a paperdoll and pass out values indicating how and in what order parts
+// should be drawn.
+void tilep_fill_order_and_flags(const dolls_data &doll, int (&order)[TILEP_PART_MAX],
+                                int (&flags)[TILEP_PART_MAX])
+{
+    // Ordered from back to front.
+    static int p_order[TILEP_PART_MAX] =
+    {
+        // background
+        TILEP_PART_SHADOW,
+        TILEP_PART_HALO,
+        TILEP_PART_ENCH,
+        TILEP_PART_DRCWING,
+        TILEP_PART_CLOAK,
+        // player
+        TILEP_PART_BASE,
+        TILEP_PART_BOOTS,
+        TILEP_PART_LEG,
+        TILEP_PART_BODY,
+        TILEP_PART_ARM,
+        TILEP_PART_HAIR,
+        TILEP_PART_BEARD,
+        TILEP_PART_HELM,
+        TILEP_PART_HAND1,
+        TILEP_PART_HAND1_MIRROR,
+        TILEP_PART_HAND2,
+    };
+
+    // Copy default order
+    for (int i = 0; i < TILEP_PART_MAX; ++i)
+        order[i] = p_order[i];
+
+    // For skirts, boots go under the leg armour. For pants, they go over.
+    if (doll.parts[TILEP_PART_LEG] < TILEP_LEG_SKIRT_OFS)
+    {
+        order[7] = TILEP_PART_BOOTS;
+        order[6] = TILEP_PART_LEG;
+    }
+
+    // Draw scarves above other clothing.
+    if (doll.parts[TILEP_PART_CLOAK] >= TILEP_CLOAK_SCARF_FIRST_NORM)
+    {
+        order[4] = order[5];
+        order[5] = order[6];
+        order[6] = order[7];
+        order[7] = order[8];
+        order[8] = order[9];
+        order[9] = TILEP_PART_CLOAK;
+    }
+
+    tilep_calc_flags(doll, flags);
+    reveal_bardings(doll.parts, flags);
 }
 
 // Parts index to string

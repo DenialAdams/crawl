@@ -886,12 +886,12 @@ spret cast_freeze(int pow, monster* mons, bool fail)
 {
     pow = min(25, pow);
 
-    if (!mons || mons->submerged())
+    if (!mons)
     {
         fail_check();
         canned_msg(MSG_NOTHING_CLOSE_ENOUGH);
         // If there's no monster there, you still pay the costs in
-        // order to prevent locating invisible/submerged monsters.
+        // order to prevent locating invisible monsters.
         return spret::success;
     }
 
@@ -970,7 +970,7 @@ spret cast_airstrike(int pow, coord_def target, bool fail)
     }
 
     monster* mons = monster_at(target);
-    if (!mons || mons->submerged())
+    if (!mons)
     {
         fail_check();
         canned_msg(MSG_SPELL_FIZZLES);
@@ -1043,7 +1043,6 @@ spret cast_momentum_strike(int pow, coord_def target, bool fail)
 
     monster* mons = monster_at(target);
     if (mons
-        && !mons->submerged()
         && !god_protects(mons)
         && you.can_see(*mons)
         && stop_attack_prompt(mons, false, you.pos()))
@@ -1237,6 +1236,7 @@ static const map<dungeon_feature_type, feature_frag> fraggable_terrain = {
     { DNGN_BROKEN_CLEAR_DOOR, { "rock", "stone door frame" } },
     { DNGN_STONE_ARCH, { "rock", "stone arch" } },
     // Metal -- small but nasty explosion
+    { DNGN_METAL_STATUE, { "metal", "metal statue", frag_damage_type::metal } },
     { DNGN_METAL_WALL, { "metal", "metal wall", frag_damage_type::metal } },
     { DNGN_GRATE, { "metal", "iron grate", frag_damage_type::metal } },
     // Crystal -- large & nasty explosion
@@ -1490,6 +1490,7 @@ static const map<dungeon_feature_type, int> terrain_shatter_chances = {
     { DNGN_TREE,             33 }, // also applies to all other types of tree
     { DNGN_CLEAR_STONE_WALL, 25 },
     { DNGN_STONE_WALL,       25 },
+    { DNGN_METAL_STATUE,     15 },
     { DNGN_METAL_WALL,       15 },
 };
 
@@ -1722,7 +1723,7 @@ void shillelagh(actor *wielder, coord_def where, int pow)
     for (adjacent_iterator ai(where, false); ai; ++ai)
     {
         monster *mon = monster_at(*ai);
-        if (!mon || !mon->alive() || mon->submerged()
+        if (!mon || !mon->alive()
             || mon->is_insubstantial() || !you.can_see(*mon)
             || mon == wielder)
         {
@@ -3265,9 +3266,6 @@ spret cast_dazzling_flash(int pow, bool fail, bool tracer)
 
 static bool _toxic_can_affect(const actor *act)
 {
-    if (act->is_monster() && act->as_monster()->submerged())
-        return false;
-
     // currently monsters are still immune at rPois 1
     return act->res_poison() < (act->is_player() ? 3 : 1);
 }

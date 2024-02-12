@@ -736,16 +736,13 @@ spret electric_charge(int powc, bool fail, const coord_def &target)
     if (you.attribute[ATTR_HELD])
         return spret::success;
 
-    const int base_delay =
-        div_rand_round(you.time_taken * player_movement_speed(), 10);
-
     melee_attack charge_atk(&you, target_mons);
     charge_atk.charge_pow = powc + 50 * grid_distance(initial_pos, you.pos());
     charge_atk.attack();
 
-    // Normally this is 10 aut (times haste, chei etc), but slow weapons
+    // Normally this is 10 aut (times haste, slow), but slow weapons
     // take longer. Most relevant for low-skill players and Dark Maul.
-    you.time_taken = max(you.time_taken, base_delay);
+    you.time_taken = max(charge_atk.roll_delay(), you.time_taken);
 
     return spret::success;
 }
@@ -1140,7 +1137,7 @@ void you_teleport_now(bool wizard_tele, bool teleportitis, string reason)
 
 spret cast_dimensional_bullseye(int pow, monster *target, bool fail)
 {
-    if (target == nullptr || target->submerged() || !you.can_see(*target))
+    if (target == nullptr || !you.can_see(*target))
     {
         canned_msg(MSG_NOTHING_THERE);
         // You cannot place a bullseye on invisible enemies, so just abort
@@ -1276,7 +1273,6 @@ spret cast_manifold_assault(int pow, bool fail, bool real)
     else
         mpr("Space momentarily warps into an impossible shape!");
 
-    const int initial_time = you.time_taken;
     const bool animate = (Options.use_animations & UA_BEAM) != UA_NONE;
 
     shuffle_array(targets);
@@ -1286,10 +1282,6 @@ spret cast_manifold_assault(int pow, bool fail, bool real)
                                       : 1 + div_rand_round(pow, 100);
     for (size_t i = 0; i < max_targets && i < targets.size(); i++)
     {
-        // Somewhat hacky: reset attack delay before each attack so that only the final
-        // attack ends up actually setting time taken. (No quadratic effects.)
-        you.time_taken = initial_time;
-
         if (animate)
             _animate_manass_hit(targets[i]->pos());
 
@@ -1297,9 +1289,14 @@ spret cast_manifold_assault(int pow, bool fail, bool real)
         atk.is_projected = true;
         atk.attack();
 
+        // Only apply delay once, not quadratically.
+        if (i == 0)
+            you.time_taken = atk.roll_delay();
+
         if (you.hp <= 0 || you.pending_revival)
             break;
     }
+
     if (animate)
         animation_delay(50, true);
 

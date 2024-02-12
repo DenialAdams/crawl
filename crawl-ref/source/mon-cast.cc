@@ -4136,7 +4136,6 @@ bool handle_mon_spell(monster* mons)
     // .. berserk check is necessary for out-of-sequence actions like emergency
     // slot spells {blue}
     if (mons->asleep()
-        || mons->submerged()
         || mons->berserk_or_frenzied()
         || mons_is_confused(*mons, false)
         || !mons->has_spells())
@@ -4962,7 +4961,7 @@ static branch_summon_pair _invitation_summons[] =
   { BRANCH_VAULTS,
     { // Vaults enemies
       {  1,   1,   60, FLAT, MONS_VERY_UGLY_THING },
-      {  1,   1,   40, FLAT, MONS_IRONBOUND_THUNDERHULK },
+      {  1,   1,   40, FLAT, MONS_IRONBOUND_FROSTHEART },
       {  1,   1,   20, FLAT, MONS_VAULT_SENTINEL },
     }},
   { BRANCH_CRYPT,
@@ -4989,7 +4988,7 @@ static branch_summon_pair _planerend_summons[] =
     }},
   { BRANCH_VAULTS,
     { // Vaults enemies
-      {  1,   1,   80, FLAT, MONS_VAULT_SENTINEL },
+      {  1,   1,   80, FLAT, MONS_IRONBOUND_THUNDERHULK },
       {  1,   1,   40, FLAT, MONS_IRONBOUND_CONVOKER },
       {  1,   1,  100, FLAT, MONS_WAR_GARGOYLE },
     }},
@@ -7246,6 +7245,11 @@ static monster* _find_ally_to_throw(const monster &mons)
 
         // Don't try to throw anything constricted.
         if (throwee->is_constricted())
+            continue;
+
+        // Don't try to throw tentacles or their parts.
+        // Both too big and too easy to disconnect.
+        if (mons_is_tentacle_or_tentacle_segment(throwee->type))
             continue;
 
         // otherwise throw whoever's furthest from our target.

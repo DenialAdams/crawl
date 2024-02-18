@@ -33,7 +33,6 @@ namespace species
                                                     bool initial_only = false);
 
     bool is_elven(species_type species);
-    bool is_orcish(species_type species);
     bool is_undead(species_type species);
     bool is_draconian(species_type species);
     undead_state_type undead_type(species_type species) PURE;
@@ -59,6 +58,7 @@ namespace species
     string walking_verb(species_type sp);
     string walking_title(species_type sp);
     string child_name(species_type species);
+    string orc_name(species_type species);
     string prayer_action(species_type species);
     string shout_verb(species_type sp, int screaminess, bool directed);
     string skin_name(species_type sp, bool adj=false);

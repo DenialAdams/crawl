@@ -368,9 +368,6 @@ public:
     // A stack -- back() is the first to go.
     vector<pair<uncancellable_type, int> > uncancel;
 
-    // A list of allies awaiting an active recall
-    vector<mid_t> recall_list;
-
     // Hash seed for deterministic stuff.
     uint64_t game_seed;
     bool fully_seeded; // true on all games started since 0.23 seeding changes
@@ -619,7 +616,7 @@ public:
     size_type   body_size(size_part_type psize = PSIZE_TORSO,
                           bool base = false) const override;
     brand_type  damage_brand(int which_attack = -1) override;
-    int         damage_type(int which_attack = -1) override;
+    vorpal_damage_type damage_type(int which_attack = -1) override;
     random_var  attack_delay(const item_def *projectile = nullptr,
                              bool rescale = true) const override;
     random_var  attack_delay_with(const item_def *projectile, bool rescale,
@@ -672,6 +669,7 @@ public:
 
     item_def *weapon(int which_attack = -1) const override;
     item_def *shield() const override;
+    item_def *offhand_weapon() const override;
 
     hands_reqd_type hands_reqd(const item_def &item,
                                bool base = false) const override;
@@ -781,6 +779,7 @@ public:
     bool res_water_drowning() const override;
     bool res_sticky_flame() const override;
     int res_holy_energy() const override;
+    int res_foul_flame() const override;
     int res_negative_energy(bool intrinsic_only = false) const override;
     bool res_torment() const override;
     bool res_polar_vortex() const override;
@@ -882,6 +881,14 @@ public:
 
     void be_agile(int pow);
 
+    int rev_percent() const;
+    void rev_up(int time_taken);
+    void rev_down(int time_taken);
+
+    bool legs_stiff() const;
+    void check_deliberate_move();
+    void note_deliberate_move();
+
     bool allies_forbidden();
 
     // TODO: move this somewhere else
@@ -919,7 +926,7 @@ public:
     void set_duration(duration_type dur, int turns, int cap = 0,
                       const char *msg = nullptr);
 
-    bool attempt_escape(int attempts = 1);
+    bool attempt_escape(int attempts = 1) override;
     int usable_tentacles() const;
     bool has_usable_tentacle() const override;
 

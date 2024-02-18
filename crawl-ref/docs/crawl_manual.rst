@@ -1538,21 +1538,19 @@ the player to set aside many aspects of the game while still developing a
 strong character.
 
 
-Hill Orcs (HO)
-  Hill Orcs are Orcs from the upper world who, jealous of the riches which their
-  cousins (the Cave Orcs) possess below the ground, descend in search of plunder
-  and adventure.
+Mountain Dwarves (MD)
 
-  Hill Orcs are strong and robust. Their forte is brute-force fighting, and they
-  are skilled at using most hand weapons (particularly axes, with which they are
-  experts), though they are not particularly good at using missile weapons. Hill
-  Orcs are passable users of most types of magic and are particularly skilled
-  with fire.
+  Mountain Dwarves are stout and hardy folk, adept at fighting with axes and
+  blugeoning weapons, though lacking the dexterity to excel at other forms of
+  combat. Their reserves of magic are somewhat poor, though they still make
+  passable spellcasters, and their connection with the blood of the earth gives
+  them a particular talent at fire and earth magics. Their spell success is
+  significantly less encumbered by armour than other species.
 
-  Hill Orcs have a strong connection to the gods and learn Invocations very
-  quickly. The Orc god Beogh is worshipped only by Orcs, and the orc priests of
-  the Dungeon preach that Beogh is indeed the only true god. Hill Orcs may
-  convert to Beogh even without an altar whenever an orc priest is in sight.
+  They are superlative artisans and smiths, employed in ancient times by even the
+  gods themselves, and this spiritual history makes them exceptional at invoking
+  divine aid. They can even use enchantment scrolls to improve artefacts that
+  would be beyond the understanding of any other species.
 
 Minotaurs (Mi)
   The Minotaurs are a species of hybrids, possessing Human bodies with bovine
@@ -1819,6 +1817,23 @@ Vampires (Vp)
   quickly, but will lose all undead powers. Upon growing, they learn to
   transform from their bloodless form into a fast-moving bat. Unlike other
   undead species, they may be mutated normally at all times.
+
+Coglins (Co)
+   Unlike most of their goblin kin, Coglins augment their tiny frames with
+   charm-wrought steel. Their exoskeletons, capable of wielding weapons
+   independently in each arm, are begun with hand-me-downs from their sprawling
+   families. By the time they come of age, they are inseparable from their
+   creations.
+
+   Haphazard and jerry-rigged, Coglin exoskeletons lack the flexibility of
+   natural bodies. Whenever their legs stop moving, they must be coaxed slowly
+   back into action; and though their arms can fly in a whir of destruction,
+   it takes quite a bit of swinging to rev them up to that speed.
+
+   Even so, a true Coglin would never criticise their creation. They believe
+   that spirits of steel and sandalwood come to rest within every thing that
+   draws blood, slowly and carefully re-attuning their exoskeletons to those
+   spirits whenever they wield or remove weapons. Never scorn the spirits!
 
 Demigods (Dg)
   Demigods are mortals with some divine or angelic ancestry, however distant.

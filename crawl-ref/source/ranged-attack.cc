@@ -340,6 +340,13 @@ bool ranged_attack::handle_phase_hit()
     return true;
 }
 
+bool ranged_attack::handle_phase_end()
+{
+    if (you.has_mutation(MUT_WARMUP_STRIKES) && !throwing())
+        you.rev_up(you.attack_delay(projectile).roll());
+    return attack::handle_phase_end();
+}
+
 bool ranged_attack::throwing() const
 {
     return SK_THROWING == wpn_skill;
@@ -388,11 +395,22 @@ int ranged_attack::calc_mon_to_hit_base()
 int ranged_attack::apply_damage_modifiers(int damage)
 {
     ASSERT(attacker->is_monster());
+
+    if (attacker->as_monster()->has_ench(ENCH_TOUCH_OF_BEOGH))
+        damage = damage * 4 / 3;
+
     if (attacker->as_monster()->is_archer())
     {
         const int bonus = archer_bonus_damage(attacker->get_hit_dice());
         damage += random2avg(bonus, 2);
     }
+    return damage;
+}
+
+int ranged_attack::player_apply_final_multipliers(int damage, bool /*aux*/)
+{
+    if (!throwing())
+        damage = apply_rev_penalty(damage);
     return damage;
 }
 
@@ -667,7 +685,7 @@ bool ranged_attack::apply_missile_brand()
                                       atk_name(DESC_A));
         break;
     case SPMSL_CHAOS:
-        chaos_affects_defender();
+        obvious_effect = chaos_affects_actor(defender, attacker);
         break;
     case SPMSL_DISPERSAL:
     {

@@ -400,21 +400,17 @@ void item_noise(const item_def &item, actor &act, string msg, int loudness)
 }
 
 // TODO: Let artefacts besides weapons generate noise.
-void noisy_equipment()
+void noisy_equipment(const item_def &weapon)
 {
     if (silenced(you.pos()) || !one_chance_in(20))
         return;
 
     string msg;
 
-    const item_def* weapon = you.weapon();
-    if (!weapon)
-        return;
-
-    if (is_unrandom_artefact(*weapon))
+    if (is_unrandom_artefact(weapon))
     {
-        string name = weapon->name(DESC_PLAIN, false, true, false, false,
-                                   ISFLAG_IDENT_MASK);
+        string name = weapon.name(DESC_PLAIN, false, true, false, false,
+                                  ISFLAG_IDENT_MASK);
         msg = getSpeakString(name);
         if (msg == "NONE")
             return;
@@ -423,7 +419,7 @@ void noisy_equipment()
     if (msg.empty())
         msg = getSpeakString("noisy weapon");
 
-    item_noise(*weapon, you, msg, 20);
+    item_noise(weapon, you, msg, 20);
 }
 
 // Berserking monsters cannot be ordered around.
@@ -465,13 +461,14 @@ static void _set_allies_patrol_point(bool clear = false)
             mi->behaviour = BEH_WANDER;
         else
             mi->behaviour = BEH_SEEK;
+        mi->travel_path.clear();
     }
 }
 
 static void _set_allies_withdraw(const coord_def &target)
 {
     coord_def delta = target - you.pos();
-    float mult = float(LOS_DEFAULT_RANGE * 2) / (float)max(abs(delta.x), abs(delta.y));
+    float mult = float(LOS_DEFAULT_RANGE * 3) / (float)max(abs(delta.x), abs(delta.y));
     coord_def rally_point = clamp_in_bounds(coord_def(delta.x * mult, delta.y * mult) + you.pos());
 
     for (monster_near_iterator mi(you.pos()); mi; ++mi)
@@ -486,8 +483,6 @@ static void _set_allies_withdraw(const coord_def &target)
         mi->foe = MHITNOT;
 
         mi->props.erase(LAST_POS_KEY);
-        mi->props.erase(IDLE_POINT_KEY);
-        mi->props.erase(IDLE_DEADLINE_KEY);
         mi->props.erase(BLOCKED_DEADLINE_KEY);
     }
 }

@@ -1695,7 +1695,7 @@ static string _ghost_brand_extra_info(brand_type brand)
     case SPWPN_HOLY_WRATH:    return "+3/4 damage vs evil after AC"; // ish
     case SPWPN_ELECTROCUTION: return "1/4 chance of 8-20 damage";
     case SPWPN_ACID:          return "2d4 damage, corrosion";
-    // Would be nice to show Pain damage and chance
+    // Would be nice to show Pain/Foul Flame damage and chance
     default: return "";
     }
 }
@@ -1745,6 +1745,11 @@ static string _describe_weapon_brand(const item_def &item)
         return "It has been blessed by the Shining One, dealing an additional "
                "three-quarters of any damage that pierces undead and demons' "
                "armour. Undead and demons cannot use this.";
+    case SPWPN_FOUL_FLAME:
+        return "It has been infused with foul flame, dealing an additional "
+               "three-quarters of damage to holy beings, an additional quarter "
+               "damage to undead and demons, and an additional half damage to "
+               "all others. Holy beings cannot use this.";
     case SPWPN_ELECTROCUTION:
         return "It sometimes electrocutes victims (1/4 chance, 8-20 damage).";
     case SPWPN_VENOM:
@@ -2950,8 +2955,19 @@ string get_item_description(const item_def &item,
             if (item.base_type == OBJ_ARMOUR
                 || item.base_type == OBJ_WEAPONS)
             {
-                description << "\nThis ancient artefact cannot be changed "
-                    "by magic or mundane means.";
+                if (you.has_mutation(MUT_ARTEFACT_ENCHANTING))
+                {
+                    if (is_unrandom_artefact(item))
+                    {
+                        description << "\nEnchanting this artefact any further "
+                            "is beyond even your skills.";
+                    }
+                }
+                else
+                {
+                    description << "\nThis ancient artefact cannot be changed "
+                        "by magic or mundane means.";
+                }
             }
             // Randart jewellery has already displayed this line.
             else if (item.base_type != OBJ_JEWELLERY
@@ -4796,6 +4812,7 @@ static string _flavour_base_desc(attack_flavour flavour)
         { AF_SWOOP,             "swoops behind the defender beforehand" },
         { AF_FLANK,             "slips behind the defender beforehand" },
         { AF_DRAG,              "drag the defender backwards"},
+        { AF_FOUL_FLAME,        "extra damage to holies/good god worshippers" },
         { AF_PLAIN,             "" },
     };
 
@@ -4956,6 +4973,8 @@ static string _monster_attacks_description(const monster_info& mi)
             real_dam = real_dam * 2;
         if (mi.is(MB_WEAK))
             real_dam = real_dam * 2 / 3;
+        if (mi.is(MB_TOUCH_OF_BEOGH))
+            real_dam = real_dam * 4 / 3;
 
         string dam_str;
         if (dam != real_dam)
@@ -5274,8 +5293,10 @@ string _monster_habitat_description(const monster_info& mi)
     switch (mons_habitat_type(type, mi.base_type))
     {
     case HT_AMPHIBIOUS:
-        return uppercase_first(make_stringf("%s can travel through water.\n",
-                               mi.pronoun(PRONOUN_SUBJECTIVE)));
+        return uppercase_first(make_stringf("%s can %s water.\n",
+                               mi.pronoun(PRONOUN_SUBJECTIVE),
+                               mi.type == MONS_ORC_APOSTLE
+                                ? "walk on" : "travel through"));
     case HT_AMPHIBIOUS_LAVA:
         return uppercase_first(make_stringf("%s can travel through lava.\n",
                                mi.pronoun(PRONOUN_SUBJECTIVE)));
@@ -5883,6 +5904,8 @@ void get_monster_db_desc(const monster_info& mi, describe_info &inf,
 
     if (mons_species(mi.type) == MONS_SERPENT_OF_HELL)
         db_name += " " + serpent_of_hell_flavour(mi.type);
+    if (mi.type == MONS_ORC_APOSTLE && mi.attitude == ATT_FRIENDLY)
+        db_name = "orc apostle follower";
 
     // This is somewhat hackish, but it's a good way of over-riding monsters'
     // descriptions in Lua vaults by using MonPropsMarker. This is also the
@@ -6513,4 +6536,11 @@ string extra_cloud_info(cloud_type cloud_type)
                        " %s once outside their sight.\n",
                        opaque ? "quickly" : "almost instantly");
     return opacity_info + vanish_info;
+}
+
+string player_species_name()
+{
+    if (you_worship(GOD_BEOGH))
+        return species::orc_name(you.species);
+    return species::name(you.species);
 }

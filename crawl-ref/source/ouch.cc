@@ -274,6 +274,7 @@ int check_your_resists(int hurted, beam_type flavour, string source,
         break;
 
     case BEAM_HOLY:
+    case BEAM_FOUL_FLAME:
     {
         hurted = resist_adjust_damage(&you, flavour, hurted);
         if (hurted < original && doEffects)
@@ -289,6 +290,14 @@ int check_your_resists(int hurted, beam_type flavour, string source,
     case BEAM_DEVASTATION:
         if (doEffects)
             you.strip_willpower(beam->agent(), random_range(8, 14));
+        break;
+
+    case BEAM_UMBRAL_TORCHLIGHT:
+        if (you.holiness() & ~(MH_NATURAL | MH_DEMONIC | MH_HOLY)
+            || beam->agent(true)->is_player())
+        {
+            hurted = 0;
+        }
         break;
 
     default:

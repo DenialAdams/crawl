@@ -716,7 +716,8 @@ bool tukima_affects(const actor &target)
            && !is_special_unrandom_artefact(*wpn)
            && !mons_class_is_animated_weapon(target.type)
            // XX use god_protects here. But, need to know the caster too...
-           && !mons_is_hepliaklqana_ancestor(target.type);
+           && !mons_is_hepliaklqana_ancestor(target.type)
+           && !(target.is_monster() && target.as_monster()->type == MONS_ORC_APOSTLE);
 }
 
 /**
@@ -2259,7 +2260,8 @@ static const map<spell_type, summon_cap> summonsdata =
     { SPELL_FIRE_ELEMENTALS,          { 0, 3 } },
     { SPELL_EARTH_ELEMENTALS,         { 0, 3 } },
     { SPELL_AIR_ELEMENTALS,           { 0, 3 } },
-    { SPELL_SUMMON_SPECTRAL_ORCS,     { 0, 3 } },
+    { SPELL_STICKS_TO_SNAKES,         { 0, 2 } },
+    { SPELL_VANQUISHED_VANGUARD,      { 0, 3 } },
     { SPELL_FIRE_SUMMON,              { 0, 4 } },
     { SPELL_SUMMON_MINOR_DEMON,       { 0, 3 } },
     { SPELL_CALL_LOST_SOULS,          { 0, 3 } },
@@ -2280,6 +2282,7 @@ static const map<spell_type, summon_cap> summonsdata =
     { SPELL_SUMMON_HELL_SENTINEL,     { 0, 3 } },
     { SPELL_CONJURE_LIVING_SPELLS,    { 0, 4 } },
     { SPELL_SHEZAS_DANCE,             { 0, 6 } },
+    { SPELL_DIVINE_ARMAMENT,          { 0, 1 } },
 };
 
 bool summons_are_capped(spell_type spell)
@@ -2489,7 +2492,7 @@ static void _overgrow_wall(const coord_def &pos)
     destroy_wall(pos);
 
     const monster_type mon = random_choose_weighted(4, MONS_OKLOB_SAPLING,
-                                                    4, MONS_BURNING_BUSH,
+                                                    4, MONS_SCRUB_NETTLE,
                                                     4, MONS_WANDERING_MUSHROOM,
                                                     1, MONS_BALLISTOMYCETE,
                                                     1, MONS_OKLOB_PLANT);
@@ -2754,7 +2757,7 @@ spret foxfire_swarm()
     bool unknown_unseen = false;
     for (radius_iterator ri(you.pos(), 2, C_SQUARE, LOS_NO_TRANS); ri; ++ri)
     {
-        if (_create_foxfire(you, *ri, GOD_NO_GOD, 10))
+        if (_create_foxfire(you, *ri, GOD_NO_GOD, 20))
         {
             created = true;
             continue;
@@ -2875,6 +2878,9 @@ string mons_simulacrum_immune_reason(const monster *mons)
 
     if (!mons_can_be_spectralised(*mons))
         return "You can't make a simulacrum of that!";
+
+    if (mons->friendly() || mons->neutral())
+        return "That would be terribly rude!";
 
     return "";
 }

@@ -193,6 +193,7 @@ static const vector<god_passive> god_passives[] =
 
     // Yredelemnul
     {
+        {  -1, passive_t::umbra, "are NOW surrounded by an aura of darkness" },
         {  -1, passive_t::reaping, "can NOW harvest souls to fight along side you" },
         {  -1, passive_t::nightvision, "can NOW see well in the dark" },
         {  -1, passive_t::r_spectral_mist, "are NOW immune to spectral mist" },
@@ -266,12 +267,7 @@ static const vector<god_passive> god_passives[] =
 
     // Beogh
     {
-        { -1, passive_t::share_exp, "share experience with your followers" },
-        {  3, passive_t::convert_orcs, "inspire orcs to join your side" },
-        {  3, passive_t::bless_followers,
-              "GOD will bless your followers",
-              "GOD will no longer bless your followers"
-        },
+        {  1, passive_t::convert_orcs, "Orcs sometimes recognize you as one of their own" },
         {  5, passive_t::water_walk, "walk on water" },
     },
 
@@ -902,7 +898,7 @@ void qazlal_storm_clouds()
         bool water = false;
         for (adjacent_iterator ai(candidates[i]); ai; ++ai)
         {
-            if (feat_is_watery(env.grid(*ai)))
+            if (feat_is_water(env.grid(*ai)))
                 water = true;
         }
 
@@ -1362,17 +1358,7 @@ static int _wu_jian_number_of_attacks(bool wall_jump)
                            ? 100
                            : player_movement_speed() * player_speed();
 
-    int attack_delay;
-
-    {
-        // attack_delay() is dependent on you.time_taken, which won't be set
-        // appropriately during a movement turn. This temporarily resets
-        // you.time_taken to the initial value (see `_prep_input`) used for
-        // basic, simple, melee attacks.
-        // TODO: can `attack_delay` be changed to not depend on you.time_taken?
-        unwind_var<int> reset_speed(you.time_taken, player_speed());
-        attack_delay = you.attack_delay().roll();
-    }
+    int attack_delay = you.attack_delay().roll();
 
     return div_rand_round(wall_jump ? 2 * move_delay : move_delay,
                           attack_delay * BASELINE_DELAY);
@@ -1420,7 +1406,7 @@ static bool _wu_jian_lunge(coord_def old_pos, coord_def new_pos,
             break;
         melee_attack lunge(&you, mons);
         lunge.wu_jian_attack = WU_JIAN_ATTACK_LUNGE;
-        lunge.attack();
+        lunge.launch_attack_set();
     }
 
     return true;
@@ -1489,7 +1475,7 @@ static bool _wu_jian_whirlwind(coord_def old_pos, coord_def new_pos,
             melee_attack whirlwind(&you, mons);
             whirlwind.wu_jian_attack = WU_JIAN_ATTACK_WHIRLWIND;
             whirlwind.wu_jian_number_of_targets = common_targets.size();
-            whirlwind.attack();
+            whirlwind.launch_attack_set();
             did_at_least_one_attack = true;
         }
     }
@@ -1586,7 +1572,7 @@ void wu_jian_wall_jump_effects()
             melee_attack aerial(&you, target);
             aerial.wu_jian_attack = WU_JIAN_ATTACK_WALL_JUMP;
             aerial.wu_jian_number_of_targets = targets.size();
-            aerial.attack();
+            aerial.launch_attack_set();
         }
     }
 }

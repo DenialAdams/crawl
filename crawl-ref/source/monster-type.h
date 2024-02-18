@@ -362,7 +362,7 @@ enum monster_type                      // env.mons[].type
     MONS_OKLOB_SAPLING,
     MONS_OKLOB_PLANT,
     MONS_BUSH,
-    MONS_BURNING_BUSH,
+    MONS_SCRUB_NETTLE,
 #if TAG_MAJOR_VERSION > 34
     MONS_THORN_HUNTER,
     MONS_BRIAR_PATCH,
@@ -371,6 +371,7 @@ enum monster_type                      // env.mons[].type
     MONS_ANIMATED_TREE,
     MONS_DEMONIC_PLANT,
     MONS_WITHERED_PLANT,
+    MONS_SACRED_LOTUS,
     MONS_STARFLOWER,
 #endif
     MONS_BALLISTOMYCETE_SPORE,
@@ -399,6 +400,9 @@ enum monster_type                      // env.mons[].type
     MONS_ORC_KNIGHT,
     MONS_ORC_SORCERER,
     MONS_ORC_WARLORD,
+#if TAG_MAJOR_VERSION > 34
+    MONS_ORC_APOSTLE,
+#endif
     MONS_DWARF,
     MONS_DEEP_DWARF,
 #if TAG_MAJOR_VERSION == 34
@@ -1231,6 +1235,8 @@ enum monster_type                      // env.mons[].type
     MONS_BURIAL_ACOLYTE,
     MONS_BLAZEHEART_CORE,
     MONS_MARTYRED_SHADE,
+    MONS_ORC_APOSTLE,
+    MONS_SACRED_LOTUS,
 #endif
 
     NUM_MONSTERS,               // used for polymorph

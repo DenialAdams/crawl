@@ -732,17 +732,13 @@ monster_type player_mons(bool transform)
 
     if (mons == MONS_ORC)
     {
+        // Orc implies Beogh worship nowadays, but someone might still be
+        // playing a Hill Orc from an old save...
         if (you_worship(GOD_BEOGH))
         {
             mons = (you.piety >= piety_breakpoint(4)) ? MONS_ORC_HIGH_PRIEST
                                                       : MONS_ORC_PRIEST;
         }
-    }
-    else if (mons == MONS_OGRE)
-    {
-        const skill_type sk = best_skill(SK_FIRST_SKILL, SK_LAST_SKILL);
-        if (sk >= SK_SPELLCASTING && sk <= SK_LAST_MAGIC)
-            mons = MONS_OGRE_MAGE;
     }
 
     return mons;
@@ -873,7 +869,7 @@ maybe_bool you_can_wear(equipment_type eq, bool temp)
         alternate.sub_type = ARM_ROBE;
         break;
 
-    case EQ_SHIELD:
+    case EQ_OFFHAND:
         // Assume that anything that can use an orb can wear some kind of
         // shield
         dummy.sub_type = ARM_ORB;
@@ -975,11 +971,17 @@ int player::wearing(equipment_type slot, int sub_type) const
         // Hands can have more than just weapons.
         if (weapon() && weapon()->is_type(OBJ_WEAPONS, sub_type))
             ret++;
+        // Special handling for dual wielding.
+        if (offhand_weapon() && offhand_weapon()->is_type(OBJ_WEAPONS, sub_type))
+            ret++;
         break;
 
     case EQ_STAFF:
         // Like above, but must be magical staff.
         if (weapon() && weapon()->is_type(OBJ_STAVES, sub_type))
+            ret++;
+        // Special handling for dual wielding.
+        if (offhand_weapon() && offhand_weapon()->is_type(OBJ_STAVES, sub_type))
             ret++;
         break;
 
@@ -1884,6 +1886,9 @@ int player_movement_speed(bool check_terrain, bool temp)
     if (temp && you.duration[DUR_FROZEN])
         mv += 3;
 
+    if (temp && you.legs_stiff())
+        mv += 10; // yikes!
+
     // Mutations: -2, -3, -4, unless innate and shapechanged.
     if (int fast = you.get_mutation_level(MUT_FAST))
         mv -= fast + 1;
@@ -1942,6 +1947,32 @@ int player_speed()
     }
 
     return ps;
+}
+
+#define LEGS_STIFF_KEY "legs_stiff"
+
+bool player::legs_stiff() const
+{
+    return you.props.exists(LEGS_STIFF_KEY);
+}
+
+#define MOVED_DELIBERATELY "moved_deliberately_key"
+
+void player::note_deliberate_move()
+{
+    if (!you.has_mutation(MUT_WARMUP_MOVES))
+        return;
+    you.props[MOVED_DELIBERATELY] = true;
+    you.props.erase(LEGS_STIFF_KEY);
+}
+
+void player::check_deliberate_move()
+{
+    if (!you.has_mutation(MUT_WARMUP_MOVES))
+        return;
+    if (!you.props.exists(MOVED_DELIBERATELY))
+        you.props[LEGS_STIFF_KEY] = true;
+    you.props.erase(MOVED_DELIBERATELY);
 }
 
 bool is_effectively_light_armour(const item_def *item)
@@ -2017,7 +2048,7 @@ static int _player_adjusted_evasion_penalty(const int scale)
     // Some lesser armours have small penalties now (barding).
     for (int i = EQ_MIN_ARMOUR; i < EQ_MAX_ARMOUR; i++)
     {
-        if (i == EQ_SHIELD || !you.slot_item(static_cast<equipment_type>(i)))
+        if (i == EQ_OFFHAND || !you.slot_item(static_cast<equipment_type>(i)))
             continue;
 
         // [ds] Evasion modifiers for armour are negatives, change
@@ -2165,8 +2196,13 @@ int player_armour_shield_spell_penalty()
 {
     const int scale = 100;
 
-    const int body_armour_penalty =
+    int body_armour_penalty =
         max(19 * you.adjusted_body_armour_penalty(scale), 0);
+
+    // This is actually cutting the base ER of our armour by half (not 1/4th),
+    // since that ER has already been squared by this point.
+    if (you.has_mutation(MUT_RUNIC_MAGIC))
+        body_armour_penalty /= 4;
 
     const int total_penalty = body_armour_penalty
                  + 19 * you.adjusted_shield_penalty(scale);
@@ -2229,8 +2265,9 @@ int player_shield_class()
     if (you.incapacitated())
         return 0;
 
-    if (you.shield())
-        shield += _sh_from_shield(you.inv[you.equip[EQ_SHIELD]]);
+    const item_def *shield_item = you.shield();
+    if (shield_item)
+        shield += _sh_from_shield(*shield_item);
 
     // mutations
     // +4, +6, +8 (displayed values)
@@ -3298,26 +3335,36 @@ static void _display_tohit()
 #endif
 }
 
+static double _delay(const item_def *weapon)
+{
+    if (!weapon || !is_range_weapon(*weapon))
+        return you.attack_delay().expected();
+    item_def fake_proj;
+    populate_fake_projectile(*weapon, fake_proj);
+    return you.attack_delay(&fake_proj).expected();
+}
+
+static bool _at_min_delay(const item_def *weapon)
+{
+    return weapon
+           && you.skill(item_attack_skill(*weapon))
+              >= weapon_min_delay_skill(*weapon);
+}
+
 /**
  * Print a message indicating the player's attack delay with their current
- * weapon (if applicable).
+ * weapon(s) (if applicable).
  */
-static void _display_attack_delay()
+static void _display_attack_delay(const item_def *offhand)
 {
     const item_def* weapon = you.weapon();
-    int delay;
-    if (weapon && is_range_weapon(*weapon))
-    {
-        item_def fake_proj;
-        populate_fake_projectile(*weapon, fake_proj);
-        delay = you.attack_delay(&fake_proj).expected();
-    }
-    else
-        delay = you.attack_delay(nullptr).expected();
+    const double delay = _delay(weapon);
+    const bool at_min_delay = _at_min_delay(weapon)
+                              && (!offhand || _at_min_delay(offhand));
 
-    const bool at_min_delay = weapon
-                              && you.skill(item_attack_skill(*weapon))
-                                 >= weapon_min_delay_skill(*weapon);
+    // Assume that we never have a shield penalty with an offhand weapon,
+    // and we only have an armour penalty with the offhand if we do with
+    // the primary.
     const bool shield_penalty = you.adjusted_shield_penalty(2) > 0;
     const bool armour_penalty = is_slowed_by_armour(weapon)
                                 && you.adjusted_body_armour_penalty(2) > 0;
@@ -3343,9 +3390,8 @@ static void _display_attack_delay()
  * Print a message listing double the player's best-case damage with their current
  * weapon (if applicable), or with unarmed combat (if not).
  */
-static void _display_damage_rating()
+static void _display_damage_rating(const item_def *weapon)
 {
-    const item_def *weapon = you.weapon();
     string weapon_name;
     if (weapon)
         weapon_name = weapon->name(DESC_YOUR);
@@ -3394,10 +3440,13 @@ void display_char_status()
     if (!cinfo.empty())
         mpr(cinfo);
 
+    const item_def* offhand = you.offhand_weapon();
     _display_movement_speed();
     _display_tohit();
-    _display_attack_delay();
-    _display_damage_rating();
+    _display_attack_delay(offhand);
+    _display_damage_rating(you.weapon());
+    if (offhand)
+        _display_damage_rating(offhand);
 
     // Display base attributes, if necessary.
     if (innate_stat(STAT_STR) != you.strength()
@@ -3582,12 +3631,8 @@ int player::scan_artefacts(artefact_prop_type which_property,
         const item_def &item = inv[eq];
 
         // Only weapons give their effects when in our hands.
-        if (i == EQ_WEAPON
-            && item.base_type != OBJ_WEAPONS
-            && item.base_type != OBJ_STAVES)
-        {
+        if (i == EQ_WEAPON && !is_weapon(item))
             continue;
-        }
 
         int val = 0;
 
@@ -4587,7 +4632,7 @@ bool sticky_flame_player(int intensity, int duration, string source, string sour
     ASSERT(!crawl_state.game_is_arena());
 
     if (player_res_sticky_flame() || duration <= 0 || you.duration[DUR_WATER_HOLD]
-        || feat_is_watery(env.grid(you.pos())))
+        || feat_is_water(env.grid(you.pos())))
     {
         return false;
     }
@@ -4628,7 +4673,7 @@ void dec_sticky_flame_player(int delay)
 {
     delay = min(delay, you.duration[DUR_STICKY_FLAME]);
 
-    if (feat_is_watery(env.grid(you.pos())))
+    if (feat_is_water(env.grid(you.pos())))
     {
         mprf(MSGCH_RECOVERY, "You dip into the water, and the flames go out!");
         end_sticky_flame_player();
@@ -4934,8 +4979,11 @@ bool invis_allowed(bool quiet, string *fail_reason, bool temp)
     {
         vector<string> sources;
 
-        if (temp && player_equip_unrand(UNRAND_EOS))
+        if (temp && (player_equip_unrand(UNRAND_EOS)
+                     || player_equip_unrand(UNRAND_BRILLIANCE)))
+        {
             sources.push_back("weapon");
+        }
 
         if (temp && you.wearing_ego(EQ_ALL_ARMOUR, SPARM_LIGHT))
             sources.push_back("orb");
@@ -5706,6 +5754,14 @@ void player::banish(const actor* /*agent*/, const string &who, const int power,
         return;
     }
 
+    if (you.duration[DUR_BEOGH_DIVINE_CHALLENGE])
+    {
+        simple_god_message(" refuses to let the Abyss claim you during a challenge!",
+                           GOD_BEOGH);
+
+        return;
+    }
+
     if (elapsed_time <= attribute[ATTR_BANISHMENT_IMMUNITY])
     {
         mpr("You resist the pull of the Abyss.");
@@ -5899,7 +5955,7 @@ int player::adjusted_body_armour_penalty(int scale) const
  */
 int player::adjusted_shield_penalty(int scale) const
 {
-    const item_def *shield_l = slot_item(EQ_SHIELD, false);
+    const item_def *shield_l = shield();
     if (!shield_l)
         return 0;
 
@@ -6234,7 +6290,7 @@ int player::base_ac_with_specific_items(int scale,
     for (auto item : armour_items)
     {
         // Shields give SH instead of AC
-        if (get_armour_slot(*item) != EQ_SHIELD)
+        if (get_armour_slot(*item) != EQ_OFFHAND)
         {
             AC += base_ac_from(*item, 100);
             AC += item->plus * 100;
@@ -6574,6 +6630,17 @@ int player::res_holy_energy() const
     return 0;
 }
 
+int player::res_foul_flame() const
+{
+    if (undead_or_demonic())
+        return 1;
+
+    if (is_holy())
+        return -1;
+
+    return 0;
+}
+
 int player::res_negative_energy(bool intrinsic_only) const
 {
     return player_prot_life(true, true, !intrinsic_only);
@@ -6833,9 +6900,10 @@ bool player::nightvision() const
 reach_type player::reach_range() const
 {
     const item_def *wpn = weapon();
-    if (wpn)
-        return weapon_reach(*wpn);
-    return REACH_NONE;
+    const item_def *off = offhand_weapon();
+    const reach_type wpn_reach = wpn ? weapon_reach(*wpn) : REACH_NONE;
+    const reach_type off_reach = off ? weapon_reach(*off) : REACH_NONE;
+    return max(wpn_reach, off_reach);
 }
 
 monster_type player::mons_species(bool /*zombie_base*/) const
@@ -7197,7 +7265,7 @@ bool player::has_usable_offhand() const
 {
     if (get_mutation_level(MUT_MISSING_HAND))
         return false;
-    if (shield())
+    if (shield() || offhand_weapon())
         return false;
 
     const item_def* wp = slot_item(EQ_WEAPON);
@@ -7359,7 +7427,7 @@ bool player::backlit(bool self_halo, bool temp) const
                     || duration[DUR_QUAD_DAMAGE]
                     || !umbraed() && haloed()
                        && (self_halo || halo_radius() == -1))
-           || self_halo && (you.has_mutation(MUT_GLOWING)
+           || self_halo && (you.has_mutation(MUT_FOUL_GLOW)
                             || you.form == transformation::flux);
     // TODO: find some way to mark !invis for autopickup while
     // fluxing while still marking it temp-useless (and while
@@ -7646,7 +7714,9 @@ int player::beam_resists(bolt &beam, int hurted, bool doEffects, string source)
 bool player::shaftable() const
 {
     return is_valid_shaft_level()
-        && feat_is_shaftable(env.grid(pos()));
+        && feat_is_shaftable(env.grid(pos()))
+        // Prevent shafting the player during an apostle challenge; that would be a bit unfair.
+        && !you.duration[DUR_BEOGH_DIVINE_CHALLENGE];
 }
 
 // Used for falling into traps and other bad effects, but is a slightly
@@ -7665,6 +7735,12 @@ bool player::do_shaft()
     if (you.species == SP_FORMICID)
     {
         mpr("Your tunneler's instincts keep you from falling into a shaft!");
+        return false;
+    }
+    if (you_worship(GOD_YREDELEMNUL) && yred_torch_is_raised())
+    {
+        mpr("Yredelemnul refuses to let your conquest be stopped by a trick of"
+            " the earth!");
         return false;
     }
 
@@ -7824,7 +7900,8 @@ bool player::attempt_escape(int attempts)
 
     const auto constr_typ = get_constrict_type();
     const string object
-        = constr_typ == CONSTRICT_ROOTS ? "the roots"
+        = constr_typ == CONSTRICT_ROOTS ? "the roots'"
+          : constr_typ == CONSTRICT_BVC ? "the zombie hands'"
                                         : themonst->name(DESC_ITS, true);
     // player breaks free if (4+n)d13 >= 5d(8+HD/4)
     const int escape_score = roll_dice(4 + escape_attempts, 13);
@@ -8144,6 +8221,32 @@ int player::scale_potion_mp_healing(int healing_amount)
         healing_amount *= 2;
 
     return healing_amount;
+}
+
+#define REV_PERCENT_KEY "rev_percent"
+
+int player::rev_percent() const
+{
+    if (!you.props.exists(REV_PERCENT_KEY))
+        return 0;
+    return you.props[REV_PERCENT_KEY].get_int();
+}
+
+void player::rev_down(int dur)
+{
+    // Drop from 100% to 0 in about 12 normal turns (120 aut).
+    const int perc_lost = div_rand_round(dur * 5, 6);
+    you.props[REV_PERCENT_KEY] = max(0, you.rev_percent() - perc_lost);
+}
+
+void player::rev_up(int dur)
+{
+    // We want to hit 66% rev, where penalties vanish, in 40 aut on average.
+    // Over that time, we'll lose 40*5/6 = ~34% to rev_down().
+    // So we want to gain an average of (66+34)/40 = ~5/2 rev% per aut.
+    // Fuzz it between 4/2 and 6/2 (ie 2x to 3x) to avoid tracking.
+    const int perc_gained = random_range(dur * 2, dur * 3);
+    you.props[REV_PERCENT_KEY] = min(100, you.rev_percent() + perc_gained);
 }
 
 void player_open_door(coord_def doorpos)

@@ -940,6 +940,8 @@ bush2
 bush3
 bush4
 bush_burning MONS_BURNING_BUSH
+sacred_lotus MONS_SACRED_LOTUS
+scrub_nettle MONS_SCRUB_NETTLE
 %rim 1
 oklob_sapling MONS_OKLOB_SAPLING
 oklob_plant MONS_OKLOB_PLANT
@@ -1154,6 +1156,9 @@ orc_knight MONS_ORC_KNIGHT
 orc_warlord MONS_ORC_WARLORD
 orc_sorcerer MONS_ORC_SORCERER
 orc_high_priest MONS_ORC_HIGH_PRIEST
+orc_apostle_wizard1 MONS_ORC_APOSTLE
+orc_apostle_priest1
+orc_apostle_warrior1
 %rim 1
 %sdir mon/vault
 deformed_orc MONS_DEFORMED_ORC

@@ -494,15 +494,19 @@ public:
     bool mergeable(const final_effect &) const override { return false; };
     void fire() override;
 
-    static void schedule(const actor &attack, const actor &defend)
+    static void schedule(const actor &attack, const actor &defend,
+                         const item_def *weapon)
     {
-        final_effect::schedule(new spectral_weapon_fineff(attack, defend));
+        final_effect::schedule(new spectral_weapon_fineff(attack, defend, weapon));
     }
 protected:
-    spectral_weapon_fineff(const actor &attack, const actor &defend)
-        : final_effect(&attack, &defend, coord_def())
+    spectral_weapon_fineff(const actor &attack, const actor &defend,
+                           const item_def *wpn)
+        : final_effect(&attack, &defend, coord_def()), weapon(wpn)
     {
     }
+
+    const item_def *weapon;
 };
 
 class lugonu_meddle_fineff : public final_effect
@@ -533,6 +537,42 @@ protected:
         : final_effect(nullptr, defend, coord_def())
     {
     }
+};
+
+class beogh_resurrection_fineff : public final_effect
+{
+public:
+    bool mergeable(const final_effect &a) const override;
+    void fire() override;
+
+    static void schedule(bool end_ostracism_only = false)
+    {
+        final_effect::schedule(new beogh_resurrection_fineff(end_ostracism_only));
+    }
+protected:
+    beogh_resurrection_fineff(bool end_ostracism_only)
+        : final_effect(nullptr, nullptr, coord_def()), ostracism_only(end_ostracism_only)
+    {
+    }
+    const bool ostracism_only;
+};
+
+class dismiss_divine_allies_fineff : public final_effect
+{
+public:
+    bool mergeable(const final_effect &) const override { return false; }
+    void fire() override;
+
+    static void schedule(const god_type god)
+    {
+        final_effect::schedule(new dismiss_divine_allies_fineff(god));
+    }
+protected:
+    dismiss_divine_allies_fineff(const god_type _god)
+        : final_effect(0, 0, coord_def()), god(_god)
+    {
+    }
+    const god_type god;
 };
 
 void fire_final_effects();

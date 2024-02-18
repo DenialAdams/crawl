@@ -323,6 +323,12 @@ static string mi_calc_freeze_damage(monster* mons)
     return dice_def_string(freeze_damage(pow, false));
 }
 
+static string mi_calc_scorch_damage(monster* mons)
+{
+    const int pow = mons_power_for_hd(SPELL_SCORCH, mons->get_hit_dice());
+    return dice_def_string(scorch_damage(pow, false));
+}
+
 static string mi_calc_irradiate_damage(const monster &mon)
 {
     const int pow = mons_power_for_hd(SPELL_IRRADIATE, mon.get_hit_dice());
@@ -351,6 +357,8 @@ static string mons_human_readable_spell_damage_string(monster* monster,
             return ""; // Fake damage beam
         case SPELL_FREEZE:
             return mi_calc_freeze_damage(monster);
+        case SPELL_SCORCH:
+            return mi_calc_scorch_damage(monster);
         case SPELL_SMITING:
             return mi_calc_smiting_damage(monster);
         case SPELL_BRAIN_BITE:
@@ -1089,6 +1097,9 @@ int main(int argc, char* argv[])
                 case AF_HOLY:
                     monsterattacks += colour(YELLOW, "(holy)");
                     break;
+                case AF_FOUL_FLAME:
+                    monsterattacks += colour(YELLOW, "(foul flame)");
+                    break;
                 case AF_PAIN:
                     monsterattacks += colour(RED, "(pain)");
                     break;
@@ -1326,6 +1337,7 @@ int main(int argc, char* argv[])
         res2(LIGHTRED, miasma, mon.res_miasma());
         res2(LIGHTMAGENTA, neg, mon.res_negative_energy(true));
         res2(YELLOW, holy, mon.res_holy_energy());
+        res2(YELLOW, foul_flame, mon.res_foul_flame());
         res2(LIGHTMAGENTA, torm, mon.res_torment());
         res2(LIGHTBLUE, vortex, mon.res_polar_vortex());
         res2(LIGHTRED, napalm, mon.res_sticky_flame());

@@ -1689,7 +1689,7 @@ static void _xom_fake_destruction(int sever) { _xom_destruction(sever, false); }
 
 static void _xom_enchant_monster(bool helpful)
 {
-    monster* mon = choose_random_nearby_monster(0, _choose_enchantable_monster);
+    monster* mon = choose_random_nearby_monster(_choose_enchantable_monster);
     if (!mon)
         return;
 
@@ -1960,7 +1960,7 @@ static void _xom_pseudo_miscast(int /*sever*/)
         }
     }
 
-    if (item_def* item = you.slot_item(EQ_SHIELD))
+    if (item_def* item = you.slot_item(EQ_OFFHAND))
     {
         string str = "Your ";
         str += item->name(DESC_BASENAME, false, false, false);
@@ -2044,7 +2044,7 @@ static bool _miscast_is_nasty(int sever)
 
 static void _xom_chaos_upgrade(int /*sever*/)
 {
-    monster* mon = choose_random_nearby_monster(0, _choose_chaos_upgrade);
+    monster* mon = choose_random_nearby_monster(_choose_chaos_upgrade);
 
     if (!mon)
         return;

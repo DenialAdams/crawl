@@ -259,15 +259,7 @@ mcache_monster::mcache_monster(const monster_info& mon)
         m_shd_tile = 0;
         return;
     }
-
-    const tileidx_t unmirrored = tilep_equ_weapon(*mon_weapon2);
-    if (unmirrored < TILEP_HAND1_FIRST || unmirrored > TILEP_HAND1_LAST)
-    {
-        m_shd_tile = 0;
-        return;
-    }
-
-    m_shd_tile = unmirrored - TILEP_HAND1_FIRST + TILEP_HAND1_MIRROR_FIRST;
+    m_shd_tile = mirror_weapon(*mon_weapon2);
 }
 
 // Returns the amount of pixels necessary to shift a wielded weapon
@@ -335,6 +327,7 @@ bool mcache_monster::get_weapon_offset(tileidx_t mon_tile,
         break;
     case TILEP_MONS_SKELETON_LARGE:
     case TILEP_MONS_ORC_WARLORD:
+    case TILEP_MONS_FALLEN_ORC_WARLORD:
     case TILEP_MONS_KOBOLD_BRIGAND:
     case TILEP_MONS_KOBOLD:
     case TILEP_MONS_EFREET:
@@ -610,6 +603,7 @@ bool mcache_monster::get_weapon_offset(tileidx_t mon_tile,
         *ofs_y = 1;
         break;
     case TILEP_MONS_ORC_KNIGHT:
+    case TILEP_MONS_FALLEN_ORC_KNIGHT:
     case TILEP_MONS_ORC_WIZARD:
     case TILEP_MONS_ORC_SORCERER:
     case TILEP_MONS_NERGALLE:
@@ -619,6 +613,9 @@ bool mcache_monster::get_weapon_offset(tileidx_t mon_tile,
     case TILEP_MONS_IRON_GIANT:
     case TILEP_MONS_CACTUS_GIANT:
     case TILEP_MONS_THE_ENCHANTRESS:
+    case TILEP_MONS_ORC_APOSTLE:
+    case TILEP_MONS_ORC_APOSTLE_1:
+    case TILEP_MONS_ORC_APOSTLE_2:
         *ofs_x = -2;
         *ofs_y = 1;
         break;
@@ -778,6 +775,7 @@ bool mcache_monster::get_weapon_offset(tileidx_t mon_tile,
     case TILEP_MONS_CHAOS_SPAWN_3:
     case TILEP_MONS_ORC:
     case TILEP_MONS_ORC_WARRIOR:
+    case TILEP_MONS_FALLEN_ORC_WARRIOR:
         *ofs_x = -2;
         *ofs_y = -1;
         break;
@@ -857,6 +855,7 @@ bool mcache_monster::get_shield_offset(tileidx_t mon_tile,
     case TILEP_MONS_DEEP_ELF_KNIGHT:
     case TILEP_MONS_KIRKE:
     case TILEP_MONS_DIMME:
+    case TILEP_MONS_ORC_APOSTLE_2:
         *ofs_x = 1;
         *ofs_y = 0;
         break;

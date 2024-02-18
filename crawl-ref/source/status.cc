@@ -2,6 +2,7 @@
 
 #include "status.h"
 
+#include "ability.h"
 #include "areas.h"
 #include "art-enum.h" // bearserk
 #include "artefact.h"
@@ -170,6 +171,7 @@ static void _describe_terrain(status_info& inf);
 static void _describe_invisible(status_info& inf);
 static void _describe_zot(status_info& inf);
 static void _describe_gem(status_info& inf);
+static void _describe_rev(status_info& inf);
 
 bool fill_status_info(int status, status_info& inf)
 {
@@ -193,6 +195,32 @@ bool fill_status_info(int status, status_info& inf)
     // completing or overriding the defaults set above.
     switch (status)
     {
+    case STATUS_BLACK_TORCH:
+        if (!you_worship(GOD_YREDELEMNUL))
+            break;
+
+        if (!yred_torch_is_raised())
+        {
+            if (yred_cannot_light_torch_reason().empty())
+            {
+                inf.light_colour = DARKGRAY;
+                inf.light_text = "Torch";
+            }
+        }
+        else
+        {
+            inf.light_colour = MAGENTA;
+
+            if (player_has_ability(ABIL_YRED_HURL_TORCHLIGHT))
+            {
+                inf.light_text = make_stringf("Torch (%d)",
+                                    yred_get_torch_power());
+            }
+            else
+                inf.light_text = "Torch";
+        }
+    break;
+
     case STATUS_CORROSION:
         // No blank or double lights
         if (you.corrosion_amount() == 0 || you.duration[DUR_CORROSION])
@@ -229,8 +257,8 @@ bool fill_status_info(int status, status_info& inf)
         {
             inf.light_text   = "-Swift";
             inf.light_colour = RED;
-            inf.short_text   = "sluggish";
-            inf.long_text    = "You are moving sluggishly.";
+            inf.short_text   = "unswift";
+            inf.long_text    = "You are covering ground slowly.";
         }
         break;
 
@@ -242,8 +270,22 @@ bool fill_status_info(int status, status_info& inf)
         _describe_gem(inf);
         break;
 
+    case STATUS_REV:
+        _describe_rev(inf);
+        break;
+
     case STATUS_AIRBORNE:
         _describe_airborne(inf);
+        break;
+
+    case STATUS_STIFF:
+        if (you.legs_stiff())
+        {
+            inf.light_colour = BROWN;
+            inf.light_text   = "Stiff";
+            inf.short_text   = "stiff-legged";
+            inf.long_text    = "Your next movement will be very slow.";
+        }
         break;
 
     case STATUS_BEHELD:
@@ -526,16 +568,6 @@ bool fill_status_info(int status, status_info& inf)
         {
             inf.light_colour = WHITE;
             inf.light_text = "Beogh";
-        }
-        break;
-
-    case STATUS_RECALL:
-        if (you.attribute[ATTR_NEXT_RECALL_INDEX] > 0)
-        {
-            inf.light_colour = WHITE;
-            inf.light_text   = "Recall";
-            inf.short_text   = "recalling";
-            inf.long_text    = "You are recalling your allies.";
         }
         break;
 
@@ -914,6 +946,34 @@ static void _describe_glow(status_info& inf)
     const int adj_i = min((size_t) cont, ARRAYSZ(contam_adjectives) - 1);
     inf.short_text = contam_adjectives[adj_i] + "contaminated";
     inf.long_text = describe_contamination(cont);
+}
+
+static void _describe_rev(status_info& inf)
+{
+    if (!you.has_mutation(MUT_WARMUP_STRIKES) || !you.rev_percent())
+        return;
+
+    const int perc = you.rev_percent();
+    if (perc < 33)
+    {
+        inf.light_colour = WHITE;
+        inf.light_text   = "Rev";
+        inf.short_text   = "revving";
+        inf.long_text    = "You're starting to limber up.";
+        return;
+    }
+    if (perc < 66)
+    {
+        inf.light_colour = BLUE;
+        inf.light_text   = "Rev+";
+        inf.short_text   = "revving";
+        inf.long_text    = "You're limbering up.";
+        return;
+    }
+    inf.light_colour = LIGHTBLUE;
+    inf.light_text   = "Rev*";
+    inf.short_text   = "revved";
+    inf.long_text    = "You're fully limbered up.";
 }
 
 static void _describe_regen(status_info& inf)

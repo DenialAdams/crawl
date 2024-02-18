@@ -208,6 +208,10 @@ Sheza's Dance cast
 
 @The_monster@ gestures, and weapons take to the air!
 %%%%
+Divine Armament cast
+
+@The_monster@ beseeches @My_God@ to grant them a weapon.
+%%%%
 Druid's Call cast
 
 @The_monster@ calls out to the beasts of the wild!
@@ -739,6 +743,10 @@ Invisibility shadow cast
 
 @The_monster@ slips into darkness.
 %%%%
+scrub nettle cast targeted
+
+@The_monster@ launches toxic spines @at@ @target@.
+%%%%
 ghost moth cast targeted
 
 @The_monster@ stares @at@ @target@.
@@ -896,6 +904,21 @@ kobold blastminer cast targeted
 burial acolyte cast
 
 @The_monster@ [drones|recites] a funeral chant.
+%%%%
+vhi's electrolunge cast
+
+@The_monster@ charges forward with an electric crackle.
+%%%%
+sticks to snakes cast
+
+@The_monster@ drops twin branches and they both wriggle to life!
+%%%%
+Vanquished Vanguard Nergalle cast
+
+@The_monster@ calls out: "@orc name@, @orc name@, @orc name@ - to me!"
+
+@The_monster@ cries out, "Spectres! Fight for the home you helped make!"
+
 %%%%
 ########################################################################
 # Monster species and genus messages.

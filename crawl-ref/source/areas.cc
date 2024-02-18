@@ -595,8 +595,11 @@ int player::halo_radius() const
                                                     / piety_breakpoint(5);
     }
 
-    if (player_equip_unrand(UNRAND_EOS))
+    if (player_equip_unrand(UNRAND_EOS)
+        || player_equip_unrand(UNRAND_BRILLIANCE))
+    {
         size = max(size, 3);
+    }
     else if (wearing_ego(EQ_ALL_ARMOUR, SPARM_LIGHT))
         size = max(size, 3);
     else if (you.props.exists(WU_JIAN_HEAVENLY_STORM_KEY))
@@ -636,8 +639,11 @@ int monster::halo_radius() const
     item_def* weap = mslot_item(MSLOT_WEAPON);
     int size = -1;
 
-    if (weap && is_unrandom_artefact(*weap, UNRAND_EOS))
+    if (weap && (is_unrandom_artefact(*weap, UNRAND_EOS)
+                 || is_unrandom_artefact(*weap, UNRAND_BRILLIANCE)))
+    {
         size = 3;
+    }
 
     if (wearing_ego(EQ_ALL_ARMOUR, SPARM_LIGHT))
         size = 3;
@@ -758,9 +764,12 @@ int player::umbra_radius() const
 
     if (have_passive(passive_t::umbra))
     {
-        // The cap is reached at piety 160 = ******.
-        size = min((int)piety, piety_breakpoint(5)) * you.normal_vision
-                                                    / piety_breakpoint(5);
+        if (piety >= piety_breakpoint(4))
+            size = 4;
+        else if (piety >= piety_breakpoint(3))
+            size = 3;
+        else
+            size = 2;
     }
 
     if (player_equip_unrand(UNRAND_SHADOWS))
@@ -779,7 +788,7 @@ int monster::umbra_radius() const
         return -1;
 
     // Bound holies get an umbra.
-    if (mons_bound_soul(*this))
+    if (type == MONS_BOUND_SOUL)
         return _mons_class_halo_radius(base_monster);
 
     switch (type)

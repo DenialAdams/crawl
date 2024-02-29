@@ -390,6 +390,7 @@ void attack::init_attack(skill_type unarmed_skill, int attack_number)
 
     defender_shield = defender ? defender->shield() : defender_shield;
 
+    unrand_entry = nullptr;
     if (weapon && weapon->base_type == OBJ_WEAPONS && is_artefact(*weapon))
     {
         artefact_properties(*weapon, art_props);
@@ -621,6 +622,7 @@ brand_type attack::random_chaos_brand()
     case SPWPN_VAMPIRISM:       brand_name += "vampirism"; break;
     case SPWPN_HOLY_WRATH:      brand_name += "holy wrath"; break;
     case SPWPN_ANTIMAGIC:       brand_name += "antimagic"; break;
+    case SPWPN_FOUL_FLAME:      brand_name += "foul flame"; break;
     default:                    brand_name += "BUGGY"; break;
     }
 
@@ -1169,8 +1171,8 @@ bool attack::apply_damage_brand(const char *what)
 
     if (!damage_done
         && (brand == SPWPN_FLAMING || brand == SPWPN_FREEZING
-            || brand == SPWPN_HOLY_WRATH || brand == SPWPN_ANTIMAGIC
-            || brand == SPWPN_VAMPIRISM))
+            || brand == SPWPN_HOLY_WRATH || brand == SPWPN_FOUL_FLAME
+            || brand == SPWPN_ANTIMAGIC || brand == SPWPN_VAMPIRISM))
     {
         // These brands require some regular damage to function.
         return false;

@@ -195,6 +195,27 @@ bool fill_status_info(int status, status_info& inf)
     // completing or overriding the defaults set above.
     switch (status)
     {
+    case STATUS_DRACONIAN_BREATH:
+    {
+        if (!species::is_draconian(you.species) || you.experience_level < 7)
+            break;
+
+        inf.light_text = "Breath";
+
+        const int num = draconian_breath_uses_available();
+        if (num == 0)
+            inf.light_colour = DARKGREY;
+        else
+        {
+            inf.light_colour = LIGHTCYAN;
+            if (num == 2)
+                inf.light_text += "+";
+            else if (num == 3)
+                inf.light_text += "++";
+        }
+        break;
+    }
+
     case STATUS_BLACK_TORCH:
         if (!you_worship(GOD_YREDELEMNUL))
             break;
@@ -276,16 +297,6 @@ bool fill_status_info(int status, status_info& inf)
 
     case STATUS_AIRBORNE:
         _describe_airborne(inf);
-        break;
-
-    case STATUS_STIFF:
-        if (you.legs_stiff())
-        {
-            inf.light_colour = BROWN;
-            inf.light_text   = "Stiff";
-            inf.short_text   = "stiff-legged";
-            inf.long_text    = "Your next movement will be very slow.";
-        }
         break;
 
     case STATUS_BEHELD:
@@ -482,12 +493,9 @@ bool fill_status_info(int status, status_info& inf)
             const monster * const cstr = monster_by_mid(you.constricted_by);
             ASSERT(cstr);
 
-            const bool damage =
-                cstr->constriction_does_damage(you.get_constrict_type());
-
             inf.light_colour = YELLOW;
-            inf.light_text   = damage ? "Constr"      : "Held";
-            inf.short_text   = damage ? "constricted" : "held";
+            inf.light_text   = "Constr";
+            inf.short_text   = "constricted";
         }
         break;
 
@@ -956,7 +964,7 @@ static void _describe_rev(status_info& inf)
     const int perc = you.rev_percent();
     if (perc < 33)
     {
-        inf.light_colour = WHITE;
+        inf.light_colour = BLUE;
         inf.light_text   = "Rev";
         inf.short_text   = "revving";
         inf.long_text    = "You're starting to limber up.";
@@ -964,13 +972,13 @@ static void _describe_rev(status_info& inf)
     }
     if (perc < 66)
     {
-        inf.light_colour = BLUE;
+        inf.light_colour = LIGHTBLUE;
         inf.light_text   = "Rev+";
         inf.short_text   = "revving";
         inf.long_text    = "You're limbering up.";
         return;
     }
-    inf.light_colour = LIGHTBLUE;
+    inf.light_colour = WHITE;
     inf.light_text   = "Rev*";
     inf.short_text   = "revved";
     inf.long_text    = "You're fully limbered up.";

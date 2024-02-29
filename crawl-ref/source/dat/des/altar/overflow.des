@@ -869,10 +869,11 @@ DEPTH:  D, !D:$
 MONS:   plant / bush w:5
 KMONS:  S = sacred lotus
 KFEAT:  S = w
+KFEAT:  % = cache of fruit
 SUBST:  S : Sww
-NSUBST: 1 = 1:' / * = 111t''', 2 = 1:' / * = 111t'''
+NSUBST: 1 = 1:' / * = 111t''', 2 = 1:%'' / * = 111t'''
 KFEAT:  _ = altar_fedhas
-KMASK:  _1'<> = opaque
+KMASK:  _1%'<> = opaque
 : interest_check(_G)
 MAP
      .....
@@ -892,33 +893,32 @@ MAP
      .....
 ENDMAP
 
-NAME:   fedhas_altar_fruit_tree
-TAGS:   uniq_altar_fedhas temple_overflow_1 temple_overflow_fedhas transparent
-TAGS:   no_item_gen no_rotate no_vmirror decor
-NSUBST: g = 4:f/*:.
-NSUBST: f = 4:A/*:.
-NSUBST: w = 2:4 / *:w
-KFEAT:  C = altar_fedhas
-KFEAT:  A = .
-FTILE:  .tfCA = floor_moss
-FTILE:  d = floor_hall
-COLOUR: fd = brown
-COLOUR: AC. = green
+NAME:    fedhas_altar_fruit_tree
+TAGS:    uniq_altar_fedhas temple_overflow_1 temple_overflow_fedhas transparent
+TAGS:    no_item_gen no_rotate no_vmirror decor
+KFEAT:   de = cache of fruit
+KFEAT:   C = altar_fedhas
+SHUFFLE: defghijk
+SUBST:   fghijk = .
+COLOUR:  . = green
+COLOUR:  '@ = brown
+FTILE:   .det = floor_moss
+FTILE:   '@ = floor_hall
 : interest_check(_G)
 MAP
 xxxxxxxxxxxxxxxxx
 xtttttttttttttttx
 xtttttttttttttttx
-xttttttgfgttttttx
-xtttttgf.fgtttttx
-xttttgf.f.fgttttx
-xtttgf..C..fgtttx
-xtttgf.f.f.fgtttx
-xttgfffffffffgttx
-xttgt.......tgttx
-xttttttdddttttttx
-xttttttdddttttttx
-xtttttdd@ddtttttx
+xtttttt...ttttttx
+xtttttg...gtttttx
+xtttt.......ttttx
+xtttf...C...ftttx
+xttt.........tttx
+xtt...e...e...ttx
+xttdt.......tdttx
+xtttttt'''ttttttx
+xtttttt'''ttttttx
+xttttt''@''tttttx
 ENDMAP
 
 NAME:  fedhas_bush_and_centaur_altar
@@ -2874,18 +2874,19 @@ MAP
  .....
 ENDMAP
 
-NAME:   eat_drink_and_be_merry_uskayaw
-TAGS:   temple_overflow_1 temple_overflow_uskayaw transparent
-TAGS:   uniq_altar_uskayaw
-KFEAT:  _ = altar_uskayaw
-ITEM:   any potion q:1, any weapon
+NAME:    eat_drink_and_be_merry_uskayaw
+TAGS:    temple_overflow_1 temple_overflow_uskayaw transparent
+TAGS:    uniq_altar_uskayaw
+KFEAT:   _ = altar_uskayaw
+SHUFFLE: def
+ITEM:    any potion q:1, any weapon
+KFEAT:   f = cache of fruit / cache of meat
 : interest_check(_G)
-# TODO: replace ration flavor?
 MAP
 ...........
 .G.......G.
 ...........
-.G.......G.
+.c.......c.
 ....def....
 .G..._...G.
 ....ccc....
@@ -3564,11 +3565,12 @@ NAME:    regret_index_xom_buried_treasure
 TAGS:    transparent temple_overflow_1 temple_overflow_xom
 TAGS:    uniq_altar_xom extra decor
 ITEM:    stone q:1 no_pickup
-KITEM:   ? = plate armour randart plus:-12 ident:all / \
-             kite shield randart plus:-12 ident:all / \
-             mundane club / gold q:1 w:9970, large rock q:1
+KMONS:   ! = boulder dbname:still_boulder
+KITEM:   ! = plate armour randart plus:-12 ident:all / \
+             kite shield randart plus:-12 ident:all / mundane club w:9980
+KITEM:   ? = mundane club / gold q:1 w:9970, large rock q:1
 KFEAT:   _ = altar_xom
-SUBST:   b : bcc, y : xx., z : xx., Y : xxd, Z : xxd
+SUBST:   b : bcc, y : xx., z : xx., Y : xxd, Z : xxd, ? = !
 MAP
 xx@. ..xx
 xbx...zbx
@@ -4431,7 +4433,7 @@ COLOUR: G = white
 TILE:   G = dngn_silver_statue
 TILE:   x = wall_orc
 FTILE:  +._OG$ = floor_w_marble
-:   set_feature_name("metal_statue", "silver_statue")
+:   set_feature_name("metal_statue", "silver statue")
 : else
 COLOUR: G = yellow
 COLOUR: v = white

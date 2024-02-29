@@ -799,12 +799,6 @@ A mighty undead abomination, pieced together from the broken bones of many
 dragons by powerful necromantic magic. Fortunately, whatever organ produces a
 dragon's fearsome breath was lost in the process.
 %%%%
-gnoll bouda
-
-A gnoll witch possessed by a spirit of spite which flashes out from behind
-their eyes. Its strange chants and ululations send other gnolls into a wild
-frenzy.
-%%%%
 boulder
 
 A mass of fast-rolling stone, crushing everything in its path.
@@ -943,14 +937,15 @@ A crocodilian with powerful jaws.
 crystal echidna
 
 A spiny, long snouted rodent grown out of pure living crystal. It is
-immune to most forms of magic and hurls both crystalline bolts and painful
+immune to most forms of magic and hurls both crystallizing shots and painful
 barbs.
 %%%%
 crystal guardian
 
-An intricate animated statue made of heavily ensorcelled, tough crystal. It is
-immune to most forms of magic, and is magically charged to toss great bolts of
-fire and cold that are reflected by any surface.
+An intricate animated statue made of heavily ensorcelled crystal that is
+immune to most forms of magic. The spells which created it are so powerful
+that even flesh may start to crystalize around any fragments that become
+embedded in it - leaving its foes brittle and vulnerable.
 %%%%
 culicivora
 
@@ -1434,6 +1429,12 @@ gnoll
 
 A taller and better-equipped relative of goblins, and ally of orcs. It is
 somewhat doglike in appearance.
+%%%%
+gnoll bouda
+
+A gnoll witch possessed by a spirit of spite which flashes out from behind
+their eyes. Its strange chants and ululations send other gnolls into a wild
+frenzy.
 %%%%
 gnoll sergeant
 
@@ -2712,6 +2713,11 @@ titan
 A huge, bolt-hurling, lightning-limned humanoid. It is unusually large and
 powerful, even among giants.
 %%%%
+thermic dynamo
+
+A clashing tempest of boundless energy, channelling into capacitor jewels. Its
+whirls of fire and ice occasionally escape and ricochet wildly off of walls.
+%%%%
 thorn hunter
 
 A predatory marsh plant, possessed of motility and a rudimentary intelligence.
@@ -3313,6 +3319,10 @@ to.
 spriggan hatter
 
 A spriggan who is going slightly mad from the toxic fumes of their craft.
+%%%%
+still boulder
+
+A gargantuan mass of stone at rest.
 %%%%
 water elementalist statue
 

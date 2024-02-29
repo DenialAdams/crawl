@@ -474,7 +474,7 @@ demonic magic mutation
 
 When you cast spells, there's a chance that adjacent monsters will be
 paralysed. This effect is more powerful when casting higher-level spells, but
-monsters with greater Willpower can resist it. Each level of this mutation
+monsters with greater willpower can resist it. Each level of this mutation
 allows more distant monsters to be affected. The third level of this mutation
 also allows you to paralyse monsters in the same way while zapping wands.
 %%%%
@@ -548,7 +548,7 @@ You cast Hex spells with increased power.
 demonic willpower mutation
 
 Your willpower has a will of its own, sometimes injuring those who attempt to
-hex you. This mutation also bolsters your Willpower.
+hex you. This mutation also bolsters your willpower.
 %%%%
 hurl damnation mutation
 
@@ -776,12 +776,12 @@ You are foreign to this world, easily perceived by dark forces. You have only
 one-tenth the normal time on each dungeon floor before Zot finds you and
 permanently reduces your health.
 %%%%
-foul glow mutation
+foul shadow mutation
 
-You glow in the dark with foul flame. Foes hit you more often, your stealth is
-badly impaired, and you cannot become invisible. Foes who strike you in melee
-are sometimes seared by the foul flame; undead and demonic foes take less damage
-from it, while holy beings and good god worshippers take more.
+Your body is shadowed by foul flame. Foes hit you less often, and your stealth
+is greatly enhanced. Foes who strike you in melee are sometimes seared by the
+foul flame; undead and demonic foes take less damage from it, while holy beings
+and good god worshippers take more.
 %%%%
 explore regen mutation
 
@@ -851,11 +851,10 @@ Your grasping arms need time to limber up, making your first few attacks in
 each fight less effective. Slow, heavy attacks help more than fast attacks.
 Both weapon-based and unarmed attacks are affected.
 %%%%
-warmup strides mutation
+no rings mutation
 
-Your charm-wrought legs need time to limber up, making you take longer to
-move whenever you end a turn in the same place you began. This only affects
-movement actions.
+Your hands are embedded into the controls for your grasping arms, leaving you
+with no place to wear magical rings without disastrous magical interference.
 %%%%
 # ------ Ru sacrifices ------
 inability to drink after injury mutation

@@ -1569,7 +1569,12 @@ KMONS:   % = ghoul / bog body w:2
 KMONS:   *d = golden dragon w:8 / seven-headed hydra w:5 / \
               eight-headed hydra w:5
 KMONS:   | = large abomination / tentacled monstrosity w:5
-SHUFFLE: A%| / ad*
+KFEAT:   t = demonic_tree
+KFEAT:   T = mangrove
+SHUFFLE: A%|t / ad*T
+TILE:    t = dngn_demonic_tree_1 w:3 / dngn_demonic_tree_16 w:3 / \
+             dngn_demonic_tree_8 w:12 / dngn_demonic_tree_9 w:12 / \
+             dngn_demonic_tree_10 / dngn_demonic_tree_11
 : end
 KITEM:   *| = % no_pickup w:2 / * no_pickup / | no_pickup
 KFEAT:   aA = stone_arch
@@ -2577,7 +2582,7 @@ KMONS:   5 = spectral spriggan rider / spectral spriggan berserker
 KMONS:   6 = freezing wraith / will-o-the-wisp w:5
 ITEM:    executioner's axe
 ITEM:    great sword / triple sword w:5 / great mace / eveningstar \
-         / glaive / bardiche / lajatang / arbalest w:5 / triple crossbow w:5
+         / glaive / bardiche / lajatang / hand cannon w:5 / triple crossbow w:5
 ITEM:    chain mail / plate armour / crystal plate armour w:5 \
          / kite shield / tower shield / helmet / pair of boots / pair of gloves
 ITEM:    wand of charming w:30 / wand of paralysis w:30 / any wand w:5 \

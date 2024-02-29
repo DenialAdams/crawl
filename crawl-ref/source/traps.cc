@@ -320,6 +320,7 @@ bool player_caught_in_net()
     // and we get a glimpse of a web because there isn't a trapping net
     // item yet
     you.attribute[ATTR_HELD] = 1;
+    you.redraw_evasion = true;
 
     stop_delay(true); // even stair delays
     return true;
@@ -532,7 +533,8 @@ void trap_def::trigger(actor& triggerer)
         if (!you_trigger && you.see_cell_no_trans(pos))
         {
             you.blink();
-            interrupt_activity(activity_interrupt::teleport);
+            if (!you.no_tele(true))
+                interrupt_activity(activity_interrupt::teleport);
         }
         // Don't chain disperse
         triggerer.blink();
@@ -728,6 +730,7 @@ void trap_def::trigger(actor& triggerer)
         {
         // keep this for messaging purposes
         const bool triggerer_seen = you.can_see(triggerer);
+        const bool triggerer_was_invisible_monster = m && m->has_ench(ENCH_INVIS) && !m->friendly();
 
         // Fire away!
         triggerer.do_shaft();
@@ -740,6 +743,15 @@ void trap_def::trigger(actor& triggerer)
                  triggerer_seen ? "The" : "A");
             know_trap_destroyed = true;
             trap_destroyed = true;
+
+            // If we shaft an invisible monster reactivate autopickup.
+            // We need to check for actual invisibility rather than
+            // whether we can see the monster. There are several edge
+            // cases where a monster is visible to the player but we
+            // still need to turn autopickup back on, such as
+            // TSO's halo or sticky flame.
+            if (triggerer_was_invisible_monster)
+                autotoggle_autopickup(false);
         }
         }
         break;

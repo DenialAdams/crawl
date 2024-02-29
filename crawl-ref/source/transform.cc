@@ -121,6 +121,7 @@ Form::Form(const form_entry &fe)
       uc_colour(fe.uc_colour), uc_attack_verbs(fe.uc_attack_verbs),
       can_bleed(fe.can_bleed),
       keeps_mutations(fe.keeps_mutations),
+      changes_physiology(fe.changes_physiology),
       shout_verb(fe.shout_verb),
       shout_volume_modifier(fe.shout_volume_modifier),
       hand_name(fe.hand_name), foot_name(fe.foot_name),
@@ -180,7 +181,9 @@ bool Form::can_wear_item(const item_def& item) const
     if (is_unrandom_artefact(item, UNRAND_LEAR))
         return !(blocked_slots & EQF_LEAR); // ok if no body slots blocked
 
-    return slot_available(get_armour_slot(item));
+    const equipment_type slot = is_weapon(item) ? EQ_OFFHAND
+                                                : get_armour_slot(item);
+    return slot_available(slot);
 }
 
 /**
@@ -1167,14 +1170,9 @@ bool form_can_swim(transformation form)
 }
 
 // Used to mark transformations which override species intrinsics.
-// TODO: time to dataify this.
 bool form_changed_physiology(transformation form)
 {
-    return form != transformation::none
-        && form != transformation::beast
-        && form != transformation::flux
-        && form != transformation::maw
-        && form != transformation::blade_hands;
+    return get_form(form)->changes_physiology;
 }
 
 /**
@@ -1298,7 +1296,7 @@ static void _unmeld_equipment_type(equipment_type e)
             force_remove = true;
         }
     }
-    else if (item.base_type != OBJ_JEWELLERY)
+    else if (item.base_type == OBJ_ARMOUR)
     {
         // This could happen if the player was mutated during the form.
         if (!can_wear_armour(item, false, true))
@@ -1309,7 +1307,6 @@ static void _unmeld_equipment_type(equipment_type e)
         // (This is only possible with Statue Form.)
         if (e == EQ_OFFHAND
             && you.weapon()
-            && !is_weapon(item)
             && is_shield_incompatible(*you.weapon(), &item))
         {
             force_remove = true;

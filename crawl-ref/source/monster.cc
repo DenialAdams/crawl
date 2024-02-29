@@ -360,6 +360,18 @@ bool monster::has_ghost_brand() const
     return ghost_brand() != SPWPN_NORMAL;
 }
 
+/**
+ * Is there a ghost_demon associated with this monster that has an umbra radius
+ * set? Used for player ghosts, illusions, and pan lords. Safe to call if
+ * `ghost` is not set; will just return -1 for this case.
+ */
+int monster::ghost_umbra_radius() const
+{
+    if (!ghost)
+        return -1;
+    return ghost->umbra_rad;
+}
+
 brand_type monster::damage_brand(int which_attack)
 {
     const item_def *mweap = weapon(which_attack);
@@ -810,7 +822,7 @@ void monster::equip_weapon_message(item_def &item)
         mpr("It softly glows with a divine radiance!");
         break;
     case SPWPN_FOUL_FLAME:
-        mpr("It glows horrifically with a foul radiance!");
+        mpr("It glows horrifically with a foul blackness!");
         break;
     case SPWPN_ELECTROCUTION:
         mprf(MSGCH_SOUND, "You hear the crackle of electricity.");
@@ -1010,6 +1022,10 @@ bool monster::unequip(item_def &item, bool msg, bool force)
     if (!force && item.cursed())
         return false;
 
+    // Get monster halo/umbra before we unequip this item.
+    int old_halo = halo_radius();
+    int old_umbra = umbra_radius();
+
     switch (item.base_type)
     {
     case OBJ_WEAPONS:
@@ -1031,6 +1047,15 @@ bool monster::unequip(item_def &item, bool msg, bool force)
     default:
         break;
     }
+
+    // Get monster halo/umbra after we unequip this item.
+    int new_halo = halo_radius();
+    int new_umbra = umbra_radius();
+
+    // If monster halo/umbra has changed after unequipping this item, update
+    // the halo/umbra.
+    if (old_halo != new_halo || old_umbra != new_umbra)
+        invalidate_agrid(true);
 
     return true;
 }
@@ -1143,6 +1168,10 @@ bool monster::pickup(item_def &item, mon_inv_type slot, bool msg)
     if (item.flags & ISFLAG_MIMIC)
         return false;
 
+    // Get monster halo/umbra before we equip this item.
+    int old_halo = halo_radius();
+    int old_umbra = umbra_radius();
+
     dungeon_events.fire_position_event(
         dgn_event(DET_ITEM_PICKUP, pos(), 0, item.index(),
                   mindex()),
@@ -1161,6 +1190,16 @@ bool monster::pickup(item_def &item, mon_inv_type slot, bool msg)
         equip_message(item);
     }
     lose_pickup_energy();
+
+    // Get monster halo/umbra after we equip this item.
+    int new_halo = halo_radius();
+    int new_umbra = umbra_radius();
+
+    // If monster halo/umbra has changed after equipping this item, update the
+    // halo/umbra.
+    if (old_halo != new_halo || old_umbra != new_umbra)
+        invalidate_agrid(true);
+
     return true;
 }
 
@@ -2815,15 +2854,15 @@ int monster::constriction_damage(constrict_type typ) const
         {
             const mon_attack_def attack = mons_attack_spec(*this, i);
             if (attack.type == AT_CONSTRICT)
-                return attack.damage;
+                return random_range(attack.damage, attack.damage * 2);
         }
         return -1;
     case CONSTRICT_ROOTS:
-        return roll_dice(2, div_rand_round(40 +
-                    mons_spellpower(*this, SPELL_GRASPING_ROOTS), 20));
-    case CONSTRICT_BVC:
         return roll_dice(2, div_rand_round(60 +
-                    mons_spellpower(*this, SPELL_BORGNJORS_VILE_CLUTCH), 20));
+                    mons_spellpower(*this, SPELL_GRASPING_ROOTS), 50));
+    case CONSTRICT_BVC:
+        return roll_dice(3, div_rand_round(40 +
+                    mons_spellpower(*this, SPELL_BORGNJORS_VILE_CLUTCH), 30));
     default:
         return 0;
     }
@@ -3278,10 +3317,10 @@ int monster::base_evasion() const
 /**
  * What's the current evasion of this monster?
  *
- * @param ignore_helpless Whether to ignore helplessness.
+ * @param ignore_temporary Whether to ignore temporary bonuses/penalties.
  * @return The evasion of this monster, after applying items & statuses.
  **/
-int monster::evasion(bool ignore_helpless, const actor* /*act*/) const
+int monster::evasion(bool ignore_temporary, const actor* /*act*/) const
 {
     int ev = base_evasion();
 
@@ -3305,19 +3344,23 @@ int monster::evasion(bool ignore_helpless, const actor* /*act*/) const
     // evasion from artefacts
     ev += scan_artefacts(ARTP_EVASION);
 
-    if (has_ench(ENCH_AGILE))
-        ev += AGILITY_BONUS;
-
-    if (ignore_helpless)
+    // Only temporary modifiers after this
+    if (ignore_temporary)
         return max(ev, 0);
 
     if (paralysed() || petrified() || petrifying() || asleep())
         return 0;
 
-    if (caught() || is_constricted())
-        ev /= (body_size(PSIZE_BODY) + 2);
+    if (caught())
+        ev /= 5;
     else if (confused())
         ev /= 2;
+
+    if (has_ench(ENCH_AGILE))
+        ev += AGILITY_BONUS;
+
+    if (is_constricted())
+        ev -= 10;
 
     return max(ev, 0);
 }
@@ -3851,17 +3894,9 @@ bool monster::res_petrify(bool /*temp*/) const
     return is_insubstantial() || get_mons_resist(*this, MR_RES_PETRIFY) > 0;
 }
 
-int monster::res_constrict() const
+bool monster::res_constrict() const
 {
-    // 3 is immunity, 1 or 2 reduces damage
-    if (is_insubstantial())
-        return 3;
-    if (mons_genus(type) == MONS_JELLY)
-        return 3;
-    if (is_spiny())
-        return 3;
-
-    return 0;
+    return is_insubstantial() || is_spiny() || mons_genus(type) == MONS_JELLY;
 }
 
 bool monster::res_corr(bool /*allow_random*/, bool temp) const
@@ -4328,7 +4363,7 @@ int monster::hurt(const actor *agent, int amount, beam_type flavour,
 
         // Allow the victim to exhibit passive damage behaviour (e.g.
         // the Royal Jelly or Uskayaw's Pain Bond).
-        react_to_damage(agent, amount, flavour);
+        react_to_damage(agent, amount, flavour, kill_type);
 
         // Don't mirror Yredelemnul's effects (in particular don't mirror
         // mirrored damage).
@@ -5661,7 +5696,7 @@ void monster::lose_energy(energy_use_type et, int div, int mult)
 }
 
 void monster::react_to_damage(const actor *oppressor, int damage,
-                               beam_type flavour)
+                               beam_type flavour, kill_method_type ktype)
 {
     // Don't discharge on small amounts of damage (this helps avoid
     // continuously shocking when poisoned or sticky flamed)
@@ -5731,6 +5766,16 @@ void monster::react_to_damage(const actor *oppressor, int damage,
                                              master_damage, false);
             ++hits;
         }
+    }
+
+    // Interrupt autorest for allies standing clouds, on fire, etc.
+    // (We exclude poison, since even in cases where this is lethal, there's
+    // usually nothing the player can do about this, and it otherwise
+    // interrupts rest without even a visible message)
+    if (damage > 0 && ktype != KILLED_BY_POISON
+        && !crawl_state.game_is_arena() && friendly() && you.can_see(*this))
+    {
+        interrupt_activity(activity_interrupt::ally_attacked);
     }
 
     if (!alive())
@@ -6184,6 +6229,16 @@ bool monster::is_web_immune() const
             || is_insubstantial();
 }
 
+/**
+ * Checks if the monster can pass over binding sigils freely.
+ *
+ * @return Whether the monster is immune to binding sigils.
+ */
+bool monster::is_binding_sigil_immune() const
+{
+    return has_ench(ENCH_SWIFT);
+}
+
 // Monsters with an innate umbra don't have their accuracy reduced by it, and
 // nor do followers of Yredelemnul and Dithmenos.
 bool monster::nightvision() const
@@ -6193,26 +6248,25 @@ bool monster::nightvision() const
            || umbra_radius() >= 0;
 }
 
-bool monster::attempt_escape(int attempts)
+bool monster::attempt_escape()
 {
-    int attfactor;
-    int randfact;
-
     if (!is_constricted())
         return true;
 
-    escape_attempts += attempts;
-    attfactor = 3 * escape_attempts;
+    escape_attempts += 1;
+
+    const auto constr_typ = get_constrict_type();
+    int escape_pow = 5 + get_hit_dice() + (escape_attempts * escape_attempts * 5);
+    int hold_pow;
 
     if (constricted_by == MID_PLAYER)
     {
-        if (has_ench(ENCH_VILE_CLUTCH))
-        {
-            randfact = roll_dice(1, 10 + div_rand_round(
-                           you.props[VILE_CLUTCH_POWER_KEY].get_int(), 5));
-        }
+        if (constr_typ == CONSTRICT_BVC)
+            hold_pow = 80 + div_rand_round(you.props[VILE_CLUTCH_POWER_KEY].get_int(), 3);
+        else if (constr_typ == CONSTRICT_ROOTS)
+            hold_pow = 50 + div_rand_round(you.props[FASTROOT_POWER_KEY].get_int(), 2);
         else
-            randfact = roll_dice(1, 3 + you.experience_level);
+            hold_pow = 40 + you.get_experience_level() * 3;
     }
     else
     {
@@ -6220,11 +6274,10 @@ bool monster::attempt_escape(int attempts)
         ASSERT(themonst);
 
         // Monsters use the same escape formula for all forms of constriction.
-        randfact = 5 + roll_dice(1, 5)
-            + roll_dice(1, themonst->get_hit_dice());
+        hold_pow = 40 + themonst->get_hit_dice() * 3;
     }
 
-    if (attfactor > randfact)
+    if (x_chance_in_y(escape_pow, hold_pow))
     {
         stop_being_constricted(true);
         return true;

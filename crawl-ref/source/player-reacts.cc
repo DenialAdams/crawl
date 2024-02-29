@@ -464,15 +464,17 @@ void player_reacts_to_monsters()
     if (_decrement_a_duration(DUR_GRASPING_ROOTS, you.time_taken)
         && you.is_constricted())
     {
-        // We handle the end-of-enchantment message here since the method
-        // of constriction is no longer detectable.
-        mprf("The grasping roots release their grip on you.");
+        actor* src = actor_by_mid(you.constricted_by);
+        mprf("%s grasping roots sink back into the ground.",
+             src ? src->name(DESC_ITS).c_str() : "The");
         you.stop_being_constricted(true);
     }
     if (_decrement_a_duration(DUR_VILE_CLUTCH, you.time_taken)
         && you.is_constricted())
     {
-        mprf("The zombie hands release their grip on you.");
+        actor* src = actor_by_mid(you.constricted_by);
+        mprf("%s zombie hands return to the earth.",
+             src ? src->name(DESC_ITS).c_str() : "The");
         you.stop_being_constricted(true);
     }
 
@@ -852,7 +854,7 @@ static void _decrement_durations()
     if (!you.cannot_act()
         && !you.confused())
     {
-        extract_manticore_spikes(
+        extract_barbs(
             make_stringf("You %s the barbed spikes from your body.",
                 you.berserk() ? "rip and tear" : "carefully extract").c_str());
     }
@@ -1072,7 +1074,6 @@ void player_reacts()
     _handle_fugue(you.time_taken);
     if (you.has_mutation(MUT_WARMUP_STRIKES))
         you.rev_down(you.time_taken);
-    you.check_deliberate_move();
 
     if (x_chance_in_y(you.time_taken, 10 * BASELINE_DELAY))
     {
@@ -1116,9 +1117,6 @@ void player_reacts()
 
     you.handle_constriction();
 
-    // increment constriction durations
-    you.accum_has_constricted();
-
     _regenerate_hp_and_mp(you.time_taken);
 
     if (you.duration[DUR_POISONING])
@@ -1146,7 +1144,7 @@ void player_reacts()
     incr_zot_clock();
 }
 
-void extract_manticore_spikes(const char* endmsg)
+void extract_barbs(const char* endmsg)
 {
     if (_decrement_a_duration(DUR_BARBS, you.time_taken, endmsg))
     {

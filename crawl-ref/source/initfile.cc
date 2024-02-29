@@ -1063,7 +1063,7 @@ static const string message_channel_names[] =
     "friend_enchant", "monster_damage", "monster_target", "banishment",
     "equipment", "floor", "multiturn", "examine", "examine_filter", "diagnostic",
     "error", "tutorial", "orb", "timed_portal", "hell_effect", "monster_warning",
-    "dgl_message",
+    "dgl_message", "decor_flavour",
 };
 
 // returns -1 if unmatched else returns 0--(NUM_MESSAGE_CHANNELS-1)
@@ -1622,7 +1622,7 @@ void game_options::reset_options()
     force_ability_targeter =
         { ABIL_ZIN_SANCTUARY, ABIL_TSO_CLEANSING_FLAME, ABIL_WORD_OF_CHAOS,
           ABIL_ZIN_RECITE, ABIL_QAZLAL_ELEMENTAL_FORCE, ABIL_JIYVA_OOZEMANCY,
-          ABIL_BREATHE_LIGHTNING, ABIL_KIKU_TORMENT, ABIL_YRED_FATHOMLESS_SHACKLES,
+          ABIL_GALVANIC_BREATH, ABIL_KIKU_TORMENT, ABIL_YRED_FATHOMLESS_SHACKLES,
           ABIL_CHEIBRIADOS_SLOUCH, ABIL_QAZLAL_DISASTER_AREA,
           ABIL_RU_APOCALYPSE, ABIL_LUGONU_CORRUPT, ABIL_IGNIS_FOXFIRE,
           ABIL_SIPHON_ESSENCE };

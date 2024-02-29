@@ -931,9 +931,9 @@ void melee_attack::set_weapon(item_def *wpn, bool offhand)
         wpn_skill = SK_FIGHTING;
 }
 
-bool melee_attack::swing_with(item_def &weapon, bool offhand)
+bool melee_attack::swing_with(item_def &wpn, bool offhand)
 {
-    const bool reaching = weapon_reach(weapon) > REACH_NONE;
+    const bool reaching = weapon_reach(wpn) > REACH_NONE;
     if (!is_projected
         && !reaching
         && !adjacent(attacker->pos(), defender->pos()))
@@ -945,7 +945,7 @@ bool melee_attack::swing_with(item_def &weapon, bool offhand)
                        attack_number,
                        effective_attack_number);
     copy_to(swing);
-    swing.set_weapon(&weapon, offhand);
+    swing.set_weapon(&wpn, offhand);
     bool success = swing.attack();
     cancel_attack = swing.cancel_attack;
     return success;
@@ -996,7 +996,7 @@ bool melee_attack::run_attack_set()
     {
         // Don't launch UC attacks when you have an offhand weapon.
         if (offhand)
-            set_weapon(offhand);
+            set_weapon(offhand, true);
         return attack();
     }
 
@@ -2677,7 +2677,7 @@ string melee_attack::mons_attack_desc()
     }
 
     if (weapon && !mons_class_is_animated_weapon(attacker->type))
-        ret += " with " + weapon->name(DESC_A);
+        ret += " with " + weapon->name(DESC_A, false, false, false);
 
     return ret;
 }
@@ -2838,18 +2838,28 @@ bool melee_attack::mons_attack_effects()
        inflict_damage(hurt, BEAM_ELECTRICITY);
     }
 
-    const bool slippery = defender->is_player()
+    // If the attacker and/or defender are bound in place, don't move
+    // them via trampling or dragging (which only monsters can do).
+    const bool att_bound = attacker->is_monster()
+                           && attacker->as_monster()->has_ench(ENCH_BOUND);
+    const bool def_bound = defender->is_monster()
+                           && defender->as_monster()->has_ench(ENCH_BOUND);
+    if (!att_bound && !def_bound)
+    {
+        const bool slippery = defender->is_player()
                           && adjacent(attacker->pos(), defender->pos())
                           && !player_stair_delay() // feet otherwise occupied
                           && player_equip_unrand(UNRAND_SLICK_SLIPPERS);
-    if (attacker != defender && !is_projected
-        && (attk_flavour == AF_TRAMPLE || slippery && attk_flavour != AF_DRAG))
-    {
-        do_knockback(slippery);
-    }
+        if (attacker != defender && !is_projected
+            && (attk_flavour == AF_TRAMPLE
+                || slippery && attk_flavour != AF_DRAG))
+        {
+            do_knockback(slippery);
+        }
 
-    if (attacker != defender && attk_flavour == AF_DRAG)
-        do_drag();
+        if (attacker != defender && attk_flavour == AF_DRAG)
+            do_drag();
+    }
 
     special_damage = 0;
     special_damage_message.clear();
@@ -3054,23 +3064,9 @@ void melee_attack::mons_apply_attack_flavour()
         break;
 
     case AF_BARBS:
+        // same duration/power as manticore barbs
         if (defender->is_player())
-        {
-            mpr("Barbed spikes become lodged in your body.");
-            // same duration as manticore barbs
-            if (!you.duration[DUR_BARBS])
-                you.set_duration(DUR_BARBS, random_range(4, 8));
-            else
-                you.increase_duration(DUR_BARBS, random_range(2, 4), 12);
-
-            if (you.attribute[ATTR_BARBS_POW])
-            {
-                you.attribute[ATTR_BARBS_POW] =
-                    min(6, you.attribute[ATTR_BARBS_POW]++);
-            }
-            else
-                you.attribute[ATTR_BARBS_POW] = 4;
-        }
+            barb_player(random_range(4, 8), 4);
         // Insubstantial and jellies are immune
         else if (!(defender->is_insubstantial() &&
                     mons_genus(defender->type) != MONS_JELLY))
@@ -3260,6 +3256,10 @@ void melee_attack::mons_apply_attack_flavour()
         break;
 
     case AF_CRUSH:
+        // Works on 2/3 of hits
+        if (one_chance_in(3))
+            break;
+
         if (needs_message)
         {
             mprf("%s %s %s.",
@@ -3621,14 +3621,36 @@ void melee_attack::do_foul_flame()
 {
     monster* mon = attacker->as_monster();
 
-    if (you.has_mutation(MUT_FOUL_GLOW)
+    if (you.has_mutation(MUT_FOUL_SHADOW)
         && attacker->alive()
+        && attacker->res_foul_flame() < 3
         && adjacent(you.pos(), mon->pos()))
     {
-        const int mut = you.get_mutation_level(MUT_FOUL_GLOW);
+        const int mut = you.get_mutation_level(MUT_FOUL_SHADOW);
 
-        if (damage_done > 0 && x_chance_in_y(mut * 3 - 1, 20))
-            foul_flame_monster(attacker->as_monster());
+        if (damage_done > 0 && x_chance_in_y(mut * 3, 20))
+        {
+            const int raw_dmg = random_range(mut,
+                div_rand_round(you.experience_level * 3, 4) + mut * 4);
+
+            bolt beam;
+            beam.flavour = BEAM_FOUL_FLAME;
+            beam.thrower = KILL_YOU;
+            const int dmg = mons_adjust_flavoured(mon, beam, raw_dmg);
+
+            if (!dmg)
+                return;
+
+            dprf(DIAG_COMBAT, "Foul flame damage: raw_dmg %d, dmg %d", raw_dmg,
+                 dmg);
+            mprf("%s is seared by the foul flame within you%s",
+                 attacker->name(DESC_THE).c_str(),
+                 attack_strength_punctuation(dmg).c_str());
+            mon->hurt(&you, dmg);
+
+            if (mon->alive())
+                print_wounds(*mon);
+        }
     }
 }
 

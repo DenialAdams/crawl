@@ -55,7 +55,7 @@ public:
                  int attack_num = 0, int effective_attack_num = 0);
     void set_weapon(item_def *weapon, bool offhand = false);
 
-    bool launch_attack_set();
+    bool launch_attack_set(bool allow_rev = true);
     bool attack();
     int calc_to_hit(bool random) override;
     int post_roll_to_hit_modifiers(int mhit, bool random) override;
@@ -145,6 +145,7 @@ private:
     void mons_do_tendril_disarm();
     void apply_black_mark_effects();
     void do_ooze_engulf();
+    void try_parry_disarm();
 private:
     // Player-attack specific stuff
     // Auxiliary unarmed attacks.

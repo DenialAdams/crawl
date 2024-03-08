@@ -17,6 +17,7 @@
 
 #include "ability.h"
 #include "abyss.h"
+#include "acquire.h"
 #include "act-iter.h"
 #include "areas.h"
 #include "art-enum.h"
@@ -802,8 +803,11 @@ maybe_bool you_can_wear(equipment_type eq, bool temp)
     if (species::bans_eq(you.species, eq))
         return false;
 
-    if (you.has_mutation(MUT_NO_RINGS)
-        && (eq == EQ_RIGHT_RING || eq == EQ_LEFT_RING))
+    // These more specific ring slots may seem redundant with EQ_RINGS, but
+    // is needed to make the % screen properly say that those slots are unavailable
+    if (you.has_mutation(MUT_NO_JEWELLERY)
+        && (eq == EQ_RINGS || eq == EQ_LEFT_RING || eq == EQ_RIGHT_RING
+            || eq == EQ_AMULET))
     {
         return false;
     }
@@ -840,6 +844,13 @@ maybe_bool you_can_wear(equipment_type eq, bool temp)
 
     case EQ_RING_AMULET:
         return player_equip_unrand(UNRAND_FINGER_AMULET);
+
+    case EQ_GIZMO:
+        return you.species == SP_COGLIN;
+
+    // A dummy slot, not meant to put anything in outside of EV previews
+    case EQ_PREVIEW_RING:
+        return false;
 
     default:
         break;
@@ -1012,6 +1023,12 @@ int player::wearing(equipment_type slot, int sub_type) const
                 ret += (slot == EQ_RINGS_PLUS ? item->plus : 1);
             }
         }
+        // XXX: Also check EV preview slot
+        if ((item = slot_item(static_cast<equipment_type>(EQ_PREVIEW_RING)))
+            && item->sub_type == sub_type)
+        {
+            ret += (slot == EQ_RINGS_PLUS ? item->plus : 1);
+        }
         break;
 
     case EQ_ALL_ARMOUR:
@@ -1049,6 +1066,14 @@ int player::wearing_ego(equipment_type slot, int special) const
         }
         if ((item = offhand_weapon()) && get_weapon_brand(*item) == special)
             ++ret;
+        break;
+
+    case EQ_GIZMO:
+        if ((item = slot_item(EQ_GIZMO))
+            && item->brand == special)
+        {
+            ++ret;
+        }
         break;
 
     case EQ_LEFT_RING:
@@ -1292,18 +1317,27 @@ int player_mp_regen()
     if (you.get_mutation_level(MUT_MANA_REGENERATION))
         regen_amount *= 2;
 
-    if (you.wearing(EQ_AMULET, AMU_MANA_REGENERATION)
-        && you.props[MANA_REGEN_AMULET_ACTIVE].get_int() == 1)
+    // Amulets and artefacts.
+    for (int slot = EQ_MIN_ARMOUR; slot <= EQ_MAX_WORN; ++slot)
     {
-        regen_amount += 40;
-        // grants a second pip on top of its base type
-        if (player_equip_unrand(UNRAND_VITALITY))
+        if (you.melded[slot] || you.equip[slot] == -1 || !you.activated[slot])
+            continue;
+        const item_def &arm = you.inv[you.equip[slot]];
+        if (arm.is_type(OBJ_JEWELLERY, AMU_MANA_REGENERATION))
             regen_amount += 40;
+        if (is_artefact(arm))
+            regen_amount += 40 * artefact_property(arm, ARTP_MANA_REGENERATION);
     }
 
     // Rampage healing grants a variable regen boost while active.
     if (you.duration[DUR_RAMPAGE_HEAL])
         regen_amount += you.props[RAMPAGE_HEAL_KEY].get_int() * 33;
+
+    if (you.wearing_ego(EQ_GIZMO, SPGIZMO_MANAREV))
+    {
+        const static int rev_bonus[] = {0, 20, 40, 80};
+        regen_amount += rev_bonus[you.rev_tier()];
+    }
 
     if (have_passive(passive_t::jelly_regen))
     {
@@ -1983,7 +2017,8 @@ bool player_is_shapechanged()
 bool player_acrobatic()
 {
     return you.wearing(EQ_AMULET, AMU_ACROBAT)
-        || you.has_mutation(MUT_ACROBATIC);
+        || you.has_mutation(MUT_ACROBATIC)
+        || you.scan_artefacts(ARTP_ACROBAT);
 }
 
 void update_acrobat_status()
@@ -2415,6 +2450,12 @@ static void _recharge_xp_evokers(int exp)
                        - exp_needed(you.experience_level, 0);
     const int skill_denom = 3 + you.skill_rdiv(SK_EVOCATIONS, 2, 13);
     const int xp_factor = max(xp_by_xl / 5, 100) / skill_denom;
+
+    if (you.wearing_ego(EQ_GIZMO, SPGIZMO_GADGETEER)
+        || player_equip_unrand(UNRAND_GADGETEER))
+    {
+        exp = exp * 130 / 100;
+    }
 
     for (int i = 0; i < NUM_MISCELLANY; ++i)
     {
@@ -3034,6 +3075,29 @@ void level_change(bool skip_attribute_increase)
                 break;
             }
 
+            case SP_COGLIN:
+            {
+                switch (you.experience_level)
+                {
+                    case 3:
+                    case 7:
+                    case 11:
+                        coglin_announce_gizmo_name();
+                        break;
+
+                    case COGLIN_GIZMO_XL:
+                    {
+                        mpr("You feel a burst of inspiration! You are finally "
+                            "ready to make a one-of-a-kind gizmo!");
+                        mprf("(press <w>%c</w> on the <w>%s</w>bility menu to create your gizmo)",
+                                get_talent(ABIL_INVENT_GIZMO, false).hotkey,
+                                command_to_string(CMD_USE_ABILITY).c_str());
+                    }
+                    break;
+                }
+                break;
+            }
+
             default:
                 break;
             }
@@ -3359,7 +3423,7 @@ static void _display_tohit()
 #endif
 }
 
-static double _delay(const item_def *weapon)
+static int _delay(const item_def *weapon)
 {
     if (!weapon || !is_range_weapon(*weapon))
         return you.attack_delay().expected();
@@ -3382,7 +3446,7 @@ static bool _at_min_delay(const item_def *weapon)
 static void _display_attack_delay(const item_def *offhand)
 {
     const item_def* weapon = you.weapon();
-    const double delay = _delay(weapon);
+    const int delay = _delay(weapon);
     const bool at_min_delay = _at_min_delay(weapon)
                               && (!offhand || _at_min_delay(offhand));
 
@@ -3404,7 +3468,7 @@ static void _display_attack_delay(const item_def *offhand)
     }
 
     mprf("Your attack delay is about %.1f%s%s.",
-         delay / 10.0f,
+         (float)delay / 10,
          at_min_delay ?
             " (and cannot be improved with additional weapon skill)" : "",
          penalty_msg.c_str());
@@ -5424,6 +5488,7 @@ player::player()
     seen_weapon.init(0);
     seen_armour.init(0);
     seen_misc.reset();
+    seen_talisman.reset();
 
     generated_misc.clear();
     octopus_king_rings = 0x00;
@@ -6444,6 +6509,12 @@ int player::armour_class_with_specific_items(vector<const item_def *> items) con
             AC += _meek_bonus() * scale;
     }
 
+    if (you.wearing_ego(EQ_GIZMO, SPGIZMO_PARRYREV))
+    {
+        const static int rev_bonus[] = {0, 200, 400, 500};
+        AC += rev_bonus[you.rev_tier()];
+    }
+
     if (you.props.exists(PASSWALL_ARMOUR_KEY))
         AC += you.props[PASSWALL_ARMOUR_KEY].get_int() * scale;
 
@@ -6502,7 +6573,7 @@ int player::evasion(bool ignore_temporary, const actor* act) const
 
 // What would our natural EV be if we wore a given piece of armour instead of
 // whatever might be in that slot currently (if anything)?
-int player::evasion_with_specific_armour(const item_def& new_armour) const
+int player::evasion_with_specific_item(const item_def& new_item) const
 {
     // Since there are a lot of things which can affect the calculation of EV,
     // including artifact properties on either the item we're equipped or the
@@ -6512,14 +6583,23 @@ int player::evasion_with_specific_armour(const item_def& new_armour) const
     // As we edit the item links directly, this should be invisible to the
     // player, bypass normal equip/unequip routines, and have no side-effects.
 
-    // Save reference to whatever the player currently has equipped in this slot.
-    equipment_type slot = get_armour_slot(new_armour);
-    short old_armour = you.equip[slot];
+    // Figure out where this item should be equipped and save a reference to
+    // whatever the player currently has equipped in this slot (if anything).
+    equipment_type slot = get_item_slot(new_item);
 
-    // If the item we're comparing is already in the player's inventor, this is
+    // Since it's not reasonable to automatically determine *which* ring a
+    // previewed ring should replace, we opt to have it replace none instead,
+    // and simply give the total EV that would be gained from this item in a
+    // vaccuum.
+    if (slot == EQ_RINGS)
+        slot = EQ_PREVIEW_RING;
+
+    short old_item = you.equip[slot];
+
+    // If the item we're comparing is already in the player's inventory, this is
     // simple.
-    if (in_inventory(new_armour))
-        you.equip[slot] = new_armour.link;
+    if (in_inventory(new_item))
+        you.equip[slot] = new_item.link;
     // If the item is not, things are more complicated. Since player equipment
     // is stored as an index into the player's internal inventory, any item we
     // want to try on *must* be in our inventory. So what we do is make a *copy*
@@ -6528,32 +6608,32 @@ int player::evasion_with_specific_armour(const item_def& new_armour) const
     // terminate iteration)
     else
     {
-        you.inv[ENDOFPACK] = new_armour;
+        you.inv[ENDOFPACK] = new_item;
         you.equip[slot] = ENDOFPACK;
     }
 
     // Now, simply calculate evasion without temporary boosts.
     int ret = evasion(true);
 
-    // Restore old armour and clear out any item copies, just in case.
-    you.equip[slot] = old_armour;
+    // Restore old item and clear out any item copies, just in case.
+    you.equip[slot] = old_item;
     you.inv[ENDOFPACK].clear();
 
     return ret;
 }
 
-int player::evasion_without_specific_armour(const item_def& armour_to_remove) const
+int player::evasion_without_specific_item(const item_def& item_to_remove) const
 {
-    equipment_type slot = get_armour_slot(armour_to_remove);
+    int slot = get_equip_slot(&item_to_remove);
 
-    // Verify that the armour is currently equipped
+    // Verify that the item is currently equipped
     // (or this function will give bogus info)
-    ASSERT(you.equip[slot] == armour_to_remove.link);
+    ASSERT(slot != -1);
 
     // Briefly remove item, calculate EV, then put it back on
     you.equip[slot] = -1;
     int ret = evasion(true);
-    you.equip[slot] = armour_to_remove.link;
+    you.equip[slot] = item_to_remove.link;
 
     return ret;
 }
@@ -8335,11 +8415,27 @@ int player::rev_percent() const
     return you.props[REV_PERCENT_KEY].get_int();
 }
 
+int player::rev_tier() const
+{
+    const int rev = rev_percent();
+    if (rev >= FULL_REV_PERCENT)
+        return 3;
+    else if (rev >= FULL_REV_PERCENT / 2)
+        return 2;
+    else if (rev > 0)
+        return 1;
+
+    return 0;
+}
+
 void player::rev_down(int dur)
 {
     // Drop from 100% to 0 in about 12 normal turns (120 aut).
     const int perc_lost = div_rand_round(dur * 5, 6);
     you.props[REV_PERCENT_KEY] = max(0, you.rev_percent() - perc_lost);
+
+    if (you.wearing_ego(EQ_GIZMO, SPGIZMO_PARRYREV))
+        you.redraw_armour_class = true;
 }
 
 void player::rev_up(int dur)
@@ -8350,6 +8446,9 @@ void player::rev_up(int dur)
     // Fuzz it between 4/2 and 6/2 (ie 2x to 3x) to avoid tracking.
     const int perc_gained = random_range(dur * 2, dur * 3);
     you.props[REV_PERCENT_KEY] = min(100, you.rev_percent() + perc_gained);
+
+    if (you.wearing_ego(EQ_GIZMO, SPGIZMO_PARRYREV))
+        you.redraw_armour_class = true;
 }
 
 void player_open_door(coord_def doorpos)

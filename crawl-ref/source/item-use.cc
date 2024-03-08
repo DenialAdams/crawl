@@ -214,11 +214,6 @@ static int _default_osel(operation_types oper)
     case OPER_WEAR:
         return OBJ_ARMOUR;
     case OPER_PUTON:
-        if (you.has_mutation(MUT_NO_RINGS)
-            && !player_equip_unrand(UNRAND_FINGER_AMULET))
-        {
-            return OSEL_AMULET;
-        }
         return OBJ_JEWELLERY;
     case OPER_QUAFF:
         return OBJ_POTIONS;
@@ -892,30 +887,26 @@ bool UseItemMenu::process_key(int key)
     return Menu::process_key(key);
 }
 
-static operation_types _item_to_oper(item_def *target)
+static operation_types _item_type_to_oper(object_class_type type)
 {
-    if (!target)
-        return OPER_WIELD; // unwield
-    switch (target->base_type)
+    switch (type)
     {
-    case OBJ_WANDS:
-    case OBJ_TALISMANS:
-    case OBJ_MISCELLANY: return OPER_EVOKE;
-    case OBJ_POTIONS:    return OPER_QUAFF;
-    case OBJ_SCROLLS:    return OPER_READ;
-    case OBJ_ARMOUR:     return OPER_WEAR;
-    case OBJ_WEAPONS:
-    case OBJ_STAVES:     return OPER_WIELD;
-    case OBJ_JEWELLERY:  return OPER_PUTON;
-    default:             return OPER_NONE;
+        case OBJ_WANDS:
+        case OBJ_TALISMANS:
+        case OBJ_MISCELLANY: return OPER_EVOKE;
+        case OBJ_POTIONS:    return OPER_QUAFF;
+        case OBJ_SCROLLS:    return OPER_READ;
+        case OBJ_ARMOUR:     return OPER_WEAR;
+        case OBJ_WEAPONS:
+        case OBJ_STAVES:     return OPER_WIELD;
+        case OBJ_JEWELLERY:  return OPER_PUTON;
+        default:             return OPER_NONE;
     }
 }
 
-static operation_types _item_to_removal(item_def *target)
+static operation_types _item_type_to_remove_oper(object_class_type type)
 {
-    if (!target)
-        return OPER_NONE;
-    switch (target->base_type)
+    switch (type)
     {
     case OBJ_ARMOUR:    return OPER_TAKEOFF;
     case OBJ_WEAPONS:
@@ -925,10 +916,36 @@ static operation_types _item_to_removal(item_def *target)
     }
 }
 
+static operation_types _item_to_oper(item_def *target)
+{
+    if (!target)
+        return OPER_WIELD; // unwield
+    else
+        return _item_type_to_oper(target->base_type);
+}
+
+static operation_types _item_to_removal(item_def *target)
+{
+    if (!target)
+        return OPER_NONE;
+    else
+        return _item_type_to_remove_oper(target->base_type);
+}
+
 static bool _equip_oper(operation_types oper)
 {
     const auto gen = generalize_oper(oper);
     return gen == OPER_EQUIP || gen == OPER_UNEQUIP;
+}
+
+string item_equip_verb(const item_def& item)
+{
+    return _oper_name(_item_type_to_oper(item.base_type));
+}
+
+string item_unequip_verb(const item_def& item)
+{
+    return _oper_name(_item_type_to_remove_oper(item.base_type));
 }
 
 static bool _can_generically_use_armour(bool wear=true)
@@ -997,8 +1014,9 @@ static bool _can_generically_use(operation_types oper)
         // can't differentiate between these two at this point
         if (!you_can_wear(EQ_RINGS, true) && !you_can_wear(EQ_AMULET, true))
         {
-            mprf(MSGCH_PROMPT, "You can't %s jewellery in your present form.",
-                oper == OPER_PUTON ? "wear" : "remove");
+            mprf(MSGCH_PROMPT, "You can't %s jewellery%s.",
+                oper == OPER_PUTON ? "wear" : "remove",
+                you.has_mutation(MUT_NO_JEWELLERY) ? "" :  " in your present form");
             return false;
         }
         break;
@@ -2546,6 +2564,8 @@ static afsz _abort_for_stat_zero(const item_def &item, int prop_str,
 static bool _safe_to_remove_or_wear(const item_def &item, const item_def
                                     *old_item, bool remove, bool quiet)
 {
+    // Check that removing item will not cause a dangerous loss of
+    // flight.
     if (remove && !safe_to_remove(item, quiet))
         return false;
 
@@ -2553,6 +2573,11 @@ static bool _safe_to_remove_or_wear(const item_def &item, const item_def
     afsz asked = afsz::noask;
     if (!remove && old_item)
     {
+        // Check that removing old item will not cause a dangerous
+        // loss of flight.
+        if (!safe_to_remove(*old_item, quiet))
+            return false;
+
         _item_stat_bonus(*old_item, str1, dex1, int1, true);
         asked = _abort_for_stat_zero(item, str1, dex1, int1, true, quiet);
         if (afsz::stop == asked)
@@ -2809,10 +2834,7 @@ static bool _can_puton_ring(const item_def &item)
     if (bool(!you_can_wear(EQ_RINGS, true))
         && !player_equip_unrand(UNRAND_FINGER_AMULET))
     {
-        if (you.has_mutation(MUT_NO_RINGS))
-            mprf(MSGCH_PROMPT, "You can't wear rings.");
-        else
-            mprf(MSGCH_PROMPT, "You can't wear that in your present form.");
+        mprf(MSGCH_PROMPT, "You can't wear that in your present form.");
         return false;
     }
 

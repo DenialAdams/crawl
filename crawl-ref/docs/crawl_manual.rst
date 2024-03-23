@@ -1372,10 +1372,10 @@ Examples for this are the resistances: there are very few permanent sources,
 most involve a choice (like rings or specific armour) or are only semi-permanent
 (like mutations). Another example is the absence of clear-cut best items, which
 comes from the fact that most artefacts are randomly generated. Furthermore,
-even non-random artefacts cannot be wished for, as scrolls of acquirement
-produce random items in general. Likewise, there are no sure-fire means of life
-saving (the closest equivalents are scrolls of blinking, and good religious
-standings for some deities).
+scrolls of acquirement offer a random selection of items instead of a specific
+wish. Likewise, there are no sure-fire means of life saving (the closest
+equivalents are scrolls of blinking, and good religious standings for some
+deities).
 
 Anti-grinding
 ========================================
@@ -1814,14 +1814,14 @@ Vine Stalkers (VS)
 
   Magic courses freely through their bodies, and any damage they take is split
   between their health and magical reserves. They also physically regenerate
-  at an alarming rate. However these traits come at a price: the dual nature of
+  at an alarming rate. However, these traits come at a price: the dual nature of
   their bodies makes them extremely frail, and they cannot benefit from potions
   to heal their wounds.
 
   Living examples of adaptation, Vine Stalkers level up quickly and lend well
   to an all-out offensive style; trusting their stealth to choose their prey
   and then their regenerating capabilities to power through the wounds they may
-  sustain in battle. Many members of the species however, are seen wielding
+  sustain in battle. Many members of the species, however, are seen wielding
   magic quite competently and then switching to a hybrid style when their
   reserves start to run low, thus replenishing their shroud of magic and their
   spells' fuel with each voracious bite.

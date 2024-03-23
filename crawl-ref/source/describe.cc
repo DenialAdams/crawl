@@ -2473,7 +2473,7 @@ static string _describe_talisman_form(const item_def &item, bool monster)
     if (below_target || hp != 100 || ac || ev || loses_body_ac)
     {
         if (!monster)
-            description += "\n\nDefense:";
+            description += "\n\nDefence:";
         if (below_target || hp != 100)
         {
             description += make_stringf("\nHP:            %d%%", hp);
@@ -2499,7 +2499,7 @@ static string _describe_talisman_form(const item_def &item, bool monster)
 
     // offense
     if (!monster)
-        description += "\n\nOffense:";
+        description += "\n\nOffence:";
     const int uc = form->get_base_unarmed_damage(false); // TODO: compare to your base form?
                                                          // folks don't know nudists have 3
     const int max_uc = form->get_base_unarmed_damage(false, true);
@@ -4964,6 +4964,7 @@ static string _flavour_base_desc(attack_flavour flavour)
         { AF_FLANK,             "slips behind the defender beforehand" },
         { AF_DRAG,              "drag the defender backwards"},
         { AF_FOUL_FLAME,        "extra damage, especially to the good" },
+        { AF_HELL_HUNT,         "summon demonic beasts" },
         { AF_PLAIN,             "" },
     };
 
@@ -6178,6 +6179,8 @@ void get_monster_db_desc(const monster_info& mi, describe_info &inf,
             inf.body << "\nIt is quickly crumbling away.\n";
         else if (mi.is(MB_WITHERING))
             inf.body << "\nIt is quickly withering away.\n";
+        else if (mi.holi & (MH_NONLIVING))
+            inf.body << "\nIf struck, it will crumble away soon after.\n";
         else
             inf.body << "\nIf struck, it will die soon after.\n";
     }

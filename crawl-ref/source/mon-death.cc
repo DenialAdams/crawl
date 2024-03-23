@@ -1648,11 +1648,6 @@ static void _fire_kill_conducts(const monster &mons, killer_type killer,
     if (mons.is_priest())
         did_kill_conduct(DID_KILL_PRIEST, mons);
 
-    // Jiyva hates you killing slimes, but eyeballs
-    // mutation can confuse without you meaning it.
-    if (mons_is_slime(mons) && killer != KILL_YOU_CONF)
-        did_kill_conduct(DID_KILL_SLIME, mons);
-
     if (mons.is_holy())
         did_kill_conduct(DID_KILL_HOLY, mons);
 
@@ -2058,6 +2053,14 @@ item_def* monster_die(monster& mons, killer_type killer,
 
         if (killer == KILL_RESET)
             killer = KILL_DISMISSED;
+    }
+    else if (mons.type == MONS_PILE_OF_DEBRIS)
+    {
+        if (!wizard && !mons_reset && !was_banished
+            && !cell_is_solid(mons.pos()))
+        {
+            place_cloud(CLOUD_DUST, mons.pos(), 2 + random2(4), &mons);
+        }
     }
     else if (mons.type == MONS_DANCING_WEAPON)
     {

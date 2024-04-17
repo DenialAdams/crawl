@@ -1686,7 +1686,7 @@ static void _AUTUMN_KATANA_melee_effects(item_def* /*weapon*/, actor* attacker,
 
     // If attempting to cast manifold assault would abort (likely because of no
     // valid targets in range), do nothing
-    if (cast_manifold_assault(*attacker, 100, false, false, defender) == spret::abort)
+    if (cast_manifold_assault(*attacker, 0, false, false, defender) == spret::abort)
         return;
 
     mprf("%s slice%s through the folds of space itself!",
@@ -1828,4 +1828,15 @@ static void _DOOM_KNIGHT_melee_effects(item_def* /*item*/, actor* attacker,
             attack_strength_punctuation(bonus_dam).c_str());
         defender->hurt(attacker, bonus_dam);
     }
+}
+
+///////////////////////////////////////////////////
+static void _CHARLATANS_ORB_equip(item_def */*item*/, bool */*show_msgs*/, bool /*unmeld*/)
+{
+    invalidate_agrid(true);
+}
+
+static void _CHARLATANS_ORB_unequip(item_def */*item*/, bool */*show_msgs*/)
+{
+    invalidate_agrid(true);
 }

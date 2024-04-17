@@ -1566,6 +1566,7 @@ bolt mons_spell_beam(const monster* mons, spell_type spell_cast, int power,
     case SPELL_BOLT_OF_DEVASTATION:
     case SPELL_BORGNJORS_VILE_CLUTCH:
     case SPELL_CRYSTALLIZING_SHOT:
+    case SPELL_STONE_BULLET:
         zappy(spell_to_zap(real_spell), power, true, beam);
         break;
 
@@ -1926,7 +1927,6 @@ bool setup_mons_cast(const monster* mons, bolt &pbolt, spell_type spell_cast,
     case SPELL_CALL_OF_CHAOS:
     case SPELL_AIRSTRIKE:
     case SPELL_WATERSTRIKE:
-    case SPELL_GRAVITAS:
     case SPELL_ENTROPIC_WEAVE:
     case SPELL_SUMMON_EXECUTIONERS:
     case SPELL_DOOM_HOWL:
@@ -3464,7 +3464,7 @@ static void _corrupting_pulse(monster *mons)
 
 // Returns the clone just created (null otherwise)
 monster* cast_phantom_mirror(monster* mons, monster* targ, int hp_perc,
-                             int summ_type)
+                             int summ_type, int clone_index)
 {
     // Create clone.
     monster *mirror = clone_mons(targ, true);
@@ -3502,8 +3502,9 @@ monster* cast_phantom_mirror(monster* mons, monster* targ, int hp_perc,
     mirror->max_hit_points = max(mirror->max_hit_points * hp_perc / 100, 1);
 
     // Sometimes swap the two monsters, so as to disguise the original and the
-    // copy.
-    if (coinflip())
+    // copy. Swap chance is 1/2, then 1/3, 1/4, etc. This gives the caster an
+    // even chance of ending up at any of the original or illusion positions.
+    if (one_chance_in(clone_index + 2))
         targ->swap_with(mirror);
 
     return mirror;
@@ -4411,6 +4412,29 @@ bool handle_mon_spell(monster* mons)
     {
         monster_die(*mons, KILL_DISMISSED, NON_MONSTER);
         return true;
+    }
+
+    // Seismic cannons heal themselves with each shot and will be eliable to
+    // fire a shockwave attack once they reach full health in this way.
+    if (mons->type == MONS_SEISMIC_CANNON)
+    {
+        if (mons->hit_points < mons->max_hit_points)
+        {
+            mons->heal(mons->max_hit_points / 10);
+            if (mons->hit_points == mons->max_hit_points
+                && !mons->has_ench(ENCH_SPELL_CHARGED))
+            {
+                mons->add_ench(ENCH_SPELL_CHARGED);
+                simple_monster_message(*mons, " finishes assembling itself.");
+
+                // Give charged cannons a little more duration, to avoid the
+                // bad-feeling situation of having them immediately vanish once
+                // shockwave becomes available, but before it can be used.
+                mons->add_ench(mon_enchant(ENCH_FAKE_ABJURATION, 0,
+                                           actor_by_mid(mons->summoner),
+                                           random_range(3, 5) * BASELINE_DELAY));
+            }
+        }
     }
 
     if (!(flags & MON_SPELL_INSTANT))
@@ -6182,22 +6206,24 @@ void mons_cast(monster* mons, bolt pbolt, spell_type spell_cast,
         return;
 
     case SPELL_FAKE_MARA_SUMMON:
+    {
         // We only want there to be two fakes, which, plus Mara, means
         // a total of three Maras; if we already have two, give up, otherwise
         // we want to summon either one more or two more.
-        sumcount2 = 2 - count_summons(mons, SPELL_FAKE_MARA_SUMMON);
-        if (sumcount2 <= 0)
+        const int n_wanted = 2 - count_summons(mons, SPELL_FAKE_MARA_SUMMON);
+        if (n_wanted <= 0)
             return;
 
-        for (sumcount = 0; sumcount < sumcount2; sumcount++)
-            cast_phantom_mirror(mons, mons, 50, SPELL_FAKE_MARA_SUMMON);
+        for (int i = 0; i < n_wanted; i++)
+            cast_phantom_mirror(mons, mons, 50, SPELL_FAKE_MARA_SUMMON, i);
 
         if (you.can_see(*mons))
         {
             mprf("%s shimmers and seems to become %s!",
                  mons->name(DESC_THE).c_str(),
-                 sumcount2 == 1 ? "two" : "three");
+                 number_in_words(n_wanted + 1).c_str());
         }
+    }
 
         return;
 
@@ -6826,11 +6852,6 @@ void mons_cast(monster* mons, bolt pbolt, spell_type spell_cast,
         simple_monster_message(*mons, " channels a blast of cleansing flame!");
         cleansing_flame(5 + (5 * mons->spell_hd(spell_cast) / 12),
                         cleansing_flame_source::spell, mons->pos(), mons);
-        return;
-
-    case SPELL_GRAVITAS:
-        ASSERT(foe);
-        fatal_attraction(foe->pos(), mons, splpow);
         return;
 
     case SPELL_ENTROPIC_WEAVE:
@@ -8145,19 +8166,6 @@ ai_action::goodness monster_spell_goodness(monster* mon, spell_type spell)
         fire_tracer(mon, tracer, true);
         return ai_action::good_or_bad(mons_should_fire(tracer));
     }
-
-    case SPELL_GRAVITAS:
-        if (!foe)
-            return ai_action::bad();
-
-        for (actor_near_iterator ai(foe->pos(), LOS_SOLID); ai; ++ai)
-            if (*ai != mon && *ai != foe && !ai->is_stationary()
-                && mon->can_see(**ai))
-            {
-                return ai_action::good();
-            }
-
-        return ai_action::bad();
 
     case SPELL_DOOM_HOWL:
         ASSERT(foe);

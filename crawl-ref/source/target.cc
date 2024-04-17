@@ -51,6 +51,11 @@ bool targeter::set_aim(coord_def a)
     return true;
 }
 
+bool targeter::preferred_aim(coord_def a)
+{
+    return valid_aim(a);
+}
+
 bool targeter::can_affect_outside_range()
 {
     return false;
@@ -2360,4 +2365,143 @@ aff_type targeter_galvanic::is_affected(coord_def loc)
     }
 
     return AFF_NO;
+}
+
+targeter_gavotte::targeter_gavotte(const actor* caster)
+    : targeter_beam(caster, 1, ZAP_IOOD, 0, 0, 0)
+{
+}
+
+bool targeter_gavotte::set_aim(coord_def a)
+{
+    if (!targeter::set_aim(a))
+        return false;
+
+    affected_monsters.clear();
+    path_taken.clear();
+
+    if (!valid_aim(a))
+        return false;
+
+    bolt tempbeam = beam;
+    tempbeam.target = a;
+    tempbeam.aimed_at_spot = false;
+    tempbeam.range = GAVOTTE_DISTANCE;
+    tempbeam.path_taken.clear();
+    tempbeam.fire();
+    path_taken = tempbeam.path_taken;
+
+    vector<monster*> affected = gavotte_affected_monsters(a - you.pos());
+    for (monster* mon : affected)
+        affected_monsters.push_back(mon->pos());
+
+    return true;
+}
+
+bool targeter_gavotte::valid_aim(coord_def a)
+{
+    if (!targeter_beam::valid_aim(a))
+        return false;
+
+    if (!in_bounds(a) || grid_distance(a, you.pos()) > 1 || a == you.pos())
+        return false;
+
+    if (a == agent->pos())
+        return notify_fail("Gravity is already pointing downward.");
+
+    // make sure it's a true cardinal
+    const coord_def delta = a - agent->pos();
+    if (delta.x && delta.y && abs(delta.x) != abs(delta.y))
+        return notify_fail("You can only reorient gravity in a cardinal direction.");
+
+    return true;
+}
+
+aff_type targeter_gavotte::is_affected(coord_def loc)
+{
+    for (auto pc : path_taken)
+        if (pc == loc)
+            return cell_is_solid(pc) ? AFF_NO : AFF_MAYBE;
+
+    for (coord_def pos : affected_monsters)
+        if (pos == loc)
+            return AFF_YES;
+
+    return AFF_NO;
+}
+
+targeter_magnavolt::targeter_magnavolt(const actor* act, int _range) :
+    targeter_smite(act, _range, 0, 0, false, nullptr)
+{
+}
+
+bool targeter_magnavolt::valid_aim(coord_def a)
+{
+    if (!targeter_smite::valid_aim(a))
+        return false;
+
+    if (!monster_at(a) || !you.can_see(*monster_at(a)))
+        return notify_fail("You don't see a valid target there.");
+
+    return true;
+}
+
+bool targeter_magnavolt::preferred_aim(coord_def a)
+{
+    return valid_aim(a) && !monster_at(a)->has_ench(ENCH_MAGNETISED);
+}
+
+bool targeter_magnavolt::set_aim(coord_def a)
+{
+    beam_targets.clear();
+    beam_paths.clear();
+
+    if (!targeter_smite::set_aim(a))
+        return false;
+
+    beam_targets = get_magnavolt_targets();
+    beam_targets.push_back(a);
+    beam_paths = get_magnavolt_beam_paths(beam_targets);
+
+    return true;
+}
+
+aff_type targeter_magnavolt::is_affected(coord_def loc)
+{
+    for (coord_def pos : beam_targets)
+    {
+        if (loc == pos)
+            return AFF_YES;
+    }
+
+    for (coord_def pos : beam_paths)
+    {
+        if (loc == pos)
+            return AFF_MAYBE;
+    }
+
+    return AFF_NO;
+}
+
+targeter_seismic_shockwave::targeter_seismic_shockwave(const actor* act, int _cannon_range) :
+    targeter_smite(act, LOS_RADIUS, 2, 2, true, nullptr), cannon_range(_cannon_range)
+{
+    cannon_pos = get_charged_cannon_pos(*act);
+}
+
+bool targeter_seismic_shockwave::valid_aim(coord_def a)
+{
+    if (!targeter_smite::valid_aim(a))
+        return false;
+
+    for (coord_def cannon : cannon_pos)
+    {
+        if (grid_distance(a, cannon) <= cannon_range
+            && cell_see_cell(a, cannon, LOS_NO_TRANS))
+        {
+            return true;
+        }
+    }
+
+    return notify_fail("Not in range of any cannon.");
 }

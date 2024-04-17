@@ -380,7 +380,7 @@ if you are victorious.
 %%%%
 Disjoin status
 
-You are destabilizing space around yourself, causing nearby monsters to be
+You are destabilising space around yourself, causing nearby monsters to be
 randomly blinked away from you.
 %%%%
 Fugue status
@@ -682,6 +682,11 @@ Orb status
 You are near (or perhaps holding) the Orb of Zot, whose energies disrupt
 translocation magic. Teleportation will take longer.
 %%%%
+Orb? status
+
+You are holding the Charlatan's Orb, whose energies disrupt translocation
+magic. Teleportation will take longer.
+%%%%
 -Hop status
 
 Your legs are tired, and you are unable to hop. This status will only recover
@@ -981,4 +986,13 @@ Stiff status
 
 Your legs have stiffened up from lack of motion, making your next move twice as
 slow as usual. This only affects movement actions.
+%%%%
+Fusillade status
+
+You are hurling conjured alchemical reagents at nearby monsters.
+%%%%
+Shockwave status
+
+One of your seismic cannons is fully assembled and ready to unleash a seismic
+shockwave. (Recast Seismic Cannonade to aim it.)
 %%%%

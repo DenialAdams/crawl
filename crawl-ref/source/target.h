@@ -53,6 +53,7 @@ public:
 
     virtual bool set_aim(coord_def a);
     virtual bool valid_aim(coord_def a) = 0;
+    virtual bool preferred_aim(coord_def a);
     virtual bool can_affect_outside_range();
     virtual bool can_affect_walls();
 
@@ -626,4 +627,38 @@ public:
     aff_type is_affected(coord_def loc) override;
 private:
     vector<coord_def> jolt_targets;
+};
+
+class targeter_gavotte : public targeter_beam
+{
+public:
+    targeter_gavotte(const actor* caster);
+    bool valid_aim(coord_def a) override;
+    bool set_aim(coord_def a) override;
+    aff_type is_affected(coord_def loc) override;
+private:
+    vector<coord_def> affected_monsters;
+};
+
+class targeter_magnavolt : public targeter_smite
+{
+public:
+    targeter_magnavolt(const actor *act, int range);
+    bool valid_aim(coord_def a) override;
+    bool preferred_aim(coord_def a) override;
+    bool set_aim(coord_def a) override;
+    aff_type is_affected(coord_def loc) override;
+private:
+    vector<coord_def> beam_targets;
+    vector<coord_def> beam_paths;
+};
+
+class targeter_seismic_shockwave : public targeter_smite
+{
+public:
+    targeter_seismic_shockwave(const actor *act, int cannon_range);
+    bool valid_aim(coord_def a) override;
+private:
+    vector<coord_def> cannon_pos;
+    int cannon_range;
 };

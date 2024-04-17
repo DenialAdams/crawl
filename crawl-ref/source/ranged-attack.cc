@@ -196,7 +196,11 @@ bool ranged_attack::handle_phase_blocked()
              punctuation.c_str());
     }
 
-    maybe_trigger_jinxbite();
+    if (!projectile->is_type(OBJ_MISSILES, MI_DART)
+        && !projectile->is_type(OBJ_MISSILES, MI_THROWING_NET))
+    {
+        maybe_trigger_jinxbite();
+    }
 
     return attack::handle_phase_blocked();
 }
@@ -227,7 +231,11 @@ bool ranged_attack::handle_phase_dodged()
              defender_name(false).c_str());
     }
 
-    maybe_trigger_jinxbite();
+    if (!projectile->is_type(OBJ_MISSILES, MI_DART)
+        && !projectile->is_type(OBJ_MISSILES, MI_THROWING_NET))
+    {
+        maybe_trigger_jinxbite();
+    }
 
     maybe_trigger_autodazzler();
 
@@ -686,23 +694,16 @@ bool ranged_attack::apply_missile_brand()
             break;
         }
 
-        coord_def pos, pos2;
-        const bool no_sanct = defender->kill_alignment() == KC_OTHER;
-        if (!random_near_space(defender, defender->pos(), pos, false,
-                               no_sanct)
-            || !random_near_space(defender, defender->pos(), pos2, false,
-                                  no_sanct))
-        {
-            break;
-        }
-        const coord_def from = attacker->pos();
-        if (grid_distance(pos2, from) > grid_distance(pos, from))
-            pos = pos2;
-
         if (defender->is_player())
-            defender->blink_to(pos);
+        {
+            if (attacker->is_monster())
+                blink_player_away(attacker->as_monster());
+            // Specifically to handle reflected darts shot by the player
+            else
+                you.blink();
+        }
         else
-            defender->as_monster()->blink_to(pos, false, false);
+            blink_away(defender->as_monster(), attacker);
         break;
     }
     case SPMSL_SILVER:

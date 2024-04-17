@@ -157,7 +157,7 @@ static string _spell_extra_description(spell_type spell, bool viewing)
 
     // spell power, spell range, noise
     const string rangestring = spell_range_string(spell);
-    const string damagestring = spell_damage_string(spell);
+    const string damagestring = spell_damage_string(spell, false, -1, true);
 
     desc << chop_string(spell_power_string(spell), 10)
          << chop_string(damagestring.length() ? damagestring : "N/A", 10)
@@ -1216,12 +1216,8 @@ unique_ptr<targeter> find_spell_targeter(spell_type spell, int pow, int range)
     case SPELL_GLACIATE:
         return make_unique<targeter_cone>(&you, range);
     case SPELL_GRAVITAS:
-        return make_unique<targeter_smite>(&you, range,
-                                           gravitas_range(pow),
-                                           gravitas_range(pow),
-                                           false,
-                                           [](const coord_def& p) -> bool {
-                                              return you.pos() != p; });
+        return make_unique<targeter_smite>(&you, range, gravitas_radius(pow),
+                                                        gravitas_radius(pow));
     case SPELL_VIOLENT_UNRAVELLING:
         return make_unique<targeter_unravelling>();
     case SPELL_INFESTATION:
@@ -1256,6 +1252,13 @@ unique_ptr<targeter> find_spell_targeter(spell_type spell, int pow, int range)
         auto plasma_paths = plasma_beam_paths(you.pos(), plasma_targets);
         const aff_type a = plasma_targets.size() == 1 ? AFF_YES : AFF_MAYBE;
         return make_unique<targeter_multiposition>(&you, plasma_paths, a);
+    }
+    case SPELL_PILEDRIVER:
+    {
+        auto piledriver_targets = possible_piledriver_targets();
+        auto piledriver_paths = piledriver_beam_paths(piledriver_targets);
+        const aff_type a = piledriver_targets.size() == 1 ? AFF_YES : AFF_MAYBE;
+        return make_unique<targeter_multiposition>(&you, piledriver_paths, a);
     }
     case SPELL_CHAIN_LIGHTNING:
         return make_unique<targeter_chain_lightning>();
@@ -1392,6 +1395,14 @@ unique_ptr<targeter> find_spell_targeter(spell_type spell, int pow, int range)
     case SPELL_NULLIFYING_BREATH:
         return make_unique<targeter_beam>(&you, range, ZAP_NULLIFYING_BREATH, pow,
                                           2, 2);
+    case SPELL_GELLS_GAVOTTE:
+        return make_unique<targeter_gavotte>(&you);
+
+    case SPELL_MAGNAVOLT:
+        return make_unique<targeter_magnavolt>(&you, range);
+
+    case SPELL_SEISMIC_SHOCKWAVE:
+        return make_unique<targeter_seismic_shockwave>(&you, range);
 
     default:
         break;
@@ -1651,6 +1662,16 @@ static vector<string> _desc_vampiric_draining_valid(const monster_info& mi)
     return vector<string>{};
 }
 
+static vector<string> _desc_rimeblight_valid(const monster_info& mi)
+{
+    if (mi.is(MB_RIMEBLIGHT))
+        return vector<string>{"already infected"};
+    else if (!(mi.holi & (MH_NATURAL | MH_DEMONIC | MH_HOLY)))
+        return vector<string>{"not susceptible"};
+
+    return vector<string>{};
+}
+
 static vector<string> _desc_dispersal_chance(const monster_info& mi, int pow)
 {
     const int wl = mi.willpower();
@@ -1819,6 +1840,8 @@ desc_filter targeter_addl_desc(spell_type spell, int powc, spell_flags flags,
             return bind(_desc_meph_chance, placeholders::_1);
         case SPELL_VAMPIRIC_DRAINING:
             return bind(_desc_vampiric_draining_valid, placeholders::_1);
+        case SPELL_RIMEBLIGHT:
+            return bind(_desc_rimeblight_valid, placeholders::_1);
         case SPELL_STARBURST:
         {
             targeter_starburst* burst_hitf =
@@ -2007,6 +2030,9 @@ spret your_spells(spell_type spell, int powc, bool actual_spell,
         args.target_prefix = prompt;
         args.top_prompt = title;
         args.behaviour = &beh;
+
+        if (testbits(flags, spflag::prefer_farthest))
+            args.prefer_farthest = true;
 
         // if the spell is useless and we have somehow gotten this far, it's
         // a forced cast. Setting this prevents the direction chooser from
@@ -2528,6 +2554,9 @@ static spret _do_cast(spell_type spell, int powc, const dist& spd,
     case SPELL_PERMAFROST_ERUPTION:
         return cast_permafrost_eruption(you, powc, fail);
 
+    case SPELL_PILEDRIVER:
+        return cast_piledriver(powc, fail);
+
     // Just to do extra messaging; spell is handled by default zapping
     case SPELL_COMBUSTION_BREATH:
     case SPELL_GLACIAL_BREATH:
@@ -2552,7 +2581,20 @@ static spret _do_cast(spell_type spell, int powc, const dist& spd,
     }
     break;
 
+    case SPELL_GELLS_GAVOTTE:
+        return cast_gavotte(powc, beam.target - you.pos(), fail);
 
+    case SPELL_MAGNAVOLT:
+        return cast_magnavolt(beam.target, powc, fail);
+
+    case SPELL_FULSOME_FUSILLADE:
+        return cast_fulsome_fusillade(powc, fail);
+
+    case SPELL_SEISMIC_CANNONADE:
+        return cast_seismic_cannonade(you, powc, fail);
+
+    case SPELL_SEISMIC_SHOCKWAVE:
+        return cast_seismic_shockwave(you, beam.target, powc, fail);
 
     // non-player spells that have a zap, but that shouldn't be called (e.g
     // because they will crash as a player zap).
@@ -2870,7 +2912,7 @@ string spell_max_damage_string(spell_type spell)
     return spell_damage_string(spell, false, max_pow);
 }
 
-string spell_damage_string(spell_type spell, bool evoked, int pow)
+string spell_damage_string(spell_type spell, bool evoked, int pow, bool terse)
 {
     if (pow == -1)
         pow = evoked ? wand_power(spell) : calc_spell_power(spell);
@@ -2887,6 +2929,19 @@ string spell_damage_string(spell_type spell, bool evoked, int pow)
         }
         case SPELL_AIRSTRIKE:
             return describe_airstrike_dam(base_airstrike_damage(pow));
+        case SPELL_PILEDRIVER:
+            return make_stringf("2d(%d-%d)",
+                        collision_damage(piledriver_collision_power(pow, 1), false).size,
+                        collision_damage(piledriver_collision_power(pow, 4), false).size);
+        case SPELL_GELLS_GAVOTTE:
+            return make_stringf("2d(%d-%d)",
+                        collision_damage(gavotte_impact_power(pow, 1), false).size,
+                        collision_damage(gavotte_impact_power(pow, 4), false).size);
+
+        case SPELL_FULSOME_FUSILLADE:
+            return make_stringf("(3-5)d%d", _spell_damage(spell, pow).size);
+        case SPELL_RIMEBLIGHT:
+            return describe_rimeblight_damage(pow, terse);
         default:
             break;
     }
@@ -2911,6 +2966,17 @@ string spell_damage_string(spell_type spell, bool evoked, int pow)
     }
     const string dam_str = make_stringf("%s%dd%d", mult.c_str(), dam.num,
             dam.size);
+
+    if (spell == SPELL_ISKENDERUNS_MYSTIC_BLAST)
+    {
+        if (terse)
+            return dam_str + "+";
+        else
+            return make_stringf("%s (+%s)",
+                dam_str.c_str(),
+                describe_collision_dam(collision_damage(pow, false)).c_str());
+    }
+
     if (spell == SPELL_LRD
         || spell == SPELL_SHATTER
         || spell == SPELL_POLAR_VORTEX)

@@ -185,8 +185,7 @@ able to keep their balance, move at a normal speed, and avoid fumbling.
 %%%%
 Some mud
 
-A thick layer of gritty mud.
-<liquefied>
+A thick layer of gritty mud. [[liquefied]]
 %%%%
 The open sea
 
@@ -928,6 +927,10 @@ The damp floor
 
 The floor. It remains forever damp, perhaps due to the humidity or the constant
 flow of clouds.
+%%%%
+A wall of orange crystal
+
+<A crystal wall>
 %%%%
 A wall of white crystal
 

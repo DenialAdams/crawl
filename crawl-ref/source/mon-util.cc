@@ -794,11 +794,10 @@ bool mons_is_active_ballisto(const monster& mon)
  */
 bool mons_class_is_firewood(monster_type mc)
 {
-    return mc == MONS_BOULDER ||
-           (mons_class_is_stationary(mc)
+    return mons_class_is_stationary(mc)
            && !mons_class_is_test(mc)
            && mons_class_flag(mc, M_NO_THREAT)
-           && !mons_is_tentacle_or_tentacle_segment(mc));
+           && !mons_is_tentacle_or_tentacle_segment(mc);
 }
 
 /**
@@ -890,6 +889,7 @@ bool mons_is_object(monster_type mc)
            || mc == MONS_LURKING_HORROR
            || mc == MONS_DANCING_WEAPON
            || mc == MONS_LIGHTNING_SPIRE
+           || mc == MONS_SEISMIC_CANNON
            || mc == MONS_CREEPING_INFERNO;
 }
 

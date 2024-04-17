@@ -3348,8 +3348,11 @@ int monster::evasion(bool ignore_temporary, const actor* /*act*/) const
     if (ignore_temporary)
         return max(ev, 0);
 
-    if (paralysed() || petrified() || petrifying() || asleep())
+    if (paralysed() || petrified() || petrifying() || asleep()
+        || has_ench(ENCH_MAGNETISED))
+    {
         return 0;
+    }
 
     if (caught())
         ev /= 5;
@@ -6466,6 +6469,7 @@ bool monster::angered_by_attacks() const
             && !mons_class_is_zombified(type)
             && !is_divine_companion()
             && type != MONS_SPELLFORGED_SERVITOR
+            && type != MONS_SEISMIC_CANNON
             && type != MONS_BLOCK_OF_ICE
             && !mons_is_conjured(type)
             && !testbits(flags, MF_DEMONIC_GUARDIAN)

@@ -2987,14 +2987,15 @@ static const struct spell_desc spelldata[] =
     TILEG_CLEANSING_FLAME,
 },
 
+// Evoker-only now
 {
     SPELL_GRAVITAS, "Gell's Gravitas",
     spschool::translocation,
-    spflag::target | spflag::not_self | spflag::needs_tracer,
+    spflag::target | spflag::needs_tracer | spflag::no_ghost,
     3,
     100,
     LOS_RADIUS, LOS_RADIUS,
-    0,
+    8,
     TILEG_GRAVITAS,
 },
 
@@ -3194,7 +3195,7 @@ static const struct spell_desc spelldata[] =
     50,
     3, 3,
     0,
-    TILEG_POISONOUS_VAPOURS,
+    TILEG_MERCURY_VAPOURS,
 },
 
 {
@@ -3455,8 +3456,8 @@ static const struct spell_desc spelldata[] =
     SPELL_MANIFOLD_ASSAULT, "Manifold Assault",
     spschool::translocation,
     spflag::none,
-    4,
-    100,
+    7,
+    200,
     -1, -1,
     0,
     TILEG_MANIFOLD_ASSAULT,
@@ -3598,7 +3599,7 @@ static const struct spell_desc spelldata[] =
 {
     SPELL_SUMMON_SPIDERS, "Summon Spiders",
     spschool::summoning | spschool::alchemy,
-    spflag::mons_abjure | spflag::monster,
+    spflag::monster,
     6,
     200,
     -1, -1,
@@ -3848,6 +3849,95 @@ static const struct spell_desc spelldata[] =
     LOS_RADIUS, LOS_RADIUS,
     10,
     TILEG_ERROR,
+},
+
+{
+    SPELL_PILEDRIVER, "Maxwell's Portable Piledriver",
+    spschool::translocation,
+    spflag::none,
+    3,
+    100,
+    5, 5,
+    0,
+    TILEG_PILEDRIVER,
+},
+
+{
+    SPELL_GELLS_GAVOTTE, "Gell's Gavotte",
+    spschool::translocation,
+    spflag::target,
+    6,
+    200,
+    1, 1,
+    0,
+    TILEG_GAVOTTE,
+},
+
+{
+    SPELL_MAGNAVOLT, "Magnavolt",
+    spschool::air | spschool::earth,
+    spflag::target | spflag::needs_tracer | spflag::destructive
+    | spflag::prefer_farthest,
+    7,
+    200,
+    LOS_RADIUS, LOS_RADIUS,
+    0,
+    TILEG_MAGNAVOLT,
+},
+
+{
+    SPELL_FULSOME_FUSILLADE, "Fulsome Fusillade",
+    spschool::alchemy | spschool::conjuration,
+    spflag::area | spflag::destructive,
+    8,
+    200,
+    LOS_RADIUS, LOS_RADIUS,
+    0,
+    TILEG_FULSOME_FUSILLADE,
+},
+
+{
+    SPELL_RIMEBLIGHT, "Rimeblight",
+    spschool::necromancy | spschool::ice,
+    spflag::dir_or_target | spflag::unclean,
+    7,
+    200,
+    5, 5,
+    0,
+    TILEG_RIMEBLIGHT,
+},
+
+{
+    SPELL_SEISMIC_CANNONADE, "Seismic Cannonade",
+    spschool::alchemy | spschool::earth,
+    spflag::none,
+    7,
+    200,
+    -1, -1,
+    0,
+    TILEG_SEISMIC_CANNONADE,
+},
+
+{
+    SPELL_SEISMIC_SHOCKWAVE, "Seismic Shockwave",
+    spschool::alchemy | spschool::earth,
+    spflag::target,
+    7,
+    200,
+    6, 6,
+    0,
+    TILEG_SUMMON_LIGHTNING_SPIRE,
+},
+
+{
+    SPELL_STONE_BULLET, "Stone Bullet",
+    spschool::conjuration | spschool::earth,
+    spflag::dir_or_target | spflag::needs_tracer | spflag::monster,
+    5,
+    200,
+    6, 6,
+    0,
+    TILEG_STONE_ARROW,
 },
 
 {

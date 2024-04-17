@@ -2645,7 +2645,7 @@ bool drop_item(int item_dropped, int quant_drop)
 
     ASSERT(item.defined());
 
-    if (Options.drop_disables_autopickup)
+    if (Options.drop_disables_autopickup && item.base_type != OBJ_MISSILES)
         set_item_autopickup(item, AP_FORCE_OFF);
 
     if (copy_item_to_grid(item, you.pos(), quant_drop, true, true) == NON_ITEM)
@@ -3990,6 +3990,8 @@ colour_t item_def::miscellany_colour() const
             return LIGHTRED;
         case MISC_SACK_OF_SPIDERS:
             return WHITE;
+        case MISC_GRAVITAMBOURINE:
+            return LIGHTMAGENTA;
 #if TAG_MAJOR_VERSION == 34
         case MISC_LAMP_OF_FIRE:
             return YELLOW;

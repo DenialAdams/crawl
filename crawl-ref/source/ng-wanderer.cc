@@ -132,6 +132,7 @@ static void _assign_wanderer_stats(skill_type sk1, skill_type sk2,
             case SK_FIGHTING:
             case SK_EVOCATIONS:
             case SK_THROWING:
+            case SK_SHAPESHIFTING:
                 if (coinflip())
                     str_count++;
                 else
@@ -202,14 +203,14 @@ static skill_type _wanderer_role_skill_select(bool defense)
           SK_SUMMONINGS, SK_NECROMANCY, SK_TRANSLOCATIONS,
           SK_ALCHEMY, SK_CONJURATIONS,
           SK_HEXES, SK_FIRE_MAGIC, SK_ICE_MAGIC, SK_SPELLCASTING,
-          SK_AIR_MAGIC, SK_EARTH_MAGIC, SK_FIGHTING };
+          SK_AIR_MAGIC, SK_EARTH_MAGIC, SK_SHAPESHIFTING, SK_FIGHTING };
 
     int offense_size = ARRAYSZ(offense_skills);
 
     const skill_type physical_skills[] =
         { SK_AXES, SK_MACES_FLAILS, SK_RANGED_WEAPONS, SK_POLEARMS,
           SK_SHORT_BLADES, SK_LONG_BLADES, SK_STAVES, SK_UNARMED_COMBAT,
-          SK_FIGHTING };
+          SK_SHAPESHIFTING, SK_FIGHTING };
 
     int physical_size = ARRAYSZ(physical_skills);
 
@@ -271,7 +272,8 @@ static void _setup_starting_skills(skill_type sk1, skill_type sk2,
                                           2, SK_STEALTH,
                                           1 + magical, SK_SPELLCASTING,
                                           2, SK_EVOCATIONS,
-                                          1, SK_INVOCATIONS);
+                                          1, SK_INVOCATIONS,
+                                          2, SK_SHAPESHIFTING);
 
         if (!is_useless_skill(selected) && selected != SK_NONE
             && you.skills[selected] < 5)
@@ -483,8 +485,10 @@ static void _wanderer_random_evokable()
             (misc_item_type)item_for_set(ITEM_SET_AREA_MISCELLANY);
         const auto ally_evoker_type =
             (misc_item_type)item_for_set(ITEM_SET_ALLY_MISCELLANY);
+        const auto control_evoker_type =
+            (misc_item_type)item_for_set(ITEM_SET_CONTROL_MISCELLANY);
         misc_item_type selected_evoker =
-              random_choose(ally_evoker_type, MISC_PHIAL_OF_FLOODS,
+              random_choose(ally_evoker_type, control_evoker_type,
                             MISC_PHANTOM_MIRROR, area_evoker_type,
                             MISC_LIGHTNING_ROD);
 
@@ -530,6 +534,15 @@ static void _wanderer_random_evokable()
 
         newgame_make_item(OBJ_WANDS, selected_wand, 1, charges);
     }
+}
+
+// Create a random low-level talisman in the inventory.
+static void _wanderer_random_talisman()
+{
+    talisman_type selected_talisman =
+        coinflip() ? TALISMAN_BEAST : TALISMAN_FLUX;
+
+    newgame_make_item(OBJ_TALISMANS, selected_talisman);
 }
 
 static void _give_wanderer_aux_armour(int plus = 0)
@@ -665,6 +678,12 @@ static vector<spell_type> _wanderer_good_equipment(skill_type & skill)
         // Random wand or xp evoker
         _wanderer_random_evokable();
         break;
+
+    case SK_SHAPESHIFTING:
+        // Random low-level talisman
+        _wanderer_random_talisman();
+        break;
+
     default:
         break;
     }
@@ -748,6 +767,10 @@ static vector<spell_type> _wanderer_decent_equipment(skill_type & skill,
     case SK_EVOCATIONS:
         newgame_make_item(OBJ_WANDS, coinflip() ? WAND_FLAME : WAND_POLYMORPH,
                           1, 3 + random2(5));
+        break;
+
+    case SK_SHAPESHIFTING:
+        newgame_make_item(OBJ_TALISMANS, TALISMAN_BEAST);
         break;
 
     case SK_STEALTH:

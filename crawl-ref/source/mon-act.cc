@@ -1283,7 +1283,11 @@ bool handle_throw(monster* mons, bolt & beem, bool teleport, bool check_only)
     if (prefer_ranged_attack)
     {
         // Master archers are always quite likely to shoot you, if they can.
-        if (one_chance_in(10))
+        //
+        // (They always fire when in melee, to keep them from rarely swapping
+        // their launchers away when they inevitably bump attack their target
+        // anyway)
+        if (one_chance_in(10) && !adjacent(beem.target, mons->pos()))
             return false;
     }
     else if (launcher)
@@ -2276,6 +2280,32 @@ static void _post_monster_move(monster* mons)
                 mi->del_ench(ENCH_ABJ);
         }
     }
+
+    if (mons->type == MONS_SEISMIC_CANNON)
+    {
+        // All that drilling makes an awful racket (and sometimes dust)
+        noisy(12, mons->pos(), mons->mid);
+        if (one_chance_in(10))
+            mons_speaks(mons);
+
+        if (one_chance_in(2))
+        {
+            coord_def spot;
+            int num_found = 0;
+            for (adjacent_iterator ai(mons->pos()); ai; ++ai)
+            {
+                if (!feat_is_solid(env.grid(*ai)) && !cloud_at(*ai)
+                    && one_chance_in(++num_found))
+                {
+                    spot = *ai;
+                }
+            }
+
+            if (!spot.origin())
+                place_cloud(CLOUD_DUST, spot, random_range(3, 5), mons);
+        }
+    }
+
 
     update_mons_cloud_ring(mons);
 

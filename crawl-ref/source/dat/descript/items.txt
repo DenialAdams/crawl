@@ -247,6 +247,12 @@ book of lightning
 
 A book that fairly crackles with arcane power.
 %%%%
+book of maladies
+
+A concise catalogue of afflictions, both magical and mundane, often described
+with a disquieting degree of cheerfulness. Most of them operate on timescales
+too slow to be useful to an adventurer, but a few sound remarkably efficacious.
+%%%%
 book of minor magic
 
 A spellbook containing a variety of simple but useful magical incantations.
@@ -462,6 +468,21 @@ A heavy piece of wood. While clubs are rather primitive weapons, bashing
 someone's skull in with one remains a very popular and effective means of
 dispute resolution.
 %%%%
+codex of conductivity
+
+An exhaustive collection of research notes on the effects of electricity upon
+everything from sawdust to snozzcumbers, interspersed with spell formulae and
+usable technical schematics. The author's handwriting deteriorates shockingly in
+the middle of the chapter on spriggan electrophysiology, leading to much
+speculation about both their identity and their sense of self-preservation.
+%%%%
+compendium of siegecraft
+
+An analytical treatise on siege warfare, written in a clear and readable manner.
+A majority of its chapters are concerned with logistics and the maintenance of
+supply lines, but several detail spells useful for breaching fortifications
+(and also other, softer, things).
+%%%%
 condenser vane
 
 A magical device that condenses ambient energy into various destructive clouds.
@@ -632,6 +653,17 @@ dealing enormous damage which increases with the user's Shapeshifting skill.
 However, this instability makes the user unable to use weapons, shields or body
 armour. They also glow, reducing stealth and preventing invisibility, and their
 melee damage is reduced, as their limbs sometimes destabilise mid-swing.
+%%%%
+gell's gravitambourine
+
+A copper and tungsten tambourine that vibrates excitedly in your hands, as if
+eager to be used.
+
+Just as music brings people together, shaking it with the proper rhythm will
+draw a large group of monsters into a narrow space and hold any hostile ones in
+place for a short time with inescapable waves of crushing gravity.
+
+The area of effect and duration increases with Evocations skill.
 %%%%
 gem
 
@@ -877,7 +909,7 @@ forces they could not hope to control.
 %%%%
 orb
 
-A sphere of crystal, carried in place of a shield. Magic scintilliates within
+A sphere of crystal, carried in place of a shield. Magic scintillates within
 its interior.
 %%%%
 orb of zot

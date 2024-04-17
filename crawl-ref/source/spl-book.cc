@@ -236,6 +236,7 @@ static unordered_set<int> _player_nonbook_spells =
                           // least uses the enum value.
     SPELL_TREMORSTONE,    // not cast directly, but the spell type is used for
                           // damage and noise display.
+    SPELL_GRAVITAS,
     SPELL_SONIC_WAVE,
     // religion
     SPELL_SMITING,
@@ -243,7 +244,7 @@ static unordered_set<int> _player_nonbook_spells =
     SPELL_HURL_TORCHLIGHT,
     // Ds powers
     SPELL_HURL_DAMNATION,
-    // Green Draconian breath
+    // Draconian breaths
     SPELL_NOXIOUS_BREATH,
     SPELL_COMBUSTION_BREATH,
     SPELL_GLACIAL_BREATH,
@@ -252,6 +253,8 @@ static unordered_set<int> _player_nonbook_spells =
     SPELL_CAUSTIC_BREATH,
     SPELL_GALVANIC_BREATH,
     SPELL_MUD_BREATH,
+    // Activate component of Seismic Cannonade
+    SPELL_SEISMIC_SHOCKWAVE,
 };
 
 bool is_player_spell(spell_type which_spell)

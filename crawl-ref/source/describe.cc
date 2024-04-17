@@ -1758,10 +1758,10 @@ static string _describe_weapon_brand(const item_def &item)
                "armour. Undead and demons cannot use this.";
     case SPWPN_FOUL_FLAME:
         return "It has been infused with foul flame, dealing an additional "
-               "three-quarters of damage to holy beings, an additional quarter "
-               "damage to undead and demons, and an additional half damage to "
-               "all others. Holy beings and good god worshippers cannot use "
-               "this.";
+               "three-quarters damage to holy beings, an additional "
+               "one-quarter damage to undead and demons, and an additional "
+               "half damage to all others, so long as it pierces armour. "
+               "Holy beings and good god worshippers cannot use this.";
     case SPWPN_ELECTROCUTION:
         return "It sometimes electrocutes victims (1/4 chance, 8-20 damage).";
     case SPWPN_VENOM:
@@ -3101,7 +3101,9 @@ string get_item_description(const item_def &item,
             if (item.base_type == OBJ_ARMOUR
                 || item.base_type == OBJ_WEAPONS)
             {
-                if (you.has_mutation(MUT_ARTEFACT_ENCHANTING))
+                if (!item_ident(item, ISFLAG_KNOW_PLUSES))
+                    description << "\nIt is an ancient artefact.";
+                else if (you.has_mutation(MUT_ARTEFACT_ENCHANTING))
                 {
                     if (is_unrandom_artefact(item)
                         || (item.base_type == OBJ_ARMOUR
@@ -3211,7 +3213,7 @@ static vector<extra_feature_desc> _get_feature_extra_descs(const coord_def &pos)
                 tile_def(TILE_UMBRA)
             });
         }
-        if (liquefied(pos))
+        if (liquefied(pos, true))
         {
             ret.push_back({
                 "Liquefied ground.",

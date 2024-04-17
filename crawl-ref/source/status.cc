@@ -758,6 +758,11 @@ bool fill_status_info(int status, status_info& inf)
             inf.light_colour = LIGHTMAGENTA;
             inf.light_text = "Orb";
         }
+        else if (player_equip_unrand(UNRAND_CHARLATANS_ORB))
+        {
+            inf.light_colour = LIGHTMAGENTA;
+            inf.light_text = "Orb?";
+        }
         else if (orb_limits_translocation())
         {
             inf.light_colour = MAGENTA;
@@ -835,6 +840,19 @@ bool fill_status_info(int status, status_info& inf)
             break;
         if (player_in_branch(BRANCH_TARTARUS))
             _fill_inf_from_ddef(DUR_LOWERED_WL, inf);
+        break;
+
+    case DUR_FUSILLADE:
+        if (you.magic_points < 2)
+            inf.light_colour = DARKGREY;
+        break;
+
+    case STATUS_CANNONADE:
+        if (cannonade_is_fully_charged(you))
+        {
+            inf.light_colour = LIGHTCYAN;
+            inf.light_text = "Shockwave";
+        }
         break;
 
     default:

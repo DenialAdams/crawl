@@ -23,6 +23,7 @@
 #include "env.h"
 #include "fight.h"
 #include "hints.h"
+#include "god-abil.h"
 #include "item-status-flag-type.h"
 #include "items.h"
 #include "libutil.h"
@@ -39,6 +40,7 @@
 #include "religion.h"
 #include "spl-clouds.h"
 #include "spl-damage.h"
+#include "spl-monench.h"
 #include "spl-summoning.h"
 #include "state.h"
 #include "stepdown.h"
@@ -1368,6 +1370,7 @@ void monster::apply_enchantment(const mon_enchant &me)
     case ENCH_INSTANT_CLEAVE:
     case ENCH_PROTEAN_SHAPESHIFTING:
     case ENCH_CURSE_OF_AGONY:
+    case ENCH_MAGNETISED:
         decay_enchantment(en);
         break;
 
@@ -1496,6 +1499,9 @@ void monster::apply_enchantment(const mon_enchant &me)
 
                 switch (type)
                 {
+                    case MONS_ELECTROFERRIC_VORTEX:
+                        mprf("%s dissipates.", name(DESC_THE, false).c_str());
+                        break;
                     case MONS_PILE_OF_DEBRIS:
                         mprf("%s collapses into dust.", name(DESC_THE, false).c_str());
                         break;
@@ -1642,7 +1648,7 @@ void monster::apply_enchantment(const mon_enchant &me)
 
     case ENCH_TP:
         if (decay_enchantment(en, true) && !no_tele())
-            monster_teleport(this, true);
+            monster_teleport(this, true, false, true);
         break;
 
     case ENCH_AWAKEN_FOREST:
@@ -1819,10 +1825,11 @@ void monster::apply_enchantment(const mon_enchant &me)
 
     case ENCH_BOUND:
         // Remove Yred binding as soon as we're not in the effect area
-        if (!props.exists(BINDING_SIGIL_DURATION_KEY)
+        if (props.exists(YRED_SHACKLES_KEY)
             && (!is_blasphemy(pos()) || !is_blasphemy(you.pos())
                 || !you.duration[DUR_FATHOMLESS_SHACKLES]))
         {
+            props.erase(YRED_SHACKLES_KEY);
             del_ench(en, true, true);
         }
         else
@@ -1862,6 +1869,18 @@ void monster::apply_enchantment(const mon_enchant &me)
                 add_ench(renew);
             }
         }
+        break;
+
+    case ENCH_RIMEBLIGHT:
+        tick_rimeblight(*this);
+        // Instakill at <=20% max hp
+        if (hit_points * 5 <= max_hit_points)
+        {
+            props[RIMEBLIGHT_DEATH_KEY] = true;
+            monster_die(*this, KILL_YOU, NON_MONSTER);
+        }
+        else if (decay_enchantment(en))
+            simple_monster_message(*this, " recovers from rimeblight.");
         break;
 
     default:
@@ -2112,6 +2131,8 @@ static const char *enchant_names[] =
     "protean_shapeshifting", "simulacrum_sculpting", "curse_of_agony",
     "channel_searing_ray",
     "touch_of_beogh", "vengeance_target",
+    "rimeblight",
+    "magnetised",
     "buggy", // NUM_ENCHANTMENTS
 };
 

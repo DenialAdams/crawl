@@ -40,6 +40,8 @@ static pair<spell_type, zap_type> _spl_zaps[] =
     { SPELL_BLASTMOTE, ZAP_BLASTMOTE },
     { SPELL_KISS_OF_DEATH, ZAP_KISS_OF_DEATH },
     { SPELL_PERMAFROST_ERUPTION, ZAP_PERMAFROST_ERUPTION_COLD },
+    { SPELL_FULSOME_FUSILLADE, ZAP_FULSOME_FUSILLADE },
+    { SPELL_RIMEBLIGHT, ZAP_RIMEBLIGHT },
     // Wizard mode only.
     { SPELL_PORKALATOR, ZAP_PORKALATOR },
     { SPELL_HURL_DAMNATION, ZAP_HURL_DAMNATION },
@@ -80,6 +82,9 @@ static pair<spell_type, zap_type> _spl_zaps[] =
     { SPELL_MOMENTUM_STRIKE, ZAP_MOMENTUM_STRIKE },
     { SPELL_TREMORSTONE, ZAP_TREMORSTONE },
     { SPELL_CURSE_OF_AGONY, ZAP_CURSE_OF_AGONY },
+    { SPELL_GRAVITAS, ZAP_GRAVITAS },
+    { SPELL_SEISMIC_CANNONADE, ZAP_SEISMIC_SHOCKWAVE },
+    { SPELL_STONE_BULLET, ZAP_STONE_BULLET },
 
     // monster-specific
     { SPELL_SLUG_DART, ZAP_SLUG_DART },
@@ -137,6 +142,7 @@ static pair<spell_type, zap_type> _spl_zaps[] =
     { SPELL_GLACIAL_BREATH, ZAP_GLACIAL_BREATH },
     { SPELL_MUD_BREATH, ZAP_MUD_BREATH },
     { SPELL_GALVANIC_BREATH, ZAP_GALVANIC_BREATH },
+    { SPELL_MAGNAVOLT, ZAP_MAGNAVOLT },
 
     // These are all for zap -> spell lookup.
     { SPELL_QUICKSILVER_BOLT, ZAP_QUICKSILVER_BOLT },
@@ -159,7 +165,6 @@ static pair<ability_type, zap_type> _abil_zaps[] =
     { ABIL_SPIT_POISON, ZAP_SPIT_POISON },
     { ABIL_BREATHE_FIRE, ZAP_BREATHE_FIRE },
     { ABIL_BREATHE_POISON, ZAP_BREATHE_POISON },
-    { ABIL_NOXIOUS_BREATH, ZAP_NOXIOUS_BREATH },
 };
 
 zap_type spell_to_zap(spell_type spell)

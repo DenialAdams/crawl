@@ -1019,6 +1019,7 @@ static string misc_type_name(int type)
 #endif
     case MISC_TIN_OF_TREMORSTONES:       return "tin of tremorstones";
     case MISC_CONDENSER_VANE:            return "condenser vane";
+    case MISC_GRAVITAMBOURINE:           return "Gell's gravitambourine";
 
     default:
         return "buggy miscellaneous item";
@@ -1122,6 +1123,7 @@ static const char* _book_type_name(int booktype)
     case BOOK_SCORCHING:              return "Scorching";
     case BOOK_MOVEMENT:               return "Movement";
     case BOOK_WICKED_CREATION:        return "Wicked Creation";
+    case BOOK_MALADIES:               return "Maladies";
     case BOOK_RANDART_LEVEL:          return "Fixed Level";
     case BOOK_RANDART_THEME:          return "Fixed Theme";
     default:                          return "Bugginess";
@@ -1243,6 +1245,10 @@ string sub_type_string(const item_def &item, bool known)
             return "Trismegistus Codex";
         case BOOK_UNRESTRAINED:
             return "the Unrestrained Analects";
+        case BOOK_SIEGECRAFT:
+            return "Compendium of Siegecraft";
+        case BOOK_CONDUCTIVITY:
+            return "Codex of Conductivity";
 #if TAG_MAJOR_VERSION == 34
         case BOOK_AKASHIC_RECORD:
             return "Akashic Record";

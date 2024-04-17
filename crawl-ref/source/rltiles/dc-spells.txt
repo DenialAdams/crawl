@@ -4,6 +4,7 @@ chain_lightning CHAIN_LIGHTNING
 conjure_ball_lightning CONJURE_BALL_LIGHTNING
 lightning_bolt LIGHTNING_BOLT
 arcjolt ARCJOLT
+magnavolt MAGNAVOLT
 maxwells MAXWELLS_COUPLING
 repel_missiles REPEL_MISSILES
 shock SHOCK
@@ -89,6 +90,7 @@ permafrost_eruption PERMAFROST_ERUPTION
 throw_frost THROW_FROST
 throw_icicle THROW_ICICLE
 polar_vortex POLAR_VORTEX
+rimeblight RIMEBLIGHT
 
 %sdir gui/spells/necromancy
 agony AGONY
@@ -115,7 +117,7 @@ sublimation_of_blood SUBLIMATION_OF_BLOOD
 symbol_of_torment SYMBOL_OF_TORMENT
 vampiric_draining VAMPIRIC_DRAINING
 
-%sdir gui/spells/poison
+%sdir gui/spells/alchemy
 alistairs_intoxication ALISTAIRS_INTOXICATION
 mephitic_cloud MEPHITIC_CLOUD
 olgrebs_toxic_radiance OLGREBS_TOXIC_RADIANCE
@@ -124,8 +126,10 @@ poisonous_cloud POISONOUS_CLOUD
 spider_form SPIDER_FORM
 sting STING
 venom_bolt VENOM_BOLT
-poisonous_vapours POISONOUS_VAPOURS
+mercury_vapours MERCURY_VAPOURS
 noxious_bog NOXIOUS_BOG
+fulsome_fusillade FULSOME_FUSILLADE
+seismic_cannonade SEISMIC_CANNONADE
 
 %sdir gui/spells/summoning
 animate_armour ANIMATE_ARMOUR
@@ -162,6 +166,8 @@ teleport_other TELEPORT_OTHER
 gravitas GRAVITAS
 manifold_assault MANIFOLD_ASSAULT
 electric_charge ELECTRIC_CHARGE
+piledriver PILEDRIVER
+gavotte GAVOTTE
 
 # item-based spells
 %sdir gui/spells/misc

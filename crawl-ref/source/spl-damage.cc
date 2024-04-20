@@ -665,8 +665,8 @@ static int _los_spell_damage_actor(const actor* agent, actor &target,
 }
 
 /**
- * Returns the number of monsters adjacent to the given position which other
- * monsters can huddle against. (Reducing damage taken from Refrigeration.)
+ * Returns the number of allied monsters adjacent to the given position which
+ * other monsters can huddle against. (Reducing damage taken from Refrigeration.)
  */
 int adjacent_huddlers(coord_def pos)
 {
@@ -678,8 +678,11 @@ int adjacent_huddlers(coord_def pos)
             continue;
 
         const monster* mon = act->as_monster();
-        if (!mons_is_firewood(*mon) && !mons_is_conjured(mon->type))
+        if (!mons_is_firewood(*mon) && !mons_is_conjured(mon->type)
+            && mons_aligned(act, mon))
+        {
             ++adj_count;
+        }
     }
     return adj_count;
 }
@@ -5009,6 +5012,9 @@ static void _show_fusillade_explosion(map<coord_def, beam_type>& hit_map,
                                       vector<coord_def>& exp_map,
                                       bool quick_anim)
 {
+    if (!(Options.use_animations & UA_BEAM))
+        return;
+
     for (unsigned int j = 0; j < exp_map.size(); ++j)
     {
         const coord_def pos = exp_map[j];
@@ -5024,7 +5030,7 @@ static void _show_fusillade_explosion(map<coord_def, beam_type>& hit_map,
         }
     }
 
-    animation_delay(quick_anim ? 50 : 150, true);
+    animation_delay(quick_anim ? 0 : 50, true);
 }
 
 static void _do_fusillade_hit(monster* mon, int power, beam_type flavour)
@@ -5106,7 +5112,8 @@ void fire_fusillade()
 
     mpr("Flasks of reagents rain from above!");
 
-    drain_mp(2);
+    pay_mp(2);
+    finalize_mp_cost();
 
     int pow = you.props[FUSILLADE_POWER_KEY].get_int();
 
@@ -5162,8 +5169,8 @@ void fire_fusillade()
         }
     }
 
-    if (!quick_anim)
-        animation_delay(200, false);
+    if (Options.use_animations & UA_BEAM)
+        animation_delay(quick_anim ? 50 : 100, false);
 
     // Finally, actually apply damage to enemies
     map<coord_def, beam_type>::iterator it;

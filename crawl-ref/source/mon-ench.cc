@@ -1286,7 +1286,7 @@ void monster::apply_enchantment(const mon_enchant &me)
     case ENCH_FRENZIED:
         if (decay_enchantment(en))
         {
-            simple_monster_message(*this, " is no longer in an wild frenzy.");
+            simple_monster_message(*this, " is no longer in a wild frenzy.");
             const int duration = random_range(70, 130);
             add_ench(mon_enchant(ENCH_FATIGUE, 0, 0, duration));
             add_ench(mon_enchant(ENCH_SLOW, 0, 0, duration));
@@ -1873,6 +1873,8 @@ void monster::apply_enchantment(const mon_enchant &me)
 
     case ENCH_RIMEBLIGHT:
         tick_rimeblight(*this);
+        if (!alive())
+            return;
         // Instakill at <=20% max hp
         if (hit_points * 5 <= max_hit_points)
         {

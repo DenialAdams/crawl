@@ -1170,6 +1170,7 @@ string casting_uselessness_reason(spell_type spell, bool temp)
     case SPELL_SIMULACRUM:
     case SPELL_INFESTATION:
     case SPELL_TUKIMAS_DANCE:
+    case SPELL_SEISMIC_CANNONADE:
         if (you.allies_forbidden())
             return "you cannot coerce anything to obey you.";
         break;
@@ -1538,6 +1539,7 @@ bool spell_no_hostile_in_range(spell_type spell)
     case SPELL_OLGREBS_TOXIC_RADIANCE:
     case SPELL_IGNITION:
     case SPELL_FROZEN_RAMPARTS:
+    case SPELL_FULSOME_FUSILLADE:
         return minRange > you.current_vision;
 
     // Special handling for cloud spells.

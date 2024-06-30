@@ -1985,9 +1985,7 @@ static tileidx_t _tileidx_monster_no_props(const monster_info& mon)
                 return TILEP_MONS_BURNING_BUSH;
             return base;
 
-        // Temporary borrowing tiles for the non-beetle boulders.
         case MONS_BOULDER_BEETLE:
-        case MONS_BOULDER:
             return mon.is(MB_ROLLING)
                    ? _mon_random(TILEP_MONS_BOULDER_BEETLE_ROLLING, mon.number)
                    : base;
@@ -2275,7 +2273,7 @@ static const map<monster_info_flags, tileidx_t> status_icons = {
     { MB_CONTAM_LIGHT, TILEI_GLOW_LIGHT },
     { MB_CONTAM_HEAVY, TILEI_GLOW_HEAVY },
     { MB_PAIN_BOND, TILEI_PAIN_BOND },
-    { MB_BOUND, TILEI_CONSTRICTED},     // XXX: Terrible placeholder, since this doesn't do damage. Replace as soon as possible.
+    { MB_BOUND, TILEI_BIND },
     { MB_BULLSEYE_TARGET, TILEI_BULLSEYE},
     { MB_VITRIFIED, TILEI_VITRIFIED},
     { MB_CURSE_OF_AGONY, TILEI_CURSE_OF_AGONY},
@@ -2286,6 +2284,9 @@ static const map<monster_info_flags, tileidx_t> status_icons = {
     { MB_VENGEANCE_TARGET, TILEI_VENGEANCE_TARGET },
     { MB_MAGNETISED, TILEI_BULLSEYE },  // Placeholder
     { MB_RIMEBLIGHT, TILEI_RIMEBLIGHT },
+    { MB_ARMED, TILEI_UNDYING_ARMS },
+    { MB_SHADOWLESS, TILEI_SHADOWLESS },
+    { MB_SIGN_OF_RUIN, TILEI_SIGN_OF_RUIN },
 };
 
 set<tileidx_t> status_icons_for(const monster_info &mons)
@@ -2351,6 +2352,45 @@ tileidx_t tileidx_player_mons()
     case MONS_YAKTAUR:         return TILEP_MONS_YAKTAUR_MELEE;
     case MONS_YAKTAUR_CAPTAIN: return TILEP_MONS_YAKTAUR_CAPTAIN_MELEE;
     default:                   return tileidx_monster_base(mons, 0);
+    }
+}
+
+tileidx_t tileidx_player_shadow()
+{
+    if (species::is_draconian(you.species))
+        return TILEP_MONS_PLAYER_SHADOW_DRACONIAN;
+
+    switch (you.species)
+    {
+        case SP_ARMATAUR:       return TILEP_MONS_PLAYER_SHADOW_ARMATAUR;
+        case SP_BARACHI:        return TILEP_MONS_PLAYER_SHADOW_BARACHI;
+        case SP_COGLIN:         return TILEP_MONS_PLAYER_SHADOW_COGLIN;
+        case SP_DEMIGOD:        return TILEP_MONS_PLAYER_SHADOW_DEMIGOD;
+        case SP_DEMONSPAWN:     return TILEP_MONS_PLAYER_SHADOW_DEMONSPAWN;
+        case SP_DJINNI:         return TILEP_MONS_PLAYER_SHADOW_DJINN;
+        case SP_MOUNTAIN_DWARF: return TILEP_MONS_PLAYER_SHADOW_DWARF;
+        case SP_DEEP_ELF:       return TILEP_MONS_PLAYER_SHADOW_ELF;
+        case SP_FELID:          return TILEP_MONS_PLAYER_SHADOW_FELID;
+        case SP_FORMICID:       return TILEP_MONS_PLAYER_SHADOW_FORMICID;
+        case SP_GARGOYLE:       return TILEP_MONS_PLAYER_SHADOW_GARGOYLE;
+        case SP_GHOUL:          return TILEP_MONS_PLAYER_SHADOW_GHOUL;
+        case SP_GNOLL:          return TILEP_MONS_PLAYER_SHADOW_GNOLL;
+        case SP_HUMAN:          return TILEP_MONS_PLAYER_SHADOW_HUMAN;
+        case SP_KOBOLD:         return TILEP_MONS_PLAYER_SHADOW_KOBOLD;
+        case SP_MERFOLK:        return TILEP_MONS_PLAYER_SHADOW_MERFOLK;
+        case SP_MINOTAUR:       return TILEP_MONS_PLAYER_SHADOW_MINOTAUR;
+        case SP_MUMMY:          return TILEP_MONS_PLAYER_SHADOW_MUMMY;
+        case SP_NAGA:           return TILEP_MONS_PLAYER_SHADOW_NAGA;
+        case SP_OCTOPODE:       return TILEP_MONS_PLAYER_SHADOW_OCTOPODE;
+        case SP_ONI:            return TILEP_MONS_PLAYER_SHADOW_ONI;
+        case SP_SPRIGGAN:       return TILEP_MONS_PLAYER_SHADOW_SPRIGGAN;
+        case SP_TENGU:          return TILEP_MONS_PLAYER_SHADOW_TENGU;
+        case SP_TROLL:          return TILEP_MONS_PLAYER_SHADOW_TROLL;
+        case SP_VAMPIRE:        return TILEP_MONS_PLAYER_SHADOW_VAMPIRE;
+        case SP_VINE_STALKER:   return TILEP_MONS_PLAYER_SHADOW_VINE_STALKER;
+
+        default:
+            return TILEP_MONS_PROGRAM_BUG;
     }
 }
 #endif // USE_TILE
@@ -2849,7 +2889,8 @@ static tileidx_t _tileidx_misc(const item_def &item)
         return TILE_MISC_HORN_OF_GERYON;
 
     case MISC_BOX_OF_BEASTS:
-        return TILE_MISC_BOX_OF_BEASTS;
+        return evoker_charges(item.sub_type) ? TILE_MISC_BOX_OF_BEASTS
+                                             : TILE_MISC_BOX_OF_BEASTS_INERT;
 
 #if TAG_MAJOR_VERSION == 34
     case MISC_CRYSTAL_BALL_OF_ENERGY:
@@ -2864,7 +2905,8 @@ static tileidx_t _tileidx_misc(const item_def &item)
         return TILE_MISC_SACK_OF_SPIDERS;
 
     case MISC_GRAVITAMBOURINE:
-        return TILE_MISC_TAMBOURINE;
+        return evoker_charges(item.sub_type) ? TILE_MISC_TAMBOURINE
+                                             : TILE_MISC_TAMBOURINE_INERT;
 
     // Default for summary menus
     case NUM_MISCELLANY:
@@ -3292,8 +3334,13 @@ tileidx_t tileidx_bolt(const bolt &bolt)
             return TILE_BOLT_CRYSTAL_SPEAR + dir;
         else if (bolt.name == "puff of frost")
             return TILE_BOLT_FROST;
-        else if (bolt.name == "shard of ice")
+        else if (bolt.name == "shard of ice"
+                 || bolt.name == "shard of alchemical ice"
+                 || bolt.name == "salvo of alchemical ice"
+                    && !bolt.in_explosion_phase)
+        {
             return TILE_BOLT_ICICLE + dir;
+        }
         else if (bolt.name == "searing ray")
             return TILE_BOLT_SEARING_RAY;
         else if (bolt.name == "bolt of light"
@@ -3357,6 +3404,17 @@ tileidx_t tileidx_bolt(const bolt &bolt)
         break;
 
     case MAGENTA:
+        if (bolt.origin_spell == SPELL_SHADOW_BEAM)
+            return TILE_BOLT_SHADOW_BEAM + dir % tile_main_count(TILE_BOLT_SHADOW_BEAM);
+        if (bolt.origin_spell == SPELL_SHADOW_BALL
+            || bolt.origin_spell == SPELL_CREEPING_SHADOW
+            || bolt.origin_spell == SPELL_SHADOW_TEMPEST
+            || bolt.origin_spell == SPELL_SHADOW_PRISM)
+        {
+            return TILE_BOLT_SHADOW_BLAST;
+        }
+        if (bolt.origin_spell == SPELL_SHADOW_SHARD)
+            return TILE_BOLT_SHADOW_SHARD;
         break;
 
     case CYAN:
@@ -3389,6 +3447,7 @@ tileidx_t vary_bolt_tile(tileidx_t tile, int dist)
         return tile + (dist - 1) % tile_main_count(tile);
     case TILE_BOLT_FLAME:
     case TILE_BOLT_IRRADIATE:
+    case TILE_BOLT_SHADOW_BLAST:
         return tile + ui_random(tile_main_count(tile));
     case TILE_MI_BOOMERANG0:
         return tile + ui_random(4);
@@ -3702,10 +3761,6 @@ tileidx_t tileidx_ability(const ability_type ability)
         return TILEG_ABILITY_BREATHE_ACID;
     case ABIL_MUD_BREATH:
         return TILEG_ABILITY_BREATHE_MUD;
-#if TAG_MAJOR_VERSION == 34
-    case ABIL_BLINK:
-        return TILEG_ABILITY_BLINK;
-#endif
     case ABIL_HOP:
         return TILEG_ABILITY_HOP;
     case ABIL_BLINKBOLT:
@@ -3714,6 +3769,8 @@ tileidx_t tileidx_ability(const ability_type ability)
         return TILEG_ABILITY_SIPHON_ESSENCE;
     case ABIL_INVENT_GIZMO:
         return TILEG_ABILITY_INVENT_GIZMO;
+    case ABIL_IMBUE_SERVITOR:
+        return TILEG_ABILITY_IMBUE_SERVITOR;
 
     // Others
     case ABIL_END_TRANSFORMATION:
@@ -3778,8 +3835,8 @@ tileidx_t tileidx_ability(const ability_type ability)
     // Kiku
     case ABIL_KIKU_UNEARTH_WRETCHES:
         return TILEG_ABILITY_KIKU_UNEARTH_WRETCHES;
-    case ABIL_KIKU_TORMENT:
-        return TILEG_ABILITY_KIKU_TORMENT;
+    case ABIL_KIKU_SIGN_OF_RUIN:
+        return TILEG_ABILITY_KIKU_SIGN_OF_RUIN;
     case ABIL_KIKU_BLESS_WEAPON:
         return TILEG_ABILITY_KIKU_BLESS_WEAPON;
     case ABIL_KIKU_GIFT_CAPSTONE_SPELLS:
@@ -3920,10 +3977,12 @@ tileidx_t tileidx_ability(const ability_type ability)
     case ABIL_ASHENZARI_UNCURSE:
         return TILEG_ABILITY_ASHENZARI_UNCURSE;
     // Dithmenos
-    case ABIL_DITHMENOS_SHADOW_STEP:
-        return TILEG_ABILITY_DITHMENOS_SHADOW_STEP;
-    case ABIL_DITHMENOS_SHADOW_FORM:
-        return TILEG_ABILITY_DITHMENOS_SHADOW_FORM;
+    case ABIL_DITHMENOS_SHADOWSLIP:
+        return TILEG_ABILITY_DITHMENOS_SHADOWSLIP;
+    case ABIL_DITHMENOS_APHOTIC_MARIONETTE:
+        return TILEG_ABILITY_DITHMENOS_PANTOMIME;
+    case ABIL_DITHMENOS_PRIMORDIAL_NIGHTFALL:
+        return TILEG_ABILITY_DITHMENOS_NIGHTFALL;
     // Gozag
     case ABIL_GOZAG_POTION_PETITION:
         return TILEG_ABILITY_GOZAG_POTION_PETITION;

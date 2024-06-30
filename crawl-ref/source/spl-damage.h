@@ -16,6 +16,7 @@ const int DEFAULT_SHATTER_DICE = 3;
 const int FLAT_DISCHARGE_ARC_DAMAGE = 3;
 const int AIRSTRIKE_PER_SPACE_BONUS = 2;
 const int MAX_AIRSTRIKE_BONUS = 8 * AIRSTRIKE_PER_SPACE_BONUS;
+const int GRAVE_CLAW_MAX_CHARGES = 3;
 
 #define COUPLING_TIME_KEY "maxwells_charge_time"
 #define FLAME_WAVE_KEY "flame_waves"
@@ -24,6 +25,8 @@ const int MAX_AIRSTRIKE_BONUS = 8 * AIRSTRIKE_PER_SPACE_BONUS;
 #define TOXIC_RADIANCE_POWER_KEY "toxic_radiance_power"
 #define VORTEX_POWER_KEY "vortex_power"
 #define FUSILLADE_POWER_KEY "fusillade_power"
+#define GRAVE_CLAW_CHARGES_KEY "grave_claw_charges"
+
 
 void setup_fire_storm(const actor *source, int pow, bolt &beam);
 spret cast_fire_storm(int pow, bolt &beam, bool fail);
@@ -89,6 +92,7 @@ coord_def get_thunderbolt_last_aim(actor *caster);
 dice_def thunderbolt_damage(int power, int arc);
 spret cast_thunderbolt(actor *caster, int pow, coord_def aim,
                             bool fail);
+bool mons_should_fire_permafrost(int pow, const actor &agent);
 spret cast_permafrost_eruption(actor &caster, int pow, bool fail);
 set<coord_def> permafrost_targets(const actor &caster, int pow, bool actual = true);
 
@@ -99,8 +103,8 @@ void forest_damage(const actor *mon);
 
 int dazzle_chance_numerator(int hd);
 int dazzle_chance_denom(int pow);
-bool dazzle_monster(monster *mon, int pow);
-spret cast_dazzling_flash(int pow, bool fail, bool tracer = false);
+bool dazzle_target(actor *victim, const actor *agent, int pow);
+spret cast_dazzling_flash(const actor *caster, int pow, bool fail, bool tracer = false);
 
 spret cast_toxic_radiance(actor *caster, int pow, bool fail = false,
                                bool mon_tracer = false);
@@ -165,7 +169,7 @@ dice_def electrolunge_damage(int pow);
 
 int get_warp_space_chance(int pow);
 
-dice_def collision_damage(int pow, bool random);
+dice_def default_collision_damage(int pow, bool random);
 string describe_collision_dam(dice_def dice);
 
 vector<coord_def> get_magnavolt_targets();
@@ -174,5 +178,8 @@ spret cast_magnavolt(coord_def target, int pow, bool fail);
 
 spret cast_fulsome_fusillade(int pow, bool fail);
 void fire_fusillade();
+
+spret cast_grave_claw(actor& caster, coord_def targ, int pow, bool fail);
+void gain_grave_claw_soul(bool silent = false);
 
 bool warn_about_bad_targets(spell_type spell, vector<coord_def> targets);

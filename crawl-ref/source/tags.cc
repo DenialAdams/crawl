@@ -62,6 +62,7 @@
 #include "mapmark.h"
 #include "misc.h"
 #include "mon-death.h"
+#include "mon-ench.h"
 #if TAG_MAJOR_VERSION == 34
  #include "mon-place.h"
  #include "mon-poly.h"
@@ -4320,6 +4321,13 @@ static void _tag_read_you(reader &th)
         // state with no associated mutations. It's fine, it'll
         // all clear up once the form ends.
     }
+
+    // Set up recharge info so players can actually cast the spell ever.
+    if (th.getMinorVersion() < TAG_MINOR_GRAVE_CLAW_CHARGES
+        && you.has_spell(SPELL_GRAVE_CLAW))
+    {
+        gain_grave_claw_soul(true);
+    }
 #endif
 }
 
@@ -5345,7 +5353,7 @@ void unmarshallItem(reader &th, item_def &item)
         }
     }
 
-    if (item.is_type(OBJ_STAVES, STAFF_CHANNELING))
+    if (item.is_type(OBJ_STAVES, STAFF_CHANNELLING))
         item.sub_type = STAFF_ENERGY;
 
     if (th.getMinorVersion() < TAG_MINOR_GOD_GIFT)
@@ -5988,6 +5996,7 @@ static void marshall_mon_enchant(writer &th, const mon_enchant &me)
     marshallInt(th, me.source);
     marshallShort(th, min(me.duration, INFINITE_DURATION));
     marshallShort(th, min(me.maxduration, INFINITE_DURATION));
+    marshallByte(th, me.ench_is_aura);
 }
 
 static mon_enchant unmarshall_mon_enchant(reader &th)
@@ -5999,6 +6008,10 @@ static mon_enchant unmarshall_mon_enchant(reader &th)
     me.source      = unmarshallInt(th);
     me.duration    = unmarshallShort(th);
     me.maxduration = unmarshallShort(th);
+#if TAG_MAJOR_VERSION == 34
+    if (th.getMinorVersion() >= TAG_MINOR_MON_AURA_REFACTORING)
+        me.ench_is_aura = static_cast<ench_aura_type>(unmarshallByte(th));
+#endif
     return me;
 }
 
@@ -6342,8 +6355,8 @@ void _unmarshallMonsterInfo(reader &th, monster_info& mi)
         case LIGHTGREEN:   // corrupter
             mi.type = MONS_DEMONSPAWN_CORRUPTER;
             break;
-        case LIGHTMAGENTA: // black sun
-            mi.type = MONS_DEMONSPAWN_BLACK_SUN;
+        case LIGHTMAGENTA: // soul scholar
+            mi.type = MONS_DEMONSPAWN_SOUL_SCHOLAR;
             break;
         case CYAN:         // worldbinder
             mi.type = MONS_WORLDBINDER;
@@ -7263,7 +7276,7 @@ void unmarshallMonster(reader &th, monster& m)
             m.type = MONS_DEMONSPAWN_CORRUPTER;
             break;
         case LIGHTMAGENTA: // black sun
-            m.type = MONS_DEMONSPAWN_BLACK_SUN;
+            m.type = MONS_DEMONSPAWN_SOUL_SCHOLAR;
             break;
         case CYAN:         // worldbinder
             m.type = MONS_WORLDBINDER;

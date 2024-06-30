@@ -136,12 +136,11 @@ static const vector<spell_type> spellbook_templates[] =
 
 {   // Book of Vapours
     SPELL_MERCURY_VAPOURS,
-    SPELL_MEPHITIC_CLOUD,
     SPELL_FREEZING_CLOUD,
 },
 
 {   // Book of Necromancy
-    SPELL_NECROTISE,
+    SPELL_SOUL_SPLINTER,
     SPELL_VAMPIRIC_DRAINING,
     SPELL_MARTYRS_KNELL,
     SPELL_CURSE_OF_AGONY,
@@ -149,6 +148,7 @@ static const vector<spell_type> spellbook_templates[] =
 
 {   // Book of Callings
     SPELL_SUMMON_SMALL_MAMMAL,
+    SPELL_CALL_IMP,
     SPELL_CALL_CANINE_FAMILIAR,
     SPELL_SUMMON_BLAZEHEART_GOLEM,
 },
@@ -187,6 +187,7 @@ static const vector<spell_type> spellbook_templates[] =
 #endif
 
 {   // Book of Unlife
+    SPELL_GRAVE_CLAW,
     SPELL_ANIMATE_DEAD,
     SPELL_BORGNJORS_VILE_CLUTCH,
     SPELL_DEATH_CHANNEL,
@@ -229,7 +230,7 @@ static const vector<spell_type> spellbook_templates[] =
 
 {   // Book of Cantrips
     SPELL_STING,
-    SPELL_NECROTISE,
+    SPELL_SOUL_SPLINTER,
     SPELL_SUMMON_SMALL_MAMMAL,
     SPELL_APPORTATION,
 },
@@ -317,6 +318,7 @@ static const vector<spell_type> spellbook_templates[] =
 { // Book of Winter
     SPELL_FROZEN_RAMPARTS,
     SPELL_OZOCUBUS_ARMOUR,
+    SPELL_HOARFROST_CANNONADE,
     SPELL_ENGLACIATION,
 },
 
@@ -331,19 +333,19 @@ static const vector<spell_type> spellbook_templates[] =
 { // Book of Armaments
     SPELL_STONE_ARROW,
     SPELL_ANIMATE_ARMOUR,
-    SPELL_SEISMIC_CANNONADE,
+    SPELL_HELLFIRE_MORTAR,
     SPELL_LEHUDIBS_CRYSTAL_SPEAR,
 },
 
 #if TAG_MAJOR_VERSION == 34
 { // Book of Pain
-    SPELL_NECROTISE,
+    SPELL_SOUL_SPLINTER,
     SPELL_CURSE_OF_AGONY,
 },
 #endif
 
 { // Book of Decay
-    SPELL_ROT,
+    SPELL_PUTREFACTION,
     SPELL_DISPEL_UNDEAD,
     SPELL_MARTYRS_KNELL,
 },
@@ -437,8 +439,8 @@ static const vector<spell_type> spellbook_templates[] =
 },
 
 { // Book of Blood
-    SPELL_CALL_IMP,
     SPELL_SUBLIMATION_OF_BLOOD,
+    SPELL_IGNITE_POISON,
     SPELL_SUMMON_HYDRA,
 },
 
@@ -485,8 +487,8 @@ static const vector<spell_type> spellbook_templates[] =
 },
 
 { // Trismegistus Codex
-    SPELL_ROT,
-    SPELL_IGNITE_POISON,
+    SPELL_MEPHITIC_CLOUD,
+    SPELL_PUTREFACTION,
     SPELL_FREEZING_CLOUD,
 },
 
@@ -522,8 +524,9 @@ static const vector<spell_type> spellbook_templates[] =
 
 { // Compendium of Siegecraft
     SPELL_BOULDER,
+    SPELL_HOARFROST_CANNONADE,
     SPELL_BOMBARD,
-    SPELL_SEISMIC_CANNONADE,
+    SPELL_HELLFIRE_MORTAR,
 },
 
 { // Book of Maladies

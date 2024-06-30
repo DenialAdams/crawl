@@ -28,5 +28,8 @@ bool start_ranged_constriction(actor& caster, actor& target, int duration,
 dice_def rimeblight_dot_damage(int pow);
 string describe_rimeblight_damage(int pow, bool terse);
 void do_rimeblight_explosion(coord_def pos, int power, int size);
+bool maybe_spread_rimeblight(monster& victim, int power, bool test_only = false);
 bool apply_rimeblight(monster& victim, int power, bool quiet = false);
 void tick_rimeblight(monster& victim);
+
+spret cast_sign_of_ruin(actor& caster, coord_def target, int duration, bool check_only = false);

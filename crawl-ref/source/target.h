@@ -307,37 +307,6 @@ private:
     int range;
 };
 
-enum class shadow_step_blocked
-{
-    none,
-    occupied,
-    move,
-    path,
-    no_target,
-};
-
-class targeter_shadow_step : public targeter
-{
-public:
-    targeter_shadow_step(const actor* act, int r);
-
-    bool valid_aim(coord_def a) override;
-    bool set_aim(coord_def a) override;
-    bool step_is_blocked;
-    aff_type is_affected(coord_def loc) override;
-    bool has_additional_sites(coord_def a);
-    set<coord_def> additional_sites;
-    coord_def landing_site;
-private:
-    void set_additional_sites(coord_def a);
-    void get_additional_sites(coord_def a);
-    bool valid_landing(coord_def a, bool check_invis = true);
-    shadow_step_blocked no_landing_reason;
-    shadow_step_blocked blocked_landing_reason;
-    set<coord_def> temp_sites;
-    int range;
-};
-
 class targeter_cone : public targeter
 {
 public:
@@ -653,12 +622,34 @@ private:
     vector<coord_def> beam_paths;
 };
 
-class targeter_seismic_shockwave : public targeter_smite
+class targeter_mortar : public targeter_beam
 {
 public:
-    targeter_seismic_shockwave(const actor *act, int cannon_range);
+    targeter_mortar(const actor* act, int max_range);
     bool valid_aim(coord_def a) override;
-private:
-    vector<coord_def> cannon_pos;
-    int cannon_range;
+    aff_type is_affected(coord_def loc) override;
+    bool can_affect_unseen() override;
+    bool can_affect_walls() override;
+    bool affects_monster(const monster_info& mon) override;
+};
+
+class targeter_slouch : public targeter_radius
+{
+public:
+    targeter_slouch();
+    virtual aff_type is_affected(coord_def loc) override;
+};
+
+class targeter_marionette : public targeter_smite
+{
+public:
+    targeter_marionette();
+    bool valid_aim(coord_def a) override;
+};
+
+class targeter_putrefaction : public targeter_smite
+{
+public:
+    targeter_putrefaction(int range);
+    bool valid_aim(coord_def a) override;
 };

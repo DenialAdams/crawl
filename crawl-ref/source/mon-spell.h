@@ -140,7 +140,7 @@ static const mon_spellbook mspell_list[] =
 
     {  MST_DEEP_ELF_ELEMENTALIST,
       {
-       { SPELL_FREEZING_CLOUD, 22, MON_SPELL_WIZARD },
+       { SPELL_HOARFROST_CANNONADE, 33, MON_SPELL_WIZARD },
        { SPELL_FIREBALL, 11, MON_SPELL_WIZARD },
        { SPELL_LRD, 33, MON_SPELL_WIZARD },
        { SPELL_REPEL_MISSILES, 11, MON_SPELL_WIZARD },
@@ -159,7 +159,7 @@ static const mon_spellbook mspell_list[] =
 
     {  MST_DEEP_ELF_HIGH_PRIEST,
       {
-       { SPELL_AURA_OF_BRILLIANCE, 25, MON_SPELL_PRIEST },
+       { SPELL_PRAYER_OF_BRILLIANCE, 25, MON_SPELL_PRIEST },
        { SPELL_CALL_DOWN_DAMNATION, 12, MON_SPELL_PRIEST },
        { SPELL_MALIGN_OFFERING, 18, MON_SPELL_PRIEST },
        { SPELL_SMITING, 18, MON_SPELL_PRIEST },
@@ -423,7 +423,7 @@ static const mon_spellbook mspell_list[] =
     {  MST_ARCANIST,
       {
        { SPELL_BOLT_OF_COLD, 12, MON_SPELL_WIZARD },
-       { SPELL_FORCE_LANCE, 10, MON_SPELL_WIZARD },
+       { SPELL_SEARING_RAY, 16, MON_SPELL_WIZARD },
        { SPELL_VITRIFY, 12, MON_SPELL_WIZARD },
        { SPELL_HASTE, 14, MON_SPELL_WIZARD },
       }
@@ -549,7 +549,7 @@ static const mon_spellbook mspell_list[] =
       {
         { SPELL_SMITING, 20, MON_SPELL_PRIEST },
         { SPELL_SUMMON_DRAKES, 20, MON_SPELL_PRIEST },
-        { SPELL_UPHEAVAL, 20, MON_SPELL_PRIEST },
+        { SPELL_UPHEAVAL, 30, MON_SPELL_PRIEST },
       }
     },
 
@@ -628,6 +628,19 @@ static const mon_spellbook mspell_list[] =
       {
        { SPELL_MARSHLIGHT, 50, MON_SPELL_MAGICAL },
        { SPELL_BLINK, 12, MON_SPELL_MAGICAL },
+      }
+    },
+
+    {  MST_POLTERGUARDIAN,
+      {
+       { SPELL_FORCE_LANCE, 40, MON_SPELL_MAGICAL },
+      }
+    },
+
+    {  MST_UNDYING_ARMOURY,
+      {
+       { SPELL_BESTOW_ARMS, 40, MON_SPELL_NATURAL },
+       { SPELL_FLASHING_BALESTRA, 35, MON_SPELL_NATURAL },
       }
     },
 
@@ -788,6 +801,14 @@ static const mon_spellbook mspell_list[] =
     {  MST_RADROACH,
       {
        { SPELL_IRRADIATE, 50, MON_SPELL_NATURAL},
+      }
+    },
+
+    {  MST_XAKKRIXIS,
+      {
+       { SPELL_VENOM_BOLT, 24, MON_SPELL_WIZARD},
+       { SPELL_IGNITE_POISON, 35, MON_SPELL_WIZARD},
+       { SPELL_FULMINANT_PRISM, 21, MON_SPELL_WIZARD},
       }
     },
 
@@ -1357,7 +1378,7 @@ static const mon_spellbook mspell_list[] =
     },
 
     // ('W') Incorporeal undead.
-    {  MST_SHADOW,
+    {  MST_SHADOWGHAST,
       {
        { SPELL_INVISIBILITY, 33, MON_SPELL_NATURAL },
       }
@@ -1591,11 +1612,11 @@ static const mon_spellbook mspell_list[] =
       }
     },
 
-    {  MST_DEMONSPAWN_BLACK_SUN,
+    {  MST_DEMONSPAWN_SOUL_SCHOLAR,
       {
        { SPELL_BOLT_OF_DRAINING, 18, MON_SPELL_PRIEST },
        { SPELL_DISPEL_UNDEAD_RANGE, 18, MON_SPELL_PRIEST },
-       { SPELL_BLACK_MARK, 28, MON_SPELL_PRIEST },
+       { SPELL_SIGN_OF_RUIN, 28, MON_SPELL_PRIEST },
       }
     },
 
@@ -1640,9 +1661,15 @@ static const mon_spellbook mspell_list[] =
       }
     },
 
-    {  MST_SEISMIC_CANNON,
+    {  MST_HOARFROST_CANNON,
       {
-       { SPELL_STONE_BULLET, 200, MON_SPELL_MAGICAL },
+       { SPELL_HOARFROST_BULLET, 200, MON_SPELL_MAGICAL },
+      }
+    },
+
+    {  MST_HELLFIRE_MORTAR,
+      {
+       { SPELL_BOLT_OF_MAGMA, 200, MON_SPELL_MAGICAL },
       }
     },
 
@@ -1747,6 +1774,13 @@ static const mon_spellbook mspell_list[] =
       }
     },
 
+    {  MST_WIGLAF,
+      {
+       { SPELL_MIGHT, 34, MON_SPELL_WIZARD },
+       { SPELL_HELLFIRE_MORTAR, 34, MON_SPELL_WIZARD },
+      }
+    },
+
     // ('h') Carnivorous quadrupeds.
     {  MST_NATASHA,
       {
@@ -1780,13 +1814,14 @@ static const mon_spellbook mspell_list[] =
     },
 
     // ('o') Orcs.
-    {  MST_BLORK,
+    {  MST_BLORKULA,
       {
-       { SPELL_CANTRIP, 9, MON_SPELL_WIZARD },
-       { SPELL_MAGIC_DART, 9, MON_SPELL_WIZARD },
+       { SPELL_SANDBLAST, 9, MON_SPELL_WIZARD },
+       { SPELL_STING, 9, MON_SPELL_WIZARD },
+       { SPELL_SHOCK, 9, MON_SPELL_WIZARD },
        { SPELL_THROW_FROST, 9, MON_SPELL_WIZARD },
        { SPELL_THROW_FLAME, 9, MON_SPELL_WIZARD },
-       { SPELL_HASTE, 9, MON_SPELL_WIZARD },
+       { SPELL_HASTE, 12, MON_SPELL_WIZARD },
       }
     },
 
@@ -1821,7 +1856,7 @@ static const mon_spellbook mspell_list[] =
       {
        { SPELL_SYMBOL_OF_TORMENT, 11, MON_SPELL_MAGICAL | MON_SPELL_NOISY },
        { SPELL_SUMMON_UNDEAD, 33, MON_SPELL_MAGICAL | MON_SPELL_NOISY },
-       { SPELL_BLACK_MARK, 22, MON_SPELL_MAGICAL | MON_SPELL_NOISY },
+       { SPELL_SIGN_OF_RUIN, 22, MON_SPELL_MAGICAL | MON_SPELL_NOISY },
       }
     },
 
@@ -1909,9 +1944,9 @@ static const mon_spellbook mspell_list[] =
     // ('H') Hybrids.
     {  MST_ARACHNE,
       {
-       { SPELL_VENOM_BOLT, 11, MON_SPELL_WIZARD },
-       { SPELL_POISON_ARROW, 11, MON_SPELL_WIZARD },
-       { SPELL_ENSNARE, 34, MON_SPELL_WIZARD },
+       { SPELL_VENOM_BOLT, 16, MON_SPELL_WIZARD },
+       { SPELL_POISON_ARROW, 16, MON_SPELL_WIZARD },
+       { SPELL_GREATER_ENSNARE, 34, MON_SPELL_WIZARD },
        { SPELL_BLINK, 11, MON_SPELL_WIZARD },
       }
     },
@@ -2059,6 +2094,7 @@ static const mon_spellbook mspell_list[] =
     {  MST_MOON_TROLL,
       {
        { SPELL_CORROSIVE_BOLT, 50, MON_SPELL_WIZARD },
+       { SPELL_DAZZLING_FLASH, 50, MON_SPELL_NATURAL },
       }
     },
 
@@ -2279,7 +2315,7 @@ static const mon_spellbook mspell_list[] =
     // ('&', mostly) Demon lords.
     {  MST_GERYON,
       {
-       { SPELL_SUMMON_HELL_BEAST, 65, MON_SPELL_VOCAL },
+       { SPELL_SUMMON_SIN_BEAST, 55, MON_SPELL_VOCAL },
       }
     },
 

@@ -1458,7 +1458,6 @@ namespace quiver
             case ABIL_LUGONU_BANISH:
             case ABIL_BEOGH_SMITING:
             case ABIL_FEDHAS_OVERGROW:
-            case ABIL_DITHMENOS_SHADOW_STEP:
             case ABIL_QAZLAL_UPHEAVAL:
             case ABIL_RU_POWER_LEAP:
             case ABIL_USKAYAW_LINE_PASS:
@@ -1521,7 +1520,7 @@ namespace quiver
 
             // TODO: does non-targeted case come up?
             if (target.isCancel && !target.interactive && is_targeted())
-                mprf("No targets found!");
+                mpr("No targets found!");
 
             t = target; // copy back, in case they are different
         }
@@ -2850,7 +2849,7 @@ namespace quiver
             {
                 set_to_quiver(make_shared<quiver::action>());
                 // TODO maybe drop this messaging?
-                mprf("Clearing quiver.");
+                mpr("Clearing quiver.");
                 return false;
             }
             else if (isadigit(key))

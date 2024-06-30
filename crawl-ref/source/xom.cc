@@ -39,6 +39,7 @@
 #include "misc.h"
 #include "mon-behv.h"
 #include "mon-death.h"
+#include "mon-pick.h"
 #include "mon-place.h"
 #include "mon-poly.h"
 #include "mon-tentacle.h"
@@ -49,6 +50,7 @@
 #include "player-stats.h"
 #include "potion.h"
 #include "prompt.h"
+#include "random-pick.h"
 #include "religion.h"
 #include "shout.h"
 #include "spl-clouds.h"
@@ -96,16 +98,16 @@ static const vector<spell_type> _xom_random_spells =
     SPELL_SUMMON_SMALL_MAMMAL,
     SPELL_FUGUE_OF_THE_FALLEN,
     SPELL_OLGREBS_TOXIC_RADIANCE,
-    SPELL_SUMMON_ICE_BEAST,
     SPELL_ANIMATE_ARMOUR,
+    SPELL_MARTYRS_KNELL,
     SPELL_LEDAS_LIQUEFACTION,
     SPELL_CAUSE_FEAR,
     SPELL_BATTLESPHERE,
     SPELL_INTOXICATE,
+    SPELL_ANIMATE_DEAD,
     SPELL_SUMMON_MANA_VIPER,
     SPELL_SUMMON_CACTUS,
     SPELL_DISPERSAL,
-    SPELL_ENGLACIATION,
     SPELL_DEATH_CHANNEL,
     SPELL_SUMMON_HYDRA,
     SPELL_MONSTROUS_MENAGERIE,
@@ -114,6 +116,7 @@ static const vector<spell_type> _xom_random_spells =
     SPELL_DISJUNCTION,
     SPELL_SUMMON_HORRIBLE_THINGS,
     SPELL_SUMMON_DRAGON,
+    SPELL_FULSOME_FUSILLADE,
     SPELL_CHAIN_OF_CHAOS
 };
 
@@ -512,7 +515,7 @@ static void _xom_random_spell(int sever)
          spell);
 #endif
 
-    your_spells(spell, sever, false);
+    your_spells(spell, sever + you.experience_level * 2 + get_tension(), false);
     const string note = make_stringf("cast spell '%s'", spell_title(spell));
     take_note(Note(NOTE_XOM_EFFECT, you.piety, -1, note), true);
 }
@@ -623,7 +626,7 @@ static void _xom_make_item(object_class_type base, int subtype, int power)
     move_item_to_grid(&thing_created, you.pos());
 
     if (thing_created == NON_ITEM) // if it fell into lava
-        simple_god_message(" snickers.", GOD_XOM);
+        simple_god_message(" snickers.", false, GOD_XOM);
 
     stop_running();
 }
@@ -680,8 +683,7 @@ static bool _choose_enchantable_monster(const monster& mon)
 
 static bool _is_chaos_upgradeable(const item_def &item)
 {
-    // Since Xom is a god, he is capable of changing randarts, but not
-    // other artefacts.
+    // Change randarts, but not other artefacts.
     if (is_unrandom_artefact(item))
         return false;
 
@@ -829,30 +831,207 @@ static void _do_chaos_upgrade(item_def &item, const monster* mon)
         if (!(item.flags & ISFLAG_COSMETIC_MASK))
             item.flags |= ISFLAG_GLOWING;
 
-        // Make the pluses more like a randomly generated ego item.
+        // Give some extra enchantments to tempt players into using chaos brand.
         if (item.base_type == OBJ_WEAPONS)
-            item.plus  += random2(5);
+            item.plus  += random_range(2, 4);
     }
 }
 
-static monster_type _xom_random_demon(int sever)
+static const vector<random_pick_entry<monster_type>> _xom_summons =
 {
-    const int roll = random2(1000 - (MAX_PIETY - sever) * 5);
-#ifdef DEBUG_DIAGNOSTICS
-    mprf(MSGCH_DIAGNOSTICS, "_xom_random_demon(); sever = %d, roll: %d",
-         sever, roll);
-#endif
-    monster_type dct = (roll >= 340) ? RANDOM_DEMON_COMMON
-                                     : RANDOM_DEMON_LESSER;
+  { -3, 27,   5, FLAT, MONS_BUTTERFLY },
+  { -2,  6,  60, SEMI, MONS_CRIMSON_IMP },
+  {  0,  6,  40, SEMI, MONS_IRON_IMP },
+  {  2,  8,  60, SEMI, MONS_QUASIT },
+  {  2,  8,  40, SEMI, MONS_SHADOW_IMP },
+  {  3,  7,  50, SEMI, MONS_UFETUBUS },
+  {  3,  7,   5, SEMI, MONS_MUMMY },
+  {  3,  8,  40, SEMI, MONS_WHITE_IMP },
+  {  4,  9,  75, SEMI, MONS_PHANTOM },
+  {  5, 10,  80, SEMI, MONS_SWAMP_DRAKE },
+  {  5, 10,  20, SEMI, MONS_WEEPING_SKULL },
+  {  7, 14,  50, SEMI, MONS_ICE_DEVIL },
+  {  7, 14,  60, SEMI, MONS_ORANGE_DEMON },
+  {  7, 14,  50, SEMI, MONS_RED_DEVIL },
+  {  8, 14,  80, SEMI, MONS_HELLWING },
+  {  8, 13,  40, SEMI, MONS_HELL_RAT },
+  {  8, 15, 105, SEMI, MONS_SHAPESHIFTER },
+  {  8, 15,  70, SEMI, MONS_BOGGART },
+  {  8, 18,  85, SEMI, MONS_RUST_DEVIL },
+  {  8, 20, 155, SEMI, MONS_CHAOS_SPAWN },
+  {  9, 14,   5, FLAT, MONS_TOENAIL_GOLEM },
+  {  9, 14,  30, SEMI, MONS_VAMPIRE },
+  {  9, 14,  50, SEMI, MONS_KOBOLD_DEMONOLOGIST },
+  {  9, 15,  90, SEMI, MONS_ABOMINATION_SMALL },
+  {  9, 16,  50, SEMI, MONS_YNOXINUL },
+  { 10, 16,  50, SEMI, MONS_UGLY_THING },
+  { 10, 17,  50, SEMI, MONS_SOUL_EATER },
+  { 11, 20,  80, SEMI, MONS_WORLDBINDER },
+  { 11, 16,  30, SEMI, MONS_OBSIDIAN_BAT },
+  { 11, 17,  30, SEMI, MONS_DREAM_SHEEP },
+  { 11, 18,  30, SEMI, MONS_TARANTELLA },
+  { 11, 19,  75, SEMI, MONS_SUN_DEMON },
+  { 11, 19,  75, SEMI, MONS_SIXFIRHY },
+  { 11, 22,  50, SEMI, MONS_NEQOXEC },
+  { 12, 18,  15, SEMI, MONS_DEMONSPAWN },
+  { 12, 18,  15, SEMI, MONS_GREAT_ORB_OF_EYES },
+  { 13, 20, 105, SEMI, MONS_LAUGHING_SKULL },
+  { 14, 22,  90, SEMI, MONS_ABOMINATION_LARGE },
+  { 14, 22, 105, SEMI, MONS_GLOWING_SHAPESHIFTER },
+  { 15, 22,  50, SEMI, MONS_HELL_HOG },
+  { 15, 23,   1, FLAT, MONS_OBSIDIAN_STATUE },
+  { 16, 23,  60, SEMI, MONS_RADROACH },
+  { 16, 25,  75, SEMI, MONS_VERY_UGLY_THING },
+  { 16, 24,  35, SEMI, MONS_GLOWING_ORANGE_BRAIN },
+  { 16, 32,  35, SEMI, MONS_SHADOW_DEMON },
+  { 17, 25,  50, SEMI, MONS_SPHINX },
+  { 17, 32,  75, SEMI, MONS_SIN_BEAST },
+  { 17, 32,  15, SEMI, MONS_CACODEMON },
+  { 18, 24,  30, SEMI, MONS_DANCING_WEAPON },
+  { 18, 26,   1, FLAT, MONS_ORANGE_STATUE },
+  { 20, 32,  30, SEMI, MONS_APOCALYPSE_CRAB },
+  { 21, 32,  30, SEMI, MONS_TENTACLED_MONSTROSITY },
+  { 22, 32,   1, FLAT, MONS_STARFLOWER },
+  { 23, 32,  50, SEMI, MONS_HELLEPHANT },
+  { 24, 32,   5, SEMI, MONS_MOTH_OF_WRATH },
+};
 
-    monster_type demon = MONS_PROGRAM_BUG;
+// Whenever choosing a monster that obviously comes in bands, spawn a few more,
+// which is then used later on to not count for the summon count range of the
+// power tier the given Xom summon calls for.
+static int _xom_pal_minibands(monster_type mtype)
+{
+    int count = 1;
 
-    if (dct == RANDOM_DEMON_COMMON && one_chance_in(10))
-        demon = MONS_CHAOS_SPAWN;
+    if (mtype == MONS_BUTTERFLY || mtype == MONS_LAUGHING_SKULL ||
+        mtype == MONS_DREAM_SHEEP)
+    {
+        count = x_chance_in_y(you.experience_level, 27) ? 3 : 2;
+    }
+    else if (mtype == MONS_HELL_RAT || mtype == MONS_BOGGART ||
+             mtype == MONS_UGLY_THING || mtype == MONS_TARANTELLA ||
+             mtype == MONS_HELL_HOG || mtype == MONS_VERY_UGLY_THING)
+    {
+        count = 2;
+    }
+
+    return count;
+}
+
+// Don't let later summoners double-up later on in summon calls;
+// it gets too messy too quickly to tell what's happening.
+static bool _xom_pal_summonercheck(monster_type mtype)
+{
+     return mtype == MONS_OBSIDIAN_STATUE || mtype == MONS_ORANGE_STATUE ||
+            mtype == MONS_GLOWING_ORANGE_BRAIN || mtype == MONS_SHADOW_DEMON;
+}
+
+// This and _xom_random_pal keep three tiers of enemies that are each scaled
+// to three tiers of XL, spawning either more of weaker monsters or less
+// of stronger monsters whenever Xom summons allies or enemies.
+static int _xom_pal_counting(int roll, bool isFriendly)
+{
+    int count = 0;
+
+    if (roll <= 150)
+    {
+        // The earliest options are really weak, while the later options will
+        // struggle against the inherent player power curve, so the ends
+        // get more enemies than the middle does.
+        if (you.experience_level < 10 || you.experience >= 19)
+            count = random_range(4, 5);
+        else
+            count = random_range(3, 4);
+    }
+    else if (roll <= 300)
+    {
+        if (you.experience_level < 10)
+            count = random_range(1, 2);
+        else if (you.experience_level < 19)
+            count = random_range(2, 3);
+        else
+            count = random_range(2, 4);
+    }
     else
-        demon = summon_any_demon(dct);
+    {
+        if (you.experience_level < 10)
+            count = 1;
+        else if (you.experience_level < 19)
+            count = random_range(1, 2);
+        else
+            count = random_range(2, 3);
+    }
 
-    return demon;
+    if (!isFriendly &&_xom_feels_nasty())
+        count *= 2;
+
+    return count;
+}
+
+static monster_type _xom_random_pal(int roll, bool isFriendly)
+{
+    monster_picker xom_picker;
+    int variance = you.experience_level;
+
+    // Tiers here match _xom_pal_counting's tiers of strength related
+    // inversely to summon count but scaling up versus one's XL regardless.
+    if (roll <= 150)
+        if (you.experience_level < 19)
+           variance += -3;
+        else
+           variance += random_range(-3, -2);
+    else if (roll <= 300)
+        if (you.experience_level < 19)
+            variance += random_range(-2, -1);
+        else
+            variance += random_range(-2, 0);
+    else
+        if (you.experience_level < 10)
+            variance += random_range(0, 1);
+        else if (you.experience_level < 19)
+            variance += random_range(1, 2);
+        else
+            variance += random_range(1, 3);
+
+    // Make it a little flashier if it's allied or if Xom's quite dissatisfied.
+    if (isFriendly)
+        variance += random_range(-1, 4);
+    else if (_xom_is_bored())
+        variance += random_range(2, 3);
+    else if (you.penance[GOD_XOM])
+        variance += random_range(4, 5);
+
+#ifdef DEBUG_DIAGNOSTICS
+    mprf(MSGCH_DIAGNOSTICS, "_xom_random_pal(); xl variance roll: %d", roll);
+#endif
+
+    monster_type mon_type = xom_picker.pick(_xom_summons, variance, MONS_CRIMSON_IMP);
+
+    // Endgame and extended monsters Xom has some fondness for (in being jokes
+    // or highly chaotic), but which are mostly meant to stay in their branches,
+    // get a small extra chance to be picked in the appropriate branch or Zigs.
+    // Makes it a little more dramatic.
+    if ((player_in_branch(BRANCH_ZOT) || player_in_branch(BRANCH_ZIGGURAT))
+         && one_chance_in(13))
+    {
+        mon_type = random_choose_weighted(5, MONS_DEATH_COB,
+                                          4, MONS_KILLER_KLOWN,
+                                          3, MONS_PROTEAN_PROGENITOR,
+                                          2, MONS_CURSE_TOE);
+    }
+    else if ((player_in_branch(BRANCH_PANDEMONIUM) ||
+              player_in_branch(BRANCH_ZIGGURAT)) && one_chance_in(13))
+    {
+        mon_type = x_chance_in_y(3, 5) ? MONS_DEMONSPAWN_BLOOD_SAINT :
+                                         MONS_DEMONSPAWN_CORRUPTER;
+    }
+    else if (player_in_branch(BRANCH_ZIGGURAT) && one_chance_in(6))
+    {
+        mon_type = x_chance_in_y(5, 7) ? MONS_PANDEMONIUM_LORD :
+                                         MONS_PLAYER_GHOST;
+    }
+
+    return mon_type;
 }
 
 static bool _player_is_dead()
@@ -886,6 +1065,7 @@ static void _xom_do_potion(int /*sever*/)
                                      10, POT_MIGHT,
                                      10, POT_BRILLIANCE,
                                      10, POT_INVISIBILITY,
+                                     5,  POT_AMBROSIA,
                                      5,  POT_ATTRACTION,
                                      5,  POT_BERSERK_RAGE,
                                      1,  POT_EXPERIENCE);
@@ -949,23 +1129,13 @@ static void _xom_confuse_monsters(int sever)
 /// Post a passel of pals to the player.
 static void _xom_send_allies(int sever)
 {
-    // The number of allies is dependent on severity, though heavily
-    // randomised.
-    int numdemons = sever;
-    for (int i = 0; i < 3; i++)
-        numdemons = random2(numdemons + 1);
-    numdemons = min(numdemons + 2, 16);
-
-    // Limit number of demons by experience level.
-    const int maxdemons = (you.experience_level);
-    if (numdemons > maxdemons)
-        numdemons = maxdemons;
-
+    int strengthRoll = random2(1000 - (MAX_PIETY + sever) * 5);
+    int count = _xom_pal_counting(strengthRoll, true);
     int num_actually_summoned = 0;
 
-    for (int i = 0; i < numdemons; ++i)
+    for (int i = 0; i < count; ++i)
     {
-        monster_type mon_type = _xom_random_demon(sever);
+        monster_type mon_type = _xom_random_pal(strengthRoll, true);
 
         mgen_data mg(mon_type, BEH_FRIENDLY, you.pos(), MHITYOU, MG_FORCE_BEH);
         mg.set_summoned(&you, 3, MON_SUMM_AID, GOD_XOM);
@@ -974,15 +1144,31 @@ static void _xom_send_allies(int sever)
         // they should still show as Xom's fault if one of them kills you.
         mg.non_actor_summoner = "Xom";
 
-        if (create_monster(mg))
-            num_actually_summoned++;
+        // Banding monsters don't count against the overall summon roll range,
+        // and are restricted themselves in _xom_pal_minibands.
+        int miniband = _xom_pal_minibands(mon_type);
+
+        for (int j = 0; j < miniband; ++j)
+            if (create_monster(mg))
+                num_actually_summoned++;
+
+        // To make given random monster summonings more coherent, have a good
+        // chance to jump forward and make the next summon the same as the last,
+        // but only if it's not already a banding monster or a late summoner.
+        if (x_chance_in_y(2, 3) && miniband == 1 &&
+            !_xom_pal_summonercheck(mon_type) && i < count - 1)
+        {
+            i += 1;
+            if (create_monster(mg))
+                num_actually_summoned++;
+        }
     }
 
     if (num_actually_summoned)
     {
         god_speaks(GOD_XOM, _get_xom_speech("multiple summons").c_str());
 
-        const string note = make_stringf("summons %d friendly demon%s",
+        const string note = make_stringf("summons %d friend%s",
                                          num_actually_summoned,
                                          num_actually_summoned > 1 ? "s" : "");
         take_note(Note(NOTE_XOM_EFFECT, you.piety, -1, note), true);
@@ -992,7 +1178,8 @@ static void _xom_send_allies(int sever)
 /// Send a single pal to the player's aid, hopefully.
 static void _xom_send_one_ally(int sever)
 {
-    const monster_type mon_type = _xom_random_demon(sever);
+    int strengthRoll = random2(1000 - (MAX_PIETY + sever) * 5);
+    const monster_type mon_type = _xom_random_pal(strengthRoll, true);
 
     mgen_data mg(mon_type, BEH_FRIENDLY, you.pos(), MHITYOU, MG_FORCE_BEH);
     mg.set_summoned(&you, 6, MON_SUMM_AID, GOD_XOM);
@@ -1001,6 +1188,11 @@ static void _xom_send_one_ally(int sever)
 
     if (monster *summons = create_monster(mg))
     {
+        // Add a little extra length and regen. Make friends with your new pal.
+        int extra = random_range(100, 200);
+        summons->add_ench(mon_enchant(ENCH_ABJ, MON_SUMM_AID, nullptr, extra));
+        summons->add_ench(mon_enchant(ENCH_REGENERATION, MON_SUMM_AID,
+                                       nullptr, 500));
         god_speaks(GOD_XOM, _get_xom_speech("single summon").c_str());
 
         const string note = make_stringf("summons friendly %s",
@@ -1030,7 +1222,8 @@ static void _xom_polymorph_monster(monster &mons, bool helpful)
     if (one_chance_in(8)
         && !mons_is_ghost_demon(mons.type)
         && !mons.is_shapeshifter()
-        && mons.holiness() & MH_NATURAL)
+        && mons.holiness() & MH_NATURAL
+        && (you.experience_level > 4 || _xom_feels_nasty()))
     {
         mons.add_ench(one_chance_in(3) ? ENCH_GLOWING_SHAPESHIFTER
                                        : ENCH_SHAPESHIFTER);
@@ -1333,6 +1526,54 @@ static void _xom_animate_monster_weapon(int sever)
     dancing->colour = env.item[wpn].get_colour();
 }
 
+// Have Xom make a big ring of temporary harmless plantlife around the player.
+static void _xom_harmless_flora(int /*sever*/)
+{
+    bool created = false;
+    bool perfectRing = coinflip();
+    int radius = random_choose_weighted(54 - you.experience_level, 2,
+                                        27, 3,
+                                        13 + you.experience_level, 4);
+
+    monster_type mon_type = x_chance_in_y(13 + you.experience_level, 54) ?
+                            MONS_DEMONIC_PLANT : MONS_TOADSTOOL;
+
+    for (radius_iterator ri(you.pos(), radius, C_SQUARE, LOS_NO_TRANS); ri; ++ri)
+    {
+        // Half of the time, make it imperfect on the inner parts.
+        if (ri->distance_from(you.pos()) != radius
+            && !perfectRing && x_chance_in_y(1, 3))
+        {
+            continue;
+        }
+
+        if (!actor_at(*ri) && monster_habitable_grid(MONS_PLANT, env.grid(*ri)))
+        {
+            mgen_data mg(mon_type, BEH_HOSTILE, *ri, MHITYOU, MG_FORCE_BEH | MG_FORCE_PLACE);
+            mg.set_summoned(&you, 5, MON_SUMM_AID, GOD_XOM);
+
+            mg.non_actor_summoner = "Xom";
+
+            if (create_monster(mg))
+                created = true;
+        }
+    }
+
+    if (created)
+    {
+        god_speaks(GOD_XOM, _get_xom_speech("flora ring").c_str());
+        if (mon_type == MONS_DEMONIC_PLANT)
+            mpr("Demonic plants sprout up around you!");
+        else
+            mpr("Toadstools sprout up around you!");
+
+        const string note = make_stringf("made a garden");
+        take_note(Note(NOTE_XOM_EFFECT, you.piety, -1, note), true);
+    }
+    else
+        canned_msg(MSG_NOTHING_HAPPENS); // shouldn't be reached, and yet
+}
+
 static void _xom_give_mutations(bool good)
 {
     if (!you.can_safely_mutate())
@@ -1358,7 +1599,15 @@ static void _xom_give_mutations(bool good)
 
     for (int i = num_tries; i > 0; --i)
     {
-        if (!mutate(good ? RANDOM_GOOD_MUTATION : RANDOM_XOM_MUTATION,
+        if (you.penance[GOD_XOM] && i == num_tries && !good)
+        {
+            if (!mutate(RANDOM_BAD_MUTATION, "Xom's mischief",
+                        failMsg, false, true, false, MUTCLASS_NORMAL))
+            {
+                failMsg = false;
+            }
+        }
+        else if (!mutate(good ? RANDOM_GOOD_MUTATION : RANDOM_XOM_MUTATION,
                     good ? "Xom's grace" : "Xom's mischief",
                     failMsg, false, true, false, MUTCLASS_NORMAL))
         {
@@ -1370,13 +1619,8 @@ static void _xom_give_mutations(bool good)
 static void _xom_give_good_mutations(int) { _xom_give_mutations(true); }
 static void _xom_give_bad_mutations(int) { _xom_give_mutations(false); }
 
-/**
- * Have Xom throw divine lightning.
- */
-static void _xom_throw_divine_lightning(int /*sever*/)
+static void _xom_drop_lightning()
 {
-    god_speaks(GOD_XOM, "The area is suffused with divine lightning!");
-
     bolt beam;
 
     beam.flavour      = BEAM_ELECTRICITY;
@@ -1392,6 +1636,59 @@ static void _xom_throw_divine_lightning(int /*sever*/)
     beam.is_explosion = true;
 
     beam.explode(true, true);
+}
+
+static void _xom_spray_lightning(coord_def position)
+{
+    bolt beam;
+
+    // range has no tracer, so randomness is ok
+    beam.range        = 7;
+    beam.source       = you.pos();
+    beam.target       = position;
+    beam.target.x     += random_range(-1, 1);
+    beam.target.y     += random_range(-1, 1);
+    beam.thrower      = KILL_MISC;
+    beam.source_id    = MID_NOBODY;
+    beam.aux_source   = "Xom's lightning strike";
+
+    // uncontrolled, so no player tracer.
+    zappy(ZAP_LIGHTNING_BOLT, 20 + you.experience_level * 5, true, beam);
+    beam.fire();
+}
+
+// Have Xom throw down divine lightning in a 5x5 explosion, then fire random
+// lightning bolts in random directions potentially fudged towards, like
+// old black draconian breath.
+static void _xom_throw_divine_lightning(int /*sever*/)
+{
+    god_speaks(GOD_XOM, _get_xom_speech("divine lightning").c_str());
+
+    _xom_drop_lightning();
+
+    int spray_count = random_range(4, max(5, get_tension() / 5));
+    int fire_count = 0;
+
+    // Have a chance to actually aim lightning bolts near each present enemy.
+    for (monster_near_iterator mi(you.pos(), LOS_NO_TRANS); mi; ++mi)
+    {
+        if (fire_count < spray_count && one_chance_in(3))
+        {
+            _xom_spray_lightning(mi->pos());
+            fire_count++;
+        }
+    }
+
+    // Fire spare random bolts at random spots.
+    if (fire_count < spray_count)
+    {
+        coord_def randspot = you.pos();
+        randspot.x += random_range(-6, 6);
+        randspot.y += random_range(-6, 6);
+
+        for (int i = 0; i < spray_count; ++i)
+            _xom_spray_lightning(randspot);
+    }
 
     take_note(Note(NOTE_XOM_EFFECT, you.piety, -1, "divine lightning"), true);
 }
@@ -1461,19 +1758,27 @@ static vector<coord_def> _xom_scenery_candidates()
     return candidates;
 }
 
-/// Place one or more altars to Xom nearish the player.
-static void _xom_place_altars()
+/// Place one or more decorative features nearish the player.
+static void _xom_place_decor()
 {
     coord_def place;
     bool success = false;
-    const int max_altars = max(1, random2(random2(14)));
-    for (int tries = max_altars; tries > 0; --tries)
+    int aby = player_in_branch(BRANCH_ABYSS) ? 0 : 1;
+    dungeon_feature_type decor = random_choose_weighted(10, DNGN_ALTAR_XOM,
+                                                        2, DNGN_CACHE_OF_FRUIT,
+                                                        2, DNGN_CACHE_OF_MEAT,
+                                                        1, DNGN_CLOSED_DOOR,
+                                                        1, DNGN_OPEN_DOOR,
+                                                        aby, DNGN_ENTER_ABYSS);
+
+    const int featuresCount = max(1, random2(random2(14)));
+    for (int tries = featuresCount; tries > 0; --tries)
     {
         if ((random_near_space(&you, you.pos(), place, false)
              || random_near_space(&you, you.pos(), place, true))
             && env.grid(place) == DNGN_FLOOR)
         {
-            env.grid(place) = DNGN_ALTAR_XOM;
+            dungeon_terrain_changed(place, decor);
             success = true;
         }
     }
@@ -1481,8 +1786,9 @@ static void _xom_place_altars()
     if (success)
     {
         take_note(Note(NOTE_XOM_EFFECT, you.piety, -1,
-                       "scenery: create altars"), true);
-        god_speaks(GOD_XOM, _get_xom_speech("scenery").c_str());
+                       "scenery: changed the scenery"), true);
+        const string key = make_stringf("scenery %s", dungeon_feature_name(decor));
+        god_speaks(GOD_XOM, _get_xom_speech(key).c_str());
     }
 }
 
@@ -1514,8 +1820,8 @@ static void _xom_change_scenery(int /*sever*/)
 
     if (candidates.empty())
     {
-        if (coinflip())
-            _xom_place_altars();
+        if (x_chance_in_y(2, 3))
+            _xom_place_decor();
         else
             _xom_summon_butterflies();
         return;
@@ -1657,11 +1963,11 @@ static void _xom_destruction(int sever, bool real)
 
         bolt beam;
 
-        beam.flavour      = BEAM_FIRE;
+        beam.flavour      = BEAM_STICKY_FLAME;
         beam.glyph        = dchar_glyph(DCHAR_FIRED_BURST);
         beam.damage       = dice_def(2, 4 + sever / 10);
         beam.target       = mi->pos();
-        beam.name         = "fireball";
+        beam.name         = "sticky fireball";
         beam.colour       = RED;
         beam.thrower      = KILL_MISC;
         beam.source_id    = MID_NOBODY;
@@ -1686,6 +1992,64 @@ static void _xom_destruction(int sever, bool real)
 
 static void _xom_real_destruction(int sever) { _xom_destruction(sever, true); }
 static void _xom_fake_destruction(int sever) { _xom_destruction(sever, false); }
+
+// A crunched down copy of the scroll of butterflies knockback.
+static void _xom_harmless_knockback(coord_def p)
+{
+    monster* mon = monster_at(p);
+    if (mon)
+    {
+        const int dist = random_range(2, 3);
+        mon->knockback(you, dist, 0, "hand of Xom");
+        behaviour_event(mon, ME_ALERT, &you);
+    }
+}
+
+// Knock back any nearby monsters without doing damage, then summon an
+// increasing amount of living spell force lances to all rocket fire against
+// whatever doesn't clear them away the next turn.
+static void _xom_force_lances(int /* sever */)
+{
+    int xl = _xom_feels_nasty() ? you.experience_level / 3
+                                : you.experience_level;
+    int count = 2 + (xl / 2) + random_range(0, div_rand_round(xl, 5));
+    int strength = max(1, xl / 2);
+    int created = 0;
+
+    // Clear up space for summoning Force Lances, if possible.
+    for (radius_iterator ri(you.pos(), 2, C_SQUARE, LOS_NO_TRANS, true); ri; ++ri)
+        if (grid_distance(*ri, you.pos()) == 2)
+            _xom_harmless_knockback(*ri);
+
+    for (adjacent_iterator ai(you.pos()); ai; ++ai)
+        _xom_harmless_knockback(*ai);
+
+    for (int i = 0; i < count; ++i)
+    {
+        mgen_data mg(MONS_LIVING_SPELL, BEH_FRIENDLY, you.pos(),
+                     MHITYOU, MG_FORCE_BEH | MG_FORCE_PLACE | MG_AUTOFOE);
+
+        mg.set_summoned(&you, 2, MON_SUMM_AID, GOD_XOM);
+        mg.hd = strength;
+        mg.props[CUSTOM_SPELL_LIST_KEY].get_vector().push_back(SPELL_FORCE_LANCE);
+        mg.non_actor_summoner = "Xom";
+
+        if (create_monster(mg))
+            created++;
+    }
+
+    if (created > 0)
+    {
+        const string note = make_stringf("summons %d living force lance%s",
+                                         created,
+                                         created > 1 ? "s" : "");
+
+        god_speaks(GOD_XOM,  _get_xom_speech("force lance fleet").c_str());
+        take_note(Note(NOTE_XOM_EFFECT, you.piety, -1, note), true);
+    }
+    else
+        canned_msg(MSG_NOTHING_HAPPENS);
+}
 
 static void _xom_enchant_monster(bool helpful)
 {
@@ -1716,7 +2080,6 @@ static void _xom_enchant_monster(bool helpful)
         {
             BEAM_HASTE,
             BEAM_MIGHT,
-            BEAM_AGILITY,
             BEAM_INVISIBILITY,
             BEAM_RESISTANCE,
         };
@@ -1740,12 +2103,122 @@ static void _xom_bad_enchant_monster(int /*sever*/)
     _xom_enchant_monster(false);
 }
 
+// Xom hastes, slows, or paralyzes the player and everything else in sight
+// for the same length of time (give or take time slices and base speed).
+// Mostly screws with whatever else might join the fight afterwards,
+// ally creation, and also with damage-over-time effects.
+static void _xom_time_control(int sever)
+{
+    duration_type dur;
+    enchant_type ench;
+    string xomline;
+    string message;
+    string note;
+    int time;
+    bool bad = true;
+
+    if (x_chance_in_y(1, 3))
+    {
+        dur = DUR_HASTE;
+        ench = ENCH_HASTE;
+        xomline = "fast forward";
+        if (you.stasis())
+        {
+            message = "Your stasis prevents you from being hasted, but everything else in sight speeds up!";
+            note = "hasted everything in sight";
+        }
+        else
+        {
+            message = "You and everything else in sight speeds up!";
+            note = "hasted player and everything else in sight";
+        }
+        time = random_range(100, 200) + sever / 3;
+    }
+    else if (coinflip())
+    {
+        dur = DUR_SLOW;
+        ench = ENCH_SLOW;
+        xomline = "slow motion";
+        if (you.stasis())
+        {
+            message = "Your stasis prevents you from being slowed, but everything else in sight slows down!";
+            note = "slowed everything in sight";
+            bad = false;
+        }
+        else
+        {
+            message = "You and everything else in sight slows down!";
+            note = "slowed player and everything else";
+        }
+        time = random_range(100, 200) + sever / 3;
+    }
+    else
+    {
+        dur = DUR_PARALYSIS;
+        ench = ENCH_PARALYSIS;
+        xomline = "pause";
+        if (you.stasis())
+        {
+            message = "Your stasis prevents you from being paralysed, but everything else in sight stops moving!";
+            note = "paralysed everything in sight";
+            bad = false;
+        }
+        else
+        {
+            message = "You and everything else in sight suddenly stops moving!";
+            note = "paralysed player and everything else";
+
+            // Less of a decent joke if it directly kills, so.
+            if (cloud_at(you.pos()) && !is_harmless_cloud(cloud_at(you.pos())->type))
+                delete_cloud(you.pos());
+        }
+        time = random_range(30, 50);
+    }
+
+    god_speaks(GOD_XOM, _get_xom_speech(xomline).c_str());
+
+    mprf(bad ? MSGCH_WARN : MSGCH_GOD, "%s", message.c_str());
+
+    if (!you.stasis())
+        you.increase_duration(dur, time / 10);
+
+    for (monster_near_iterator mi(you.pos(), LOS_NO_TRANS); mi; ++mi)
+    {
+        if ((!mons_has_attacks(**mi) && ench != ENCH_PARALYSIS) || mi->stasis())
+            continue;
+
+        mi->add_ench(mon_enchant(ench, 0, nullptr, time));
+    }
+
+    take_note(Note(NOTE_XOM_EFFECT, you.piety, -1, note), true);
+}
+
 /// Toss some fog around the player. Helping...?
 static void _xom_fog(int /*sever*/)
 {
     big_cloud(CLOUD_RANDOM_SMOKE, &you, you.pos(), 50, 8 + random2(8));
     take_note(Note(NOTE_XOM_EFFECT, you.piety, -1, "fog"), true);
     god_speaks(GOD_XOM, _get_xom_speech("cloud").c_str());
+}
+
+static item_def* _xom_get_random_worn_ring()
+{
+    item_def* item;
+    vector<item_def*> worn_rings;
+
+    for (int slots = EQ_FIRST_JEWELLERY; slots <= EQ_LAST_JEWELLERY; slots++)
+    {
+        if (slots == EQ_AMULET)
+            continue;
+
+        if (item = you.slot_item(static_cast<equipment_type>(slots)))
+            worn_rings.push_back(item);
+    }
+
+    if (worn_rings.empty())
+        return nullptr;
+
+    return worn_rings[random2(worn_rings.size())];
 }
 
 static void _xom_pseudo_miscast(int /*sever*/)
@@ -1772,64 +2245,62 @@ static void _xom_pseudo_miscast(int /*sever*/)
     ///////////////////////////////////
     // Dungeon feature dependent stuff.
 
-    FixedBitVector<NUM_FEATURES> in_view;
+    vector<dungeon_feature_type> in_view;
+    vector<string> in_view_name;
+
     for (radius_iterator ri(you.pos(), LOS_DEFAULT); ri; ++ri)
-        in_view.set(env.grid(*ri));
-
-    if (in_view[DNGN_LAVA])
-        messages.emplace_back("The lava spits out sparks!");
-
-    if (in_view[DNGN_SHALLOW_WATER] || in_view[DNGN_DEEP_WATER])
     {
-        messages.emplace_back("The water briefly bubbles.");
-        messages.emplace_back("The water briefly swirls.");
-        messages.emplace_back("The water briefly glows.");
+        const dungeon_feature_type feat = env.grid(*ri);
+        const string feat_name = feature_description_at(*ri, false,
+                                                        DESC_THE);
+        in_view.push_back(feat);
+        in_view_name.push_back(feat_name);
     }
 
-    if (in_view[DNGN_DEEP_WATER])
+    for (size_t iv = 0; iv < in_view.size(); ++iv)
     {
-        messages.emplace_back("From the corner of your eye you spot something "
-                           "lurking in the deep water.");
-    }
+        string str;
 
-    if (in_view[DNGN_ORCISH_IDOL])
-        priority.emplace_back("The idol of Beogh turns to glare at you.");
+        if (in_view[iv] == DNGN_LAVA)
+            str = _get_xom_speech("feature lava");
+        else if (in_view[iv] == DNGN_SHALLOW_WATER
+                 || in_view[iv] == DNGN_FOUNTAIN_BLUE
+                 || in_view[iv] == DNGN_FOUNTAIN_SPARKLING)
+        {
+            str = _get_xom_speech("feature shallow water");
+        }
+        else if (in_view[iv] == DNGN_DEEP_WATER)
+            str = _get_xom_speech("feature deep water");
+        else if (in_view[iv] == DNGN_FOUNTAIN_BLOOD)
+            str = _get_xom_speech("feature blood");
+        else if (in_view[iv] == DNGN_DRY_FOUNTAIN)
+            str = _get_xom_speech("feature dry");
+        else if (in_view[iv] == DNGN_ORCISH_IDOL
+                 || in_view[iv] == DNGN_GRANITE_STATUE
+                 || in_view[iv] == DNGN_METAL_STATUE)
+        {
+            str = _get_xom_speech("feature statue");
+        }
+        else if (in_view[iv] == DNGN_CLEAR_ROCK_WALL
+                 || in_view[iv] == DNGN_CLEAR_STONE_WALL
+                 || in_view[iv] == DNGN_CLEAR_PERMAROCK_WALL
+                 || in_view[iv] == DNGN_CRYSTAL_WALL)
+        {
+            str = _get_xom_speech("feature translucent wall");
+        }
+        else if (in_view[iv] == DNGN_METAL_WALL)
+            str = _get_xom_speech("feature metal wall");
+        else if (in_view[iv] == DNGN_STONE_ARCH)
+            str = _get_xom_speech("feature stone arch");
 
-    if (in_view[DNGN_GRANITE_STATUE])
-        priority.emplace_back("The granite statue turns to stare at you.");
+        if (!str.empty())
+        {
+            str = replace_all(str, "@the_feature@", in_view_name[iv]);
+            str = replace_all(str, "@The_feature@",
+                              uppercase_first(in_view_name[iv]));
 
-    if (in_view[DNGN_CLEAR_ROCK_WALL] || in_view[DNGN_CLEAR_STONE_WALL]
-        || in_view[DNGN_CLEAR_PERMAROCK_WALL])
-    {
-        messages.emplace_back("Dim shapes swim through the translucent wall.");
-    }
-
-    if (in_view[DNGN_CRYSTAL_WALL])
-        messages.emplace_back("Dim shapes swim through the crystal wall.");
-
-    if (in_view[DNGN_METAL_WALL])
-    {
-        messages.emplace_back("Tendrils of electricity crawl over the metal "
-                              "wall!");
-    }
-
-    if (in_view[DNGN_FOUNTAIN_BLUE] || in_view[DNGN_FOUNTAIN_SPARKLING])
-    {
-        priority.emplace_back("The water in the fountain briefly bubbles.");
-        priority.emplace_back("The water in the fountain briefly swirls.");
-        priority.emplace_back("The water in the fountain briefly glows.");
-    }
-
-    if (in_view[DNGN_DRY_FOUNTAIN])
-    {
-        priority.emplace_back("Water briefly sprays from the dry fountain.");
-        priority.emplace_back("Dust puffs up from the dry fountain.");
-    }
-
-    if (in_view[DNGN_STONE_ARCH])
-    {
-        priority.emplace_back("The stone arch briefly shows a sunny meadow on "
-                              "the other side.");
+            messages.push_back(str);
+        }
     }
 
     const dungeon_feature_type feat = env.grid(you.pos());
@@ -1840,50 +2311,53 @@ static void _xom_pseudo_miscast(int /*sever*/)
     {
         const string feat_name = feature_description_at(you.pos(), false,
                                                         DESC_THE);
+        string str;
 
         if (you.airborne())
         {
-            // Don't put airborne messages into the priority vector for
-            // anyone who can fly a lot.
-            vector<string>* vec;
-            if (you.racial_permanent_flight())
-                vec = &messages;
-            else
-                vec = &priority;
-
-            vec->push_back(feat_name
-                           + " seems to fall away from under you!");
-            vec->push_back(feat_name
-                           + " seems to rush up at you!");
-
-            if (feat_is_water(feat))
-            {
-                priority.emplace_back("Something invisible splashes into the "
-                                      "water beneath you!");
-            }
+            str = _get_xom_speech(
+                      feat_is_water(feat) ? "underfoot airborne water"
+                                          : "underfoot airborne general");
         }
-        else if (feat_is_water(feat))
-        {
-            priority.emplace_back("The water briefly recedes away from you.");
-            priority.emplace_back("Something invisible splashes into the water "
-                                  "beside you!");
-        }
-    }
-
-    if (feat_has_solid_floor(feat) && !inv_items.empty())
-    {
-        const item_def &item = **random_iterator(inv_items);
-
-        string name;
-        if (item.quantity == 1)
-            name = item.name(DESC_YOUR, false, false, false);
         else
         {
-            name  = "One of ";
-            name += item.name(DESC_YOUR, false, false, false);
+            str = _get_xom_speech(
+                      feat_is_water(feat) ? "underfoot water"
+                                          : "underfoot general");
         }
-        messages.push_back(name + " falls out of your pack, then "
-                           "immediately jumps back in!");
+
+        str = replace_all(str, "@the_feature@", feat_name);
+        str = replace_all(str, "@The_feature@", uppercase_first(feat_name));
+
+        // Don't put airborne messages into the priority vector for
+        // anyone who can fly a lot.
+        if (you.racial_permanent_flight())
+            messages.push_back(str);
+        else
+            priority.push_back(str);
+    }
+
+    if (!inv_items.empty())
+    {
+        const item_def &item = **random_iterator(inv_items);
+        string name = item.name(DESC_YOUR, false, false, false);
+        string str;
+
+        if (feat_has_solid_floor(feat))
+        {
+            str = _get_xom_speech(
+                      item.quantity == 1 ? "floor inventory singular"
+                                         : "floor inventory plural");
+        }
+        else
+            str = _get_xom_speech(
+                      item.quantity == 1 ? "inventory singular"
+                                         : "inventory plural");
+
+        str = replace_all(str, "@your_item@", name);
+        str = replace_all(str, "@Your_item@", uppercase_first(name));
+
+        messages.push_back(str);
     }
 
     //////////////////////////////////////////////
@@ -1892,26 +2366,30 @@ static void _xom_pseudo_miscast(int /*sever*/)
     if (starts_with(species::skin_name(you.species), "bandage")
         && you_can_wear(EQ_BODY_ARMOUR, true) != false)
     {
-        messages.emplace_back("You briefly get tangled in your bandages.");
-        if (!you.airborne() && !you.swimming())
-            messages.emplace_back("You trip over your bandages.");
+        string str =_get_xom_speech(
+                        (!you.airborne() && !you.swimming()) ? "floor bandages"
+                                                             : "bandages");
+        messages.push_back(str);
     }
 
     {
-        string str = "A monocle briefly appears over your ";
-        str += random_choose("right", "left");
-        str += " eye.";
+        string str =_get_xom_speech(
+                you.get_mutation_level(MUT_MISSING_EYE) ? "one eye"
+                                                        : "two eyes");
         messages.push_back(str);
     }
 
     if (species::has_hair(you.species))
     {
-        messages.emplace_back("Your eyebrows briefly feel incredibly bushy.");
-        messages.emplace_back("Your eyebrows wriggle.");
+        string str = _get_xom_speech("hair");
+        messages.push_back(str);
     }
 
-    if (you.species != SP_NAGA && !you.fishtail && !you.airborne())
-        messages.emplace_back("You do an impromptu tapdance.");
+    if (player_has_feet() && !you.airborne() && !you.cannot_act())
+    {
+        string str = _get_xom_speech("impromptu dance");
+        messages.push_back(str);
+    }
 
     ///////////////////////////
     // Equipment related stuff.
@@ -1919,122 +2397,132 @@ static void _xom_pseudo_miscast(int /*sever*/)
     if (you_can_wear(EQ_WEAPON, true) != false
         && !you.slot_item(EQ_WEAPON))
     {
-        string str = "A fancy cane briefly appears in your ";
-        str += you.hand_name(false);
-        str += ".";
+        const bool one_handed = you.slot_item(EQ_OFFHAND)
+                                || you.get_mutation_level(MUT_MISSING_HAND);
+        string str =_get_xom_speech(one_handed ? "unarmed one hand"
+                                               : "unarmed two hands");
+
+        str = replace_all(str, "@hand@", you.hand_name(false));
+        str = replace_all(str, "@hands@", you.hand_name(true));
 
         messages.push_back(str);
     }
 
-    if (you.slot_item(EQ_CLOAK))
+    if (item_def* item = you.slot_item(EQ_CLOAK))
     {
-        item_def* item = you.slot_item(EQ_CLOAK);
+        string name = "your " + item->name(DESC_BASENAME, false, false, false);
+        string str = _get_xom_speech("cloak slot");
 
-        if (item->sub_type == ARM_CLOAK)
-            messages.emplace_back("Your cloak billows in an unfelt wind.");
-        else if (item->sub_type == ARM_SCARF)
-            messages.emplace_back("Your scarf briefly wraps itself around your head!");
+        str = replace_all(str, "@your_item@", name);
+        str = replace_all(str, "@Your_item@", uppercase_first(name));
+
+        messages.push_back(str);
     }
 
     if (item_def* item = you.slot_item(EQ_HELMET))
     {
-        string str = "Your ";
-        str += item->name(DESC_BASENAME, false, false, false);
-        str += " leaps into the air, briefly spins, then lands back on "
-               "your head!";
+        string name = "your " + item->name(DESC_BASENAME, false, false, false);
+        string str = _get_xom_speech("helmet slot");
+
+        str = replace_all(str, "@your_item@", name);
+        str = replace_all(str, "@Your_item@", uppercase_first(name));
+
+        messages.push_back(str);
+    }
+
+    if (item_def* item = you.slot_item(EQ_OFFHAND))
+    {
+        string name = "your " + item->name(DESC_BASENAME, false, false, false);
+        string str = _get_xom_speech("offhand slot");
+
+        str = replace_all(str, "@your_item@", name);
+        str = replace_all(str, "@Your_item@", uppercase_first(name));
+
+        messages.push_back(str);
+    }
+
+    if (item_def* item = you.slot_item(EQ_GLOVES))
+    {
+        string name = "your " + item->name(DESC_BASENAME, false, false, false);
+        string str = _get_xom_speech("gloves slot");
+
+        str = replace_all(str, "@your_item@", name);
+        str = replace_all(str, "@Your_item@", uppercase_first(name));
 
         messages.push_back(str);
     }
 
     if (item_def* item = you.slot_item(EQ_BOOTS))
     {
-        if (item->sub_type == ARM_BOOTS && !you.cannot_act())
-        {
-            string name = item->name(DESC_BASENAME, false, false, false);
-            name = replace_all(name, "pair of ", "");
+        string name = "your " + item->name(DESC_BASENAME, false, false, false);
+        string str = _get_xom_speech("boots slot");
 
-            string str = "You compulsively click the heels of your ";
-            str += name;
-            str += " together three times.";
-            messages.push_back(str);
-        }
-    }
-
-    if (item_def* item = you.slot_item(EQ_OFFHAND))
-    {
-        string str = "Your ";
-        str += item->name(DESC_BASENAME, false, false, false);
-        str += " spins!";
+        str = replace_all(str, "@your_item@", name);
+        str = replace_all(str, "@Your_item@", uppercase_first(name));
 
         messages.push_back(str);
+    }
 
-        str = "Your ";
-        str += item->name(DESC_BASENAME, false, false, false);
-        str += " briefly flashes a lurid colour!";
+    if (item_def* item = you.slot_item(EQ_GIZMO))
+    {
+        string name = "your " + item->name(DESC_BASENAME, false, false, false);
+        string str = _get_xom_speech("gizmo slot");
+
+        str = replace_all(str, "@your_item@", name);
+        str = replace_all(str, "@Your_item@", uppercase_first(name));
+
+        messages.push_back(str);
+    }
+
+    if (item_def* item = _xom_get_random_worn_ring())
+    {
+        // Don't just say "your ring" here. We want to know which one.
+        string name = "your " + item->name(DESC_QUALNAME, false, false, false);
+        string str = _get_xom_speech("ring slot");
+
+        str = replace_all(str, "@your_item@", name);
+        str = replace_all(str, "@Your_item@", uppercase_first(name));
+
         messages.push_back(str);
     }
 
     if (item_def* item = you.slot_item(EQ_BODY_ARMOUR))
     {
+        string name = "your " + item->name(DESC_BASENAME, false, false, false);
         string str;
-        string name = item->name(DESC_BASENAME, false, false, false);
 
         if (name.find("dragon") != string::npos)
-        {
-            str  = "The scales on your ";
-            str += name;
-            str += " wiggle briefly.";
-        }
+            str = _get_xom_speech("dragon armour");
         else if (item->sub_type == ARM_ANIMAL_SKIN)
-        {
-            str  = "The fur on your ";
-            str += name;
-            str += " grows longer at an alarming rate, then retracts back "
-                   "to normal.";
-        }
+            str = _get_xom_speech("animal skin");
         else if (item->sub_type == ARM_LEATHER_ARMOUR)
-        {
-            str  = "Your ";
-            str += name;
-            str += " briefly grows fur, then returns to normal.";
-        }
+            str = _get_xom_speech("leather armour");
         else if (item->sub_type == ARM_ROBE)
-        {
-            str  = "You briefly become tangled in your ";
-            str += pluralise(name);
-            str += ".";
-        }
+            str = _get_xom_speech("robe");
         else if (item->sub_type >= ARM_RING_MAIL
                  && item->sub_type <= ARM_PLATE_ARMOUR)
         {
-            str  = "Your ";
-            str += name;
-            str += " briefly appears rusty.";
+            str = _get_xom_speech("metal armour");
         }
 
         if (!str.empty())
+        {
+            str = replace_all(str, "@your_item@", name);
+            str = replace_all(str, "@Your_item@", uppercase_first(name));
+
             messages.push_back(str);
+        }
     }
 
-    ////////
-    // Misc.
-    if (!inv_items.empty())
-    {
-        item_def &item = **random_iterator(inv_items);
-
-        string name = item.name(DESC_YOUR, false, false, false);
-        string verb = random_choose("glow", "vibrate");
-
-        if (item.quantity == 1)
-            verb += "s";
-
-        messages.push_back(name + " briefly " + verb + ".");
-    }
+    string str;
 
     if (!priority.empty() && coinflip())
-        mpr(priority[random2(priority.size())]);
+        str = priority[random2(priority.size())];
     else
-        mpr(messages[random2(messages.size())]);
+        str = messages[random2(messages.size())];
+
+    str = maybe_pick_random_substring(str);
+    mpr(str);
 }
 
 static bool _miscast_is_nasty(int sever)
@@ -2305,20 +2793,18 @@ static void _xom_repel_stairs(bool unclimbable)
 
     // Don't mention staircases if there aren't any nearby.
     string stair_msg = _get_xom_speech("repel stairs");
-    if (stair_msg.find("@staircase@") != string::npos)
+    string feat_name;
+
+    if (!real_stairs)
     {
-        string feat_name;
-        if (!real_stairs)
-        {
-            if (feat_is_escape_hatch(env.grid(stairs_avail[0])))
-                feat_name = "escape hatch";
-            else
-                feat_name = "gate";
-        }
-        else
-            feat_name = "staircase";
-        stair_msg = replace_all(stair_msg, "@staircase@", feat_name);
+        feat_name =
+            feat_is_escape_hatch(env.grid(stairs_avail[0])) ? "escape hatch"
+                                                            : "gate";
     }
+    else
+        feat_name = "staircase";
+
+    stair_msg = replace_all(stair_msg, "@staircase@", feat_name);
 
     god_speaks(GOD_XOM, stair_msg.c_str());
 
@@ -2349,16 +2835,26 @@ static void _xom_unclimbable_stairs(int) { _xom_repel_stairs(true); }
 static void _xom_cloud_trail(int /*sever*/)
 {
     you.duration[DUR_CLOUD_TRAIL] = random_range(600, 1200);
-    you.props[XOM_CLOUD_TRAIL_TYPE_KEY] =
-        // 80% chance of a useful trail
-        random_choose_weighted(20, CLOUD_CHAOS,
-                               9,  CLOUD_MAGIC_TRAIL,
-                               5,  CLOUD_MIASMA,
-                               5,  CLOUD_PETRIFY,
-                               5,  CLOUD_MUTAGENIC,
-                               4,  CLOUD_MISERY,
-                               1,  CLOUD_SALT,
-                               1,  CLOUD_BLASTMOTES);
+    // 80% chance of a useful trail
+    cloud_type ctype = random_choose_weighted(20, CLOUD_CHAOS,
+                                              9,  CLOUD_MAGIC_TRAIL,
+                                              5,  CLOUD_MIASMA,
+                                              5,  CLOUD_PETRIFY,
+                                              5,  CLOUD_MUTAGENIC,
+                                              4,  CLOUD_MISERY,
+                                              1,  CLOUD_SALT,
+                                              1,  CLOUD_BLASTMOTES);
+
+    bool suppressed = false;
+    if (you_worship(GOD_ZIN) && (ctype == CLOUD_CHAOS || ctype == CLOUD_MUTAGENIC))
+        suppressed = true;
+    else if (is_good_god(you.religion) && (ctype == CLOUD_MIASMA || ctype == CLOUD_MISERY))
+        suppressed = true;
+
+    if (suppressed)
+        ctype = CLOUD_SALT;
+
+    you.props[XOM_CLOUD_TRAIL_TYPE_KEY] = ctype;
 
     // Need to explicitly set as non-zero. Use a clean half of the power cap.
     if (you.props[XOM_CLOUD_TRAIL_TYPE_KEY].get_int() == CLOUD_BLASTMOTES)
@@ -2368,6 +2864,9 @@ static void _xom_cloud_trail(int /*sever*/)
 
     const string speech = _get_xom_speech("cloud trail");
     god_speaks(GOD_XOM, speech.c_str());
+
+    if (suppressed)
+        simple_god_message(" purifies the foul vapours!");
 }
 
 static void _xom_statloss(int /*sever*/)
@@ -2425,37 +2924,57 @@ static monster* _xom_summon_hostile(monster_type hostile)
 
 static void _xom_summon_hostiles(int sever)
 {
+    int strengthRoll = random2(1000 - (MAX_PIETY- sever) * 5);
     int num_summoned = 0;
-    const bool shadow_creatures = one_chance_in(3);
+    const bool shadow_creatures = one_chance_in(4);
 
     if (shadow_creatures)
     {
-        // Small number of shadow creatures.
-        int count = 1 + random2(4);
+        // Small number of shadow creatures, but still a little touch of chaos.
+        int multiplier = 1;
+
+        if (_xom_is_bored())
+            multiplier = 3;
+        else if (you.penance[GOD_XOM])
+            multiplier = 2;
+
+        int count = random_range(1, 3) * multiplier;
+
+        for (int i = 0; i < multiplier; ++i)
+            if (_xom_summon_hostile(_xom_random_pal(strengthRoll, false)))
+                num_summoned++;
+
         for (int i = 0; i < count; ++i)
             if (_xom_summon_hostile(RANDOM_MOBILE_MONSTER))
                 num_summoned++;
     }
     else
     {
-        // The number of demons is dependent on severity, though heavily
-        // randomised.
-        int numdemons = sever;
-        for (int i = 0; i < 3; ++i)
-            numdemons = random2(numdemons + 1);
-        numdemons = min(numdemons + 1, 14);
+        int count = _xom_pal_counting(strengthRoll, false);
 
-        // Limit number of demons by experience level.
-        if (!you.penance[GOD_XOM])
+        for (int i = 0; i < count; ++i)
         {
-            const int maxdemons = ((you.experience_level / 2) + 1);
-            if (numdemons > maxdemons)
-                numdemons = maxdemons;
-        }
+            monster_type mon_type = _xom_random_pal(strengthRoll, false);
 
-        for (int i = 0; i < numdemons; ++i)
-            if (_xom_summon_hostile(_xom_random_demon(sever)))
-                num_summoned++;
+            // As seen in _xom_send_allies, add more of given banding monsters
+            // without adding to the overall summon cap.
+            int miniband = _xom_pal_minibands(mon_type);
+
+            for (int j = 0; j < miniband; ++j)
+                if (_xom_summon_hostile(mon_type))
+                    num_summoned++;
+
+            // Again as seen in _xom_send_allies, make summons likely to come in
+            // pairs of the same type if neither a band nor later summoners,
+            // while still respecting the overall summon cap.
+            if (x_chance_in_y(2, 3) && miniband == 1 &&
+                !_xom_pal_summonercheck(mon_type) && i < count - 1)
+            {
+                i += 1;
+                if (_xom_summon_hostile(_xom_random_pal(strengthRoll, false)))
+                    num_summoned++;
+            }
+        }
     }
 
     if (num_summoned > 0)
@@ -2463,7 +2982,7 @@ static void _xom_summon_hostiles(int sever)
         const string note = make_stringf("summons %d hostile %s%s",
                                          num_summoned,
                                          shadow_creatures ? "shadow creature"
-                                                          : "demon",
+                                                          : "chaos creature",
                                          num_summoned > 1 ? "s" : "");
         take_note(Note(NOTE_XOM_EFFECT, you.piety, -1, note), true);
 
@@ -2472,9 +2991,85 @@ static void _xom_summon_hostiles(int sever)
     }
 }
 
+// Roll per-monster whether they're neutral or hostile.
+static bool _xom_maybe_neutral_summon(int sever, bool threat,
+                                      monster_type mon_type)
+{
+    beh_type setting = (x_chance_in_y(sever, 300) || threat) ? BEH_HOSTILE
+                                                             : BEH_NEUTRAL;
+
+    mgen_data mg(mon_type, setting, you.pos(), MHITYOU, MG_FORCE_BEH);
+    mg.set_summoned(&you, 4, MON_SUMM_AID, GOD_XOM);
+    mg.non_actor_summoner = "Xom";
+
+    return create_monster(mg);
+}
+
+// Drain you for 3/4ths of your mp, then create several brain worms, mana
+// vipers, and / or quicksilver elementals from your mp based on your xl. If
+// Xom's not bored or wrathful, severity gives a chance of some being neutral.
+static void _xom_brain_drain(int sever)
+{
+    bool created = false;
+    bool upgrade = you.penance[GOD_XOM];
+    int xl = upgrade ? you.experience_level + 6 : you.experience_level;
+    int worm_count = 0;
+    int viper_count = 0;
+    int quicksilver_count = 0;
+    int drain = 1;
+
+    drain = upgrade ? you.magic_points :
+            min(you.magic_points, max(1, (you.magic_points * 3 / 4)));
+
+    if (xl < 15)
+        worm_count = xl < 5 ? 1 : min(4, div_rand_round(xl - 1, 3));
+
+    if (xl > 11 && xl < 22)
+        viper_count = xl < 14 ? 1 : min(4, div_rand_round(xl - 10, 3));
+
+    if (xl > 19)
+        quicksilver_count = xl < 22 ? 1 : min(3, div_rand_round(xl - 18, 3));
+
+    // Xom won't do this anyway if you have no MP, so...
+    if (drain > 0)
+    {
+        drain_mp(drain);
+
+        for (int i = 0; i < worm_count; ++i)
+            if (_xom_maybe_neutral_summon(sever, upgrade, MONS_BRAIN_WORM))
+                created = true;
+
+        for (int i = 0; i < viper_count; ++i)
+            if (_xom_maybe_neutral_summon(sever, upgrade, MONS_MANA_VIPER))
+                created = true;
+
+        for (int i = 0; i < quicksilver_count; ++i)
+            if (_xom_maybe_neutral_summon(sever, upgrade, MONS_QUICKSILVER_ELEMENTAL))
+                created = true;
+
+        const string speech = _get_xom_speech("brain drain");
+        god_speaks(GOD_XOM, speech.c_str());
+
+        if (created)
+        {
+            const string react = _get_xom_speech("drained brain");
+            const string note = make_stringf("drained mp, created monsters");
+            mprf(MSGCH_WARN, "%s", react.c_str());
+            take_note(Note(NOTE_XOM_EFFECT, you.piety, -1, note), true);
+        }
+        else
+        {
+            mprf(MSGCH_WARN, "You feel nearly all of your power leaking away!");
+            const string note = make_stringf("drained mp");
+            take_note(Note(NOTE_XOM_EFFECT, you.piety, -1, note), true);
+        }
+    }
+}
+
 static bool _has_min_banishment_level()
 {
-    return you.experience_level >= 9;
+    int min = you.penance[GOD_XOM] ? 6 : 9;
+    return you.experience_level >= min;
 }
 
 // Rolls whether banishment will be averted.
@@ -2491,8 +3086,8 @@ static bool _allow_xom_banishment()
     if (player_under_penance(GOD_XOM))
         return true;
 
-    // If Xom is bored, banishment becomes viable earlier.
-    if (_xom_is_bored())
+    // If Xom is bored or wrathful, banishment becomes viable earlier.
+    if (_xom_feels_nasty())
         return !_will_not_banish();
 
     // Below the minimum experience level, only fake banishment is allowed.
@@ -2542,8 +3137,10 @@ static void _xom_do_banishment(bool real)
 {
     god_speaks(GOD_XOM, _get_xom_speech("banishment").c_str());
 
+    int power = _xom_feels_nasty() ? you.experience_level * 3 / 2 - 10
+                                   : you.experience_level * 5 / 4 - 13;
     // Handles note taking, scales depth by XL
-    banished("Xom", max(1, (you.experience_level * 5 / 4 - 13)));
+    banished("Xom", max(1, power));
     if (!real)
         _revert_banishment();
 }
@@ -2789,6 +3386,22 @@ static xom_event_type _xom_choose_good_action(int sever, int tension)
     if (x_chance_in_y(12, sever) && _xom_mons_poly_target() != nullptr)
         return XOM_GOOD_POLYMORPH;
 
+    if (tension > random2(3) && x_chance_in_y(13, sever))
+    {
+        // Check if there's a reasonable amount of open terrain
+        // before placing down all the living spells.
+        int open_count = 0;
+        for (radius_iterator ri(you.pos(), 2, C_SQUARE, LOS_NO_TRANS, true);
+             ri; ++ri)
+        {
+            if (!cell_is_solid(*ri))
+                open_count++;
+        }
+
+        if (open_count > 6)
+            return XOM_GOOD_FORCE_LANCE_FLEET;
+    }
+
     if (tension > 0 && x_chance_in_y(13, sever))
     {
         const bool fake = one_chance_in(3);
@@ -2814,6 +3427,16 @@ static xom_event_type _xom_choose_good_action(int sever, int tension)
 
     if (tension > random2(5) && x_chance_in_y(14, sever))
         return XOM_GOOD_CLEAVING;
+
+    if (tension > random2(3) && x_chance_in_y(14, sever))
+    {
+        for (radius_iterator ri(you.pos(), 2, C_SQUARE, LOS_NO_TRANS, true);
+             ri; ++ri)
+        {
+            if (!monster_at(*ri) && monster_habitable_grid(MONS_PLANT, env.grid(*ri)))
+                return XOM_GOOD_FLORA_RING;
+        }
+    }
 
     if (tension > 0 && x_chance_in_y(15, sever) && !cloud_at(you.pos()))
         return XOM_GOOD_FOG;
@@ -2870,12 +3493,16 @@ static xom_event_type _xom_choose_bad_action(int sever, int tension)
 {
     const bool nasty = _miscast_is_nasty(sever);
 
-    if (!nasty && x_chance_in_y(3, sever))
+    if (!nasty && x_chance_in_y(3, sever) && !you.penance[GOD_XOM])
         return XOM_BAD_MISCAST_PSEUDO;
 
     // Sometimes do noise out of combat.
-    if ((tension > 0 || coinflip()) && x_chance_in_y(6, sever))
+    if ((tension > 0 || coinflip()) && x_chance_in_y(6, sever)
+        && !you.penance[GOD_XOM])
+     {
         return XOM_BAD_NOISE;
+     }
+
     if (tension > 0 && x_chance_in_y(7, sever))
         return XOM_BAD_ENCHANT_MONSTER;
 
@@ -2930,6 +3557,19 @@ static xom_event_type _xom_choose_bad_action(int sever, int tension)
     }
     if (x_chance_in_y(19, sever))
         return XOM_BAD_SUMMON_HOSTILES;
+
+    if (tension > 0 && x_chance_in_y(20, sever)
+        && !you.duration[DUR_HASTE] && !you.duration[DUR_SLOW]
+        && !you.duration[DUR_PARALYSIS])
+    {
+        return XOM_BAD_TIME_CONTROL;
+    }
+
+    if (tension > 0 && x_chance_in_y(20, sever)
+        && you.magic_points > 3)
+    {
+        return XOM_BAD_BRAIN_DRAIN;
+    }
 
     if (x_chance_in_y(21, sever))
     {
@@ -3442,9 +4082,12 @@ static const map<xom_event_type, xom_event> xom_events = {
     { XOM_GOOD_MUTATION, { "good mutations", _xom_give_good_mutations }},
     { XOM_GOOD_LIGHTNING, { "lightning", _xom_throw_divine_lightning }},
     { XOM_GOOD_SCENERY, { "change scenery", _xom_change_scenery }},
+    { XOM_GOOD_FLORA_RING, {"flora ring", _xom_harmless_flora }},
     { XOM_GOOD_SNAKES, { "snakes to sticks", _xom_snakes_to_sticks }},
     { XOM_GOOD_DESTRUCTION, { "mass fireball", _xom_real_destruction }},
     { XOM_GOOD_FAKE_DESTRUCTION, { "fake fireball", _xom_fake_destruction }},
+    { XOM_GOOD_FORCE_LANCE_FLEET, {"living force lance fleet",
+                                   _xom_force_lances }},
     { XOM_GOOD_ENCHANT_MONSTER, { "good enchant monster",
                                   _xom_good_enchant_monster }},
     { XOM_GOOD_FOG, { "fog", _xom_fog }},
@@ -3455,6 +4098,7 @@ static const map<xom_event_type, xom_event> xom_events = {
     { XOM_BAD_NOISE, { "noise", _xom_noise, 10 }},
     { XOM_BAD_ENCHANT_MONSTER, { "bad enchant monster",
                                  _xom_bad_enchant_monster, 10}},
+    { XOM_BAD_TIME_CONTROL, {"time control", _xom_time_control, 15}},
     { XOM_BAD_BLINK_MONSTERS, { "blink monsters", _xom_blink_monsters, 10}},
     { XOM_BAD_CONFUSION, { "confuse player", _xom_player_confusion_effect, 13}},
     { XOM_BAD_SWAP_MONSTERS, { "swap monsters", _xom_rearrange_pieces, 20 }},
@@ -3466,6 +4110,7 @@ static const map<xom_event_type, xom_event> xom_events = {
                               30}},
     { XOM_BAD_MUTATION, { "bad mutations", _xom_give_bad_mutations, 30}},
     { XOM_BAD_SUMMON_HOSTILES, { "summon hostiles", _xom_summon_hostiles, 35}},
+    { XOM_BAD_BRAIN_DRAIN, {"mp brain drain", _xom_brain_drain, 30}},
     { XOM_BAD_STATLOSS, { "statloss", _xom_statloss, 23}},
     { XOM_BAD_DRAINING, { "draining", _xom_draining, 23}},
     { XOM_BAD_TORMENT, { "torment", _xom_torment, 23}},

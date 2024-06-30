@@ -511,7 +511,8 @@ static const mutation_def mut_data[] =
    ""},
 },
 
-{ MUT_NOISE_DAMPENING, 2, 1, mutflag::good, false,
+#if TAG_MAJOR_VERSION == 34
+{ MUT_NOISE_DAMPENING, 0, 1, mutflag::good, false,
   "noise suppression",
 
   {"You passively dampen the noise of your surroundings.", "", ""},
@@ -520,6 +521,7 @@ static const mutation_def mut_data[] =
 
   {"You feel your surroundings grow louder.", "", ""},
 },
+#endif
 
 { MUT_CLARITY, 6, 1, mutflag::good, false,
   "clarity",
@@ -1883,7 +1885,7 @@ static const mutation_def mut_data[] =
 },
 
 { MUT_HEX_ENHANCER, 0, 1, mutflag::good, false,
-  "bedeviling",
+  "bedevilling",
 
   {"Your hexes are more powerful.", "", ""},
   {"You feel devilish.", "", ""},

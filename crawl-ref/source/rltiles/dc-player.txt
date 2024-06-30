@@ -222,6 +222,8 @@ scarf_red SCARF_RED
 scarf_white SCARF_WHITE
 scarf_magenta SCARF_MAGENTA
 scarf_green SCARF_GREEN SCARF_LAST_NORM
+#unrand
+scarf_invisibility SCARF_INVISIBILITY
 %end_ctg
 
 ###Boots
@@ -1069,6 +1071,7 @@ hat_archer ARCHER
 hat_archer2 ARCHER2
 hat_explorer EXPLORER
 hat_explorer2 EXPLORER2
+hat_wiglaf HAT_WIGLAF
 
 ## Mutations
 horns1 HORNS1

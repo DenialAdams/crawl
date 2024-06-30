@@ -206,7 +206,7 @@ public:
     virtual void confuse(actor *attacker, int strength) = 0;
     virtual void put_to_sleep(actor *attacker, int strength,
                               bool hibernate = false) = 0;
-    virtual void weaken(actor *attacker, int pow) = 0;
+    virtual void weaken(const actor *attacker, int pow) = 0;
     virtual bool strip_willpower(actor *attacker, int dur,
                                  bool quiet = false) = 0;
     virtual void expose_to_element(beam_type element, int strength = 0,
@@ -229,9 +229,6 @@ public:
     virtual int  skill(skill_type sk, int scale = 1, bool real = false,
                        bool temp = true) const = 0;
     int  skill_rdiv(skill_type sk, int mult = 1, int div = 1) const;
-
-#define TORPOR_SLOWED_KEY "torpor_slowed"
-    bool torpor_slowed() const;
 
     virtual int heads() const = 0;
 
@@ -423,7 +420,7 @@ public:
 
     string resist_margin_phrase(int margin) const;
 
-    void collide(coord_def newpos, const actor *agent, int pow);
+    void collide(coord_def newpos, const actor *agent, int damage);
     bool knockback(const actor &cause, int dist, int pow, string source_name);
     coord_def stumble_pos(coord_def targ) const;
     void stumble_away_from(coord_def targ, string src);

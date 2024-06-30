@@ -85,7 +85,7 @@ void DungeonCellBuffer::add(const packed_cell &cell, int x, int y)
 
         // If there's a foreground, sandwich it between two semi-transparent
         // clouds at different z-indices. This uses the same alpha fading as
-        // a swimming characters but applied to the cloud (instead of as normal
+        // a swimming character but applied to the cloud (instead of as normal
         // applied to the character).
         if (fg_idx)
         {
@@ -514,6 +514,9 @@ static map<tileidx_t, int> status_icon_sizes = {
     { TILEI_SUMMONED,        FIXED_LOC_ICON },
     { TILEI_PERM_SUMMON,     FIXED_LOC_ICON },
     { TILEI_VENGEANCE_TARGET,FIXED_LOC_ICON },
+
+    // Along the bottom of the monster.
+    { TILEI_SHADOWLESS,      FIXED_LOC_ICON },
 };
 
 void DungeonCellBuffer::pack_foreground(int x, int y, const packed_cell &cell)

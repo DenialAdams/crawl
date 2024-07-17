@@ -162,6 +162,18 @@ A portal to a secret trove of treasure
  generations thieves must have stored their gains and spoils in this place.”
     -_The Arabian Nights_. trans. Sir Richard F. Burton, 1885.
 %%%%
+A portal to somewhere
+
+“The hole now stood some three meters in diameter beginning from the dais -
+ though its outline shrank and dilated slightly like a pulsing, living thing.
+ Through it we could see shapes seething and changing constantly with the
+ colors and the light. Purple trees grew upside down from a pink sky, changing
+ into black flowers and the flowers into feathery tongues of giant yellow worms
+ lumbering over a shaking, exploding desert. It was as if the world couldn't
+ make up its mind what to be yet. Looking at the scene for even a moment gave
+ me a headache, and anyone looking at it for long would surely go mad.”
+    -Laurence Yep, _Dragon War_. 1992.
+%%%%
 A rock wall
 
 “I know not whether Laws be right,
@@ -1064,7 +1076,7 @@ glaive
  ſtaffe behind the backmoſt hand doth no harme.”
     -George Silver,_Paradoxes of Defence_.1599.
 %%%%
-gold dragon scales
+golden dragon scales
 
 <steam dragon scales>
 %%%%
@@ -2324,17 +2336,6 @@ Sigmund
     -William Morris, _The Story of Sigurd the Volsung and the Fall of the
 Niblungs_. 1891.
 %%%%
-Terence
-
-“A MAN committed a murder, and was pursued by the relations of the man whom he
- murdered. On his reaching the river Nile he saw a Lion on its bank and being
- fearfully afraid, climbed up a tree. He found a serpent in the upper branches
- of the tree, and again being greatly alarmed, he threw himself into the river,
- where a crocodile caught him and ate him. Thus the earth, the air, and the
- water alike refused shelter to a murderer.”
-    -Aesop, _The Manslayer_. 6th century BCE.
-     trans. George Fyler Townsend
-%%%%
 Tiamat
 
 “He saith that Tiamat our mother hath conceived a hatred for us,
@@ -2930,11 +2931,12 @@ fenstrider witch
 %%%%
 fire crab
 
-“The planet brought forth scintillating jewelled scuttling crabs, which [they]
- ate, smashing their shells with iron mallets; tall aspiring trees with
- breathtaking slenderness and colour which [they] cut down and burned the crab
- meat with.”
-    -Douglas Adams, The Hitch-hiker's Guide to the Galaxy
+“The planet brought forth scintillating jewelled scuttling crabs, which the
+ Vogons ate, smashing their shells with iron mallets; tall aspiring trees with
+ breathtaking slenderness and colour which the Vogons cut down and burned the
+ crab meat with; elegant gazellelike creatures with silken coats and dewy eyes
+ which the Vogons would catch and sit on.”
+    -Douglas Adams, _The Hitch-hiker's Guide to the Galaxy_. 1979.
 %%%%
 flayed ghost
 

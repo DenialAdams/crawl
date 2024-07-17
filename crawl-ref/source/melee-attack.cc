@@ -271,13 +271,16 @@ bool melee_attack::handle_phase_blocked()
     if (defender->is_player() && you.duration[DUR_DIVINE_SHIELD]
         && coinflip())
     {
-        if (!attacker->as_monster()->has_ench(ENCH_BLIND))
+        // If the monster is unblindable, making them blind will fail,
+        // so don't display a message.
+        const bool need_msg = !attacker->as_monster()->has_ench(ENCH_BLIND);
+        if (attacker->as_monster()->add_ench(mon_enchant(ENCH_BLIND, 1, &you,
+                                        random_range(3, 5) * BASELINE_DELAY))
+            && need_msg)
         {
             mprf("%s is struck blind by the light of your shield.",
                     attacker->name(DESC_THE).c_str());
         }
-        attacker->as_monster()->add_ench(mon_enchant(ENCH_BLIND, 1, &you,
-                                            random_range(3, 5) * BASELINE_DELAY));
     }
 
     return attack::handle_phase_blocked();
@@ -447,7 +450,7 @@ void melee_attack::apply_sign_of_ruin_effects()
         {
             effects.push_back(WEAKNESS);
         }
-        if (defender->is_player() || mons_can_be_dazzled(defender->type))
+        if (defender->can_be_dazzled())
             effects.push_back(BLIND);
         if (!defender->stasis())
             effects.push_back(SLOW);
@@ -470,6 +473,7 @@ void melee_attack::apply_sign_of_ruin_effects()
                 {
                     defender->as_monster()->add_ench(mon_enchant(ENCH_BLIND, 1, attacker,
                                                     random_range(5, 8) * BASELINE_DELAY));
+                    simple_monster_message(*defender->as_monster(), " is struck blind.");
                 }
                 else
                     blind_player(random_range(5, 8));
@@ -508,7 +512,7 @@ void melee_attack::try_parry_disarm()
         item_def *wpn = defender->as_monster()->disarm();
         if (wpn)
         {
-            mprf("You knock the %s out of %s grip!",
+            mprf("You knock %s out of %s grip!",
                 wpn->name(DESC_THE).c_str(),
                 defender->name(DESC_ITS).c_str());
         }
@@ -666,7 +670,7 @@ bool melee_attack::handle_phase_hit()
 
     // Fireworks when using Serpent's Lash to kill.
     if (!defender->alive()
-        && defender->as_monster()->can_bleed()
+        && defender->as_monster()->has_blood()
         && wu_jian_has_momentum(wu_jian_attack))
     {
         blood_spray(defender->pos(), defender->as_monster()->type,
@@ -691,12 +695,14 @@ bool melee_attack::handle_phase_hit()
     if (check_unrand_effects())
         return false;
 
+    if (damage_done > 0 || special_damage > 0)
+        apply_sign_of_ruin_effects();
+
     if (damage_done > 0)
     {
         apply_black_mark_effects();
         do_ooze_engulf();
         try_parry_disarm();
-        apply_sign_of_ruin_effects();
     }
 
     if (attacker->is_player())
@@ -1413,13 +1419,13 @@ public:
 
     int get_damage(bool /*random*/) const override
     {
-        if (you.has_usable_hooves())
+        if (you.has_hooves())
         {
             // Max hoof damage: 10.
             return damage + you.get_mutation_level(MUT_HOOVES) * 5 / 3;
         }
 
-        if (you.has_usable_talons())
+        if (you.has_talons())
         {
             // Max talon damage: 9.
             return damage + 1 + you.get_mutation_level(MUT_TALONS);
@@ -3483,7 +3489,7 @@ void melee_attack::mons_apply_attack_flavour()
 
     case AF_BLOODZERK:
     {
-        if (!defender->can_bleed() || !attacker->can_go_berserk())
+        if (!defender->has_blood() || !attacker->can_go_berserk())
             break;
 
         monster* mon = attacker->as_monster();

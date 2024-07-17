@@ -570,6 +570,8 @@ static void _dissipate_cloud(cloud_struct& cloud)
             cloud.decay = random_range(50, 90);
             cloud.type = CLOUD_MIASMA;
         }
+        else
+            delete_cloud(cloud.pos);
     }
 
     // Check for total dissipation and handle accordingly.
@@ -2040,7 +2042,7 @@ static const vector<chaos_effect> chaos_effects = {
     },
     {
         "blinding", 5, [](const actor &victim) {
-            return victim.is_player() || mons_can_be_dazzled(victim.as_monster()->type);
+            return victim.can_be_dazzled();
         }, BEAM_NONE, [](actor* victim, actor* source) {
             if (victim->is_player())
                 blind_player(random_range(7, 12), ETC_RANDOM);

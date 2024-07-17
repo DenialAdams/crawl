@@ -420,7 +420,7 @@ mutation_activity_type mutation_activity_level(mutation_type mut)
     if (mut == MUT_BERSERK && you.is_lifeless_undead())
         return mutation_activity_type::INACTIVE;
 
-    if (!form_can_bleed(you.form) && mut == MUT_SANGUINE_ARMOUR)
+    if (!form_has_blood(you.form) && mut == MUT_SANGUINE_ARMOUR)
         return mutation_activity_type::INACTIVE;
 
     if (mut == MUT_DEMONIC_GUARDIAN && you.allies_forbidden())
@@ -466,7 +466,7 @@ static string _annotate_form_based(string desc, bool suppressed, bool terse=fals
 
 static string _dragon_abil(string desc, bool terse=false)
 {
-    const bool supp = form_changed_physiology()
+    const bool supp = form_changes_physiology()
                             && you.form != transformation::dragon;
     return _annotate_form_based(desc, supp, terse);
 }
@@ -1974,7 +1974,7 @@ bool physiology_mutation_conflict(mutation_type mutat)
     }
 
     // No bones for thin skeletal structure or horns.
-    if (!species::has_bones(you.species)
+    if (!you.has_bones()
         && (mutat == MUT_THIN_SKELETAL_STRUCTURE || mutat == MUT_HORNS))
     {
         return true;

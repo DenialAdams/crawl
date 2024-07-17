@@ -177,7 +177,8 @@ public:
     virtual bool can_mutate() const = 0;
     virtual bool can_safely_mutate(bool temp = true) const = 0;
     virtual bool can_polymorph() const = 0;
-    virtual bool can_bleed(bool temp = true) const = 0;
+    virtual bool has_blood(bool temp = true) const = 0;
+    virtual bool has_bones(bool temp = true) const = 0;
     virtual bool is_stationary() const = 0;
     virtual bool malmutate(const string &reason) = 0;
     virtual bool polymorph(int pow, bool allow_immobile = true) = 0;
@@ -238,6 +239,9 @@ public:
     virtual int stealth () const = 0;
 
     virtual bool can_throw_large_rocks() const = 0;
+
+    virtual bool can_be_dazzled() const = 0;
+    virtual bool can_be_blinded() const = 0;
 
     virtual int armour_class() const = 0;
     virtual int gdr_perc() const = 0;

@@ -693,7 +693,18 @@ bool monster::can_throw_large_rocks() const
            || species == MONS_CYCLOPS
            || species == MONS_OGRE
            || type == MONS_PARGHIT // he's stronger than your average troll
-           || type == MONS_BOUND_SOUL;
+           || type == MONS_BOUND_SOUL
+           || type == MONS_PLAYER_SHADOW; // can throw them if you can!
+}
+
+bool monster::can_be_dazzled() const
+{
+    return mons_can_be_dazzled(type);
+}
+
+bool monster::can_be_blinded() const
+{
+    return mons_can_be_blinded(type);
 }
 
 bool monster::can_speak()
@@ -4334,7 +4345,7 @@ int monster::hurt(const actor *agent, int amount, beam_type flavour,
 
         if (flavour == BEAM_DESTRUCTION || flavour == BEAM_MINDBURST)
         {
-            if (can_bleed())
+            if (has_blood())
                 blood_spray(pos(), type, amount / 5);
 
             if (!alive())
@@ -5116,9 +5127,14 @@ bool monster::can_polymorph() const
     return can_mutate();
 }
 
-bool monster::can_bleed(bool /*temp*/) const
+bool monster::has_blood(bool /*temp*/) const
 {
     return mons_has_blood(type);
+}
+
+bool monster::has_bones(bool /*temp*/) const
+{
+    return mons_skeleton(type);
 }
 
 bool monster::is_stationary() const

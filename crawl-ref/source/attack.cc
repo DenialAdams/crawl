@@ -86,11 +86,8 @@ bool attack::handle_phase_blocked()
         behaviour_event(defender->as_monster(), ME_WHACK, attacker);
 
     // Use up a charge of Divine Shield, if active.
-    if (defender->is_player() && you.duration[DUR_DIVINE_SHIELD])
-    {
-        if (--you.attribute[ATTR_DIVINE_SHIELD] <= 0)
-            tso_remove_divine_shield();
-    }
+    if (defender->is_player())
+        tso_expend_divine_shield_charge();
 
     return true;
 }
@@ -100,7 +97,7 @@ bool attack::handle_phase_damaged()
     // We have to check in_bounds() because removed kraken tentacles are
     // temporarily returned to existence (without a position) when they
     // react to damage.
-    if (defender->can_bleed()
+    if (defender->has_blood()
         && !defender->is_summoned()
         && in_bounds(defender->pos())
         && !simu)

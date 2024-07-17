@@ -1426,7 +1426,7 @@ static void _make_derived_undead(monster* mons, bool quiet,
     }
 
     const string message = quiet ? "" :
-                           god == GOD_KIKUBAAQUDGHA ? "Kikubaaqudha cackles." :
+                           god == GOD_KIKUBAAQUDGHA ? "Kikubaaqudgha cackles." :
                            _derived_undead_message(*mons, which_z, mist);
     make_derived_undead_fineff::schedule(mons->pos(), mg,
             mons->get_experience_level(), agent_name, message, spell);
@@ -1479,7 +1479,7 @@ static void _orb_of_mayhem(actor& maniac, const monster& victim)
 {
     vector<monster *> witnesses;
     for (monster_near_iterator mi(&victim, LOS_NO_TRANS); mi; ++mi)
-        if (mi->can_see(maniac) && mi->can_go_frenzy())
+        if (*mi != &victim && mi->can_see(maniac) && mi->can_go_frenzy())
             witnesses.push_back(*mi);
 
     if (coinflip() && !witnesses.empty())
@@ -2195,7 +2195,12 @@ item_def* monster_die(monster& mons, killer_type killer,
         if (!monster_habitable_grid(simu.base_type, env.grid(mons.pos())))
             find_habitable_spot_near(mons.pos(), simu.base_type, 3, true, simu.pos);
 
-        string msg = "Your " + mons_type_name(simu.base_type, DESC_PLAIN) +
+        monster_type real_simu_type = simu.base_type;
+        // Don't use uniques' names here; their simulacra won't use them either.
+        if (mons_is_unique(simu.base_type))
+            real_simu_type = mons_species(simu.base_type);
+
+        string msg = "Your " + mons_type_name(real_simu_type, DESC_PLAIN) +
                      " simulacrum begins to move.";
         make_derived_undead_fineff::schedule(simu.pos, simu,
                                              get_monster_data(simu.base_type)->HD,

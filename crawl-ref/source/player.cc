@@ -946,16 +946,24 @@ bool player_can_use_armour()
     return false;
 }
 
+bool player_has_hair(bool temp, bool include_mutations)
+{
+    if (include_mutations &&
+        you.get_mutation_level(MUT_SHAGGY_FUR, temp))
+    {
+        return true;
+    }
+
+    if (temp && form_has_hair(you.form))
+        return true;
+
+    return species::has_hair(you.species);
+}
+
 bool player_has_feet(bool temp, bool include_mutations)
 {
-    if (you.has_innate_mutation(MUT_CONSTRICTING_TAIL)
-        || you.has_innate_mutation(MUT_FLOAT)
-        || you.has_innate_mutation(MUT_PAWS) // paws are not feet?
-        || you.has_tentacles(temp)
-        || you.fishtail && temp)
-    {
+    if (you.fishtail && temp)
         return false;
-    }
 
     if (include_mutations &&
         (you.get_mutation_level(MUT_HOOVES, temp) == 3
@@ -964,7 +972,29 @@ bool player_has_feet(bool temp, bool include_mutations)
         return false;
     }
 
-    return true;
+    return species::has_feet(you.species);
+}
+
+bool player_has_eyes(bool temp, bool include_mutations)
+{
+    if (include_mutations &&
+        you.get_mutation_level(MUT_EYEBALLS, temp))
+    {
+        return true;
+    }
+
+    if (temp && form_has_eyes(you.form))
+        return true;
+
+    return species::has_eyes(you.species);
+}
+
+bool player_has_ears(bool temp)
+{
+    if (temp && form_has_ears(you.form))
+        return true;
+
+    return species::has_ears(you.species);
 }
 
 // Returns false if the player is wielding a weapon inappropriate for Berserk.
@@ -2020,7 +2050,7 @@ bool player_effectively_in_light_armour()
 bool player_is_shapechanged()
 {
     // TODO: move into data
-    return form_changed_physiology(you.form)
+    return form_changes_physiology(you.form)
         && you.form != transformation::death;
 }
 
@@ -4914,12 +4944,20 @@ void barb_player(int turns, int pow)
 }
 
 /**
- * Players are rather more susceptible to dazzling: only vine stalkers
- * and trees are immune.
+ * Players are rather more susceptible to dazzling: only those who can't
+ * be blinded are immune.
  */
 bool player::can_be_dazzled() const
 {
-    return !(you.holiness() & MH_PLANT);
+    return can_be_blinded();
+}
+
+/**
+ * Players can be blinded only if they have eyes.
+ */
+bool player::can_be_blinded() const
+{
+    return player_has_eyes();
 }
 
 /**
@@ -4930,6 +4968,12 @@ bool player::can_be_dazzled() const
 void blind_player(int amount, colour_t flavour_colour)
 {
     ASSERT(!crawl_state.game_is_arena());
+
+    if (!you.can_be_dazzled())
+    {
+        mpr("Your vision flashes for a moment.");
+        return;
+    }
 
     if (amount <= 0)
         return;
@@ -6906,11 +6950,13 @@ bool player::res_torment() const
     return get_form()->res_neg() == 3
            || you.has_mutation(MUT_VAMPIRISM) && !you.vampire_alive
            || you.petrified()
-    // This should probably be (you.holiness & MH_PLANT), but treeform
-    // doesn't currently make you a plant, and I suspect changing that
-    // would cause other bugs. (For example, being able to wield holy
-    // weapons as a demonspawn & keep them while untransformed?)
+    // This should probably be (you.holiness & MH_PLANT), but
+    // transforming doesn't currently make you a plant, and I suspect
+    // changing that would cause other bugs. (For example, being able
+    // to wield holy weapons as a demonspawn in treeform & keep them
+    // while untransformed?)
            || you.form == transformation::tree
+           || you.form == transformation::fungus
 #if TAG_MAJOR_VERSION == 34
            || player_equip_unrand(UNRAND_ETERNAL_TORMENT)
 #endif
@@ -7203,7 +7249,7 @@ int player::hurt(const actor *agent, int amount, beam_type flavour,
     }
 
     if ((flavour == BEAM_DESTRUCTION || flavour == BEAM_MINDBURST)
-        && can_bleed())
+        && has_blood())
     {
         blood_spray(pos(), type, amount / 5);
     }
@@ -7731,12 +7777,23 @@ bool player::can_polymorph() const
     return !(transform_uncancellable || is_lifeless_undead());
 }
 
-bool player::can_bleed(bool temp) const
+bool player::has_blood(bool temp) const
 {
-    if (temp && !form_can_bleed(form))
+    if (is_lifeless_undead(temp))
         return false;
 
-    return !is_lifeless_undead(temp) && !is_nonliving(temp);
+    if (temp && form_has_blood(form))
+        return true;
+
+    return species::has_blood(you.species);
+}
+
+bool player::has_bones(bool temp) const
+{
+    if (temp && form_has_bones(you.form))
+        return true;
+
+    return species::has_bones(you.species);
 }
 
 bool player::can_drink(bool temp) const

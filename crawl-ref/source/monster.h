@@ -353,7 +353,8 @@ public:
     bool can_mutate() const override;
     bool can_safely_mutate(bool temp = true) const override;
     bool can_polymorph() const override;
-    bool can_bleed(bool allow_tran = true) const override;
+    bool has_blood(bool temp = true) const override;
+    bool has_bones(bool temp = true) const override;
     bool is_stationary() const override;
     bool malmutate(const string &/*reason*/) override;
     void corrupt();
@@ -457,6 +458,10 @@ public:
     int constriction_damage(constrict_type typ) const override;
 
     bool can_throw_large_rocks() const override;
+
+    bool can_be_dazzled() const override;
+    bool can_be_blinded() const override;
+
     bool can_speak();
     bool is_silenced() const;
 

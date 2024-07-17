@@ -5606,7 +5606,7 @@ static void _branch_summon_helper(monster* mons, spell_type spell_cast)
             continue;
 
         mgen_data mg(type, SAME_ATTITUDE(mons), mons->pos(), mons->foe);
-        mg.set_summoned(mons, 1, spell_cast);
+        mg.set_summoned(mons, spell_cast == SPELL_PLANEREND ? 2 : 1, spell_cast);
         if (type == MONS_SLIME_CREATURE)
             mg.props[MGEN_BLOB_SIZE] = 5;
         create_monster(mg);
@@ -8284,7 +8284,7 @@ static void _siren_sing(monster* mons, bool avatar)
         const char * const song_adj = already_mesmerised ? "its luring"
                                                          : "a haunting";
         const string song_desc = make_stringf(" chants %s song.", song_adj);
-        simple_monster_message(*mons, song_desc.c_str(), spl);
+        simple_monster_message(*mons, song_desc.c_str(), false, spl);
     }
     else
     {

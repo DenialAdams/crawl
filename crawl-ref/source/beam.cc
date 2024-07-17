@@ -32,6 +32,7 @@
 #include "exercise.h"
 #include "fight.h"
 #include "fineff.h"
+#include "god-abil.h"
 #include "god-conduct.h"
 #include "god-item.h"
 #include "god-passive.h" // passive_t::convert_orcs
@@ -2762,6 +2763,18 @@ void bolt::affect_ground()
     if (is_explosion && !in_explosion_phase)
         return;
 
+    // XXX: This feels like an ugly place to put this, but it doesn't do any
+    //      damage and the cloud placement code is otherwise skipped entirely
+    //      for tracers.
+    if (is_tracer && origin_spell == SPELL_NOXIOUS_BREATH && ench_power > 10)
+    {
+        for (adjacent_iterator ai(pos()); ai; ++ai)
+        {
+            if (monster_at(*ai))
+                handle_stop_attack_prompt(monster_at(*ai));
+        }
+    }
+
     if (is_tracer)
         return;
 
@@ -3396,7 +3409,7 @@ bool bolt::misses_player()
         && you.shielded()
         && !you.shield_exhausted()
         && !aimed_at_feet
-        && SH > 0)
+        && (SH > 0 || you.duration[DUR_DIVINE_SHIELD]))
     {
         bool blocked = false;
         if (hit == AUTOMATIC_HIT)
@@ -3420,7 +3433,9 @@ bool bolt::misses_player()
             blocked = testhit < block;
         }
 
-        if (blocked)
+        // Divine shield only blocks conventionally blockable things, even if
+        // the player is using the Warlock's Mirror.
+        if (blocked || (you.duration[DUR_DIVINE_SHIELD] || is_blockable()))
         {
             const string refl_name = name.empty() &&
                                      origin_spell != SPELL_NO_SPELL ?
@@ -3449,6 +3464,10 @@ bool bolt::misses_player()
                 finish_beam();
             }
             you.shield_block_succeeded(agent());
+
+            // Use up a charge of Divine Shield, if active.
+            tso_expend_divine_shield_charge();
+
             return true;
         }
 
@@ -3727,7 +3746,7 @@ void bolt::affect_player_enchantment(bool resistible)
             int amt = damage.roll();
             internal_ouch(amt);
 
-            if (you.can_bleed())
+            if (you.has_blood())
                 blood_spray(you.pos(), MONS_PLAYER, amt / 5);
         }
 
@@ -4082,7 +4101,7 @@ static const vector<pie_effect> pie_effects = {
     {
         "glitter",
         [](const actor &defender) {
-            return defender.is_player() || mons_can_be_dazzled(defender.as_monster()->type);
+            return defender.can_be_dazzled();
         },
         [](actor &defender, const bolt &beam) {
             if (defender.is_player())
@@ -4260,7 +4279,7 @@ void bolt::affect_player()
 
     }
 
-    if (flavour == BEAM_LIGHT)
+    if (flavour == BEAM_LIGHT && you.can_be_dazzled())
         blind_player(random_range(7, 12), WHITE);
 
     if (flavour == BEAM_MIASMA && final_dam > 0)
@@ -5128,7 +5147,7 @@ void bolt::monster_post_hit(monster* mon, int dmg)
     }
 
     if (flavour == BEAM_LIGHT
-        && mons_can_be_dazzled(mon->type)
+        && mon->can_be_dazzled()
         && !mon->has_ench(ENCH_BLIND))
     {
         const int dur = max(1, div_rand_round(54, mon->get_hit_dice())) * BASELINE_DELAY;

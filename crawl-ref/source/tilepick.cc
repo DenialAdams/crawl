@@ -1972,6 +1972,11 @@ static tileidx_t _tileidx_monster_no_props(const monster_info& mon)
                 return TILEP_MONS_SWAMP_OGRE;
             return base;
 
+        case MONS_SUN_DEMON:
+            if (today_is_serious())
+                return TILEP_MONS_SUNNIER_DEMON;
+            return base;
+
         case MONS_NESSOS:
         {
             const item_def * const weapon = mon.inv[MSLOT_WEAPON].get();
@@ -2661,8 +2666,8 @@ static tileidx_t _tileidx_armour_base(const item_def &item)
     case ARM_SHADOW_DRAGON_ARMOUR:
         return TILE_ARM_SHADOW_DRAGON_ARMOUR;
 
-    case ARM_GOLD_DRAGON_ARMOUR:
-        return TILE_ARM_GOLD_DRAGON_ARMOUR;
+    case ARM_GOLDEN_DRAGON_ARMOUR:
+        return TILE_ARM_GOLDEN_DRAGON_ARMOUR;
 
     case ARM_PEARL_DRAGON_ARMOUR:
         return TILE_ARM_PEARL_DRAGON_ARMOUR;

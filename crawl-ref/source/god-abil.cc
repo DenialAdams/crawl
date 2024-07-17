@@ -1323,20 +1323,17 @@ void tso_divine_shield()
     else
         mpr("Your divine shield is renewed.");
 
-    you.set_duration(DUR_DIVINE_SHIELD, max(you.duration[DUR_DIVINE_SHIELD],
-                                            random_range(20, 35)));
-
-    // Size of SH bonus.
-    you.attribute[ATTR_DIVINE_SHIELD] =
-        3 + you.skill_rdiv(SK_INVOCATIONS, 2, 5);
+    const int charges = 3 + you.skill_rdiv(SK_INVOCATIONS, 2, 5);
+    you.duration[DUR_DIVINE_SHIELD] = max(you.duration[DUR_DIVINE_SHIELD], charges);
 }
 
-void tso_remove_divine_shield()
+void tso_expend_divine_shield_charge()
 {
-    mprf(MSGCH_DURATION, "Your divine shield fades away.");
-    you.duration[DUR_DIVINE_SHIELD] = 0;
-    you.attribute[ATTR_DIVINE_SHIELD] = 0;
-    you.redraw_armour_class = true;
+    if (you.duration[DUR_DIVINE_SHIELD] && --you.duration[DUR_DIVINE_SHIELD] <= 0)
+    {
+        mprf(MSGCH_DURATION, "Your divine shield fades away.");
+        you.duration[DUR_DIVINE_SHIELD] = 0;
+    }
 }
 
 void elyvilon_purification()
@@ -2017,18 +2014,68 @@ void cheibriados_temporal_distortion()
     mpr("You warp the flow of time around you!");
 }
 
-void cheibriados_time_step(int pow) // pow is the number of turns to skip
+static coord_def _find_displace_space(const monster* mon, coord_def start_pos)
+{
+    coord_def pos = start_pos + coord_def(random_range(-30, 30), random_range(-30, 30));
+
+    int attempts = 0;
+    while ((!in_bounds(pos) || !monster_habitable_grid(mon, env.grid(pos))
+           || you.see_cell_no_trans(pos) || actor_at(pos)) && attempts < 100)
+    {
+        pos = start_pos + coord_def(random_range(-30, 30), random_range(-30, 30));
+        ++attempts;
+    }
+
+    if (attempts < 100)
+        return pos;
+    else
+        return coord_def();
+}
+
+// Move a monster to somewhere in the wider vacinity, not in the player's LoS.
+static void _cheibriados_displace_monster(monster* mon)
+{
+    int attempts = 0;
+    while (attempts < 10)
+    {
+        // Find a random near-ish spot the monster could be
+        coord_def pos = _find_displace_space(mon, mon->pos());
+
+        // If we've somehow failed to find a place to displace this to.
+        if (pos.origin())
+            return;
+
+        // Test that they could actually have walked there from where they are.
+        monster_pathfind mp;
+        mp.set_range(50);   // Don't search further than this
+        if (mp.init_pathfind(pos, mon->pos(), false))
+        {
+            coord_def old_pos = mon->pos();
+            mon->move_to_pos(pos, true);
+            mon->apply_location_effects(old_pos);
+            break;
+        }
+        else
+            ++attempts;
+    }
+}
+
+void cheibriados_time_step(int pow)
 {
     mpr("You step out of the flow of time.");
     flash_view(UA_PLAYER, LIGHTBLUE);
-    you.duration[DUR_TIME_STEP] = pow;
+
+    // Simulate 100 turns of 'real' time passing (so poison and other timed
+    // effects will work properly). This is more than adequate for most purposes
+    // and monster wandering behavior doesn't improve tremendously beyond this.
+    you.duration[DUR_TIME_STEP] = 100;
     {
         player_vanishes absent(true);
 
         you.time_taken = 10;
         _run_time_step();
         // Update corpses, etc.
-        update_level(pow * 10);
+        update_level(1000);
 
 #ifndef USE_TILE_LOCAL
         scaled_delay(1000);
@@ -2036,6 +2083,49 @@ void cheibriados_time_step(int pow) // pow is the number of turns to skip
 
     }
     _cleanup_time_steps();
+
+    // Now do some more forceful movement on things nearby to 'simulate' more
+    // time passing in a manner that is more useful than time simply passing
+    // (due to issues/quirks with Crawl wandering behavior getting stuck in lots
+    // of terrain)
+    //
+    // We check slightly beyond LoS range here so that we can catch things
+    // immediately around corners who might show up on our very next move anyway.
+    vector<monster*> mons;
+    for (distance_iterator di(you.pos(), false, false, 9); di; ++di)
+    {
+        monster* mon = monster_at(*di);
+        if (mon && !mon->asleep() && !mon->is_stationary() && !mon->wont_attack())
+            mons.push_back(mon);
+    }
+
+    // Move between 50-85% of valid nearby monsters elsewhere, but at least 1 (if possible)
+    int num_to_move = min((int)mons.size(), max(1, random_range(mons.size() * 5 / 10,
+                                                                mons.size() * 17 / 20)));
+    shuffle_array(mons);
+    for (int i = 0; i < num_to_move; ++i)
+        _cheibriados_displace_monster(mons[i]);
+
+    // Now have a power-based chance to put all awake monsters to sleep.
+    for (monster_iterator mi; mi; ++mi)
+    {
+        if (!mi->asleep() && !mi->is_stationary() && !mi->wont_attack()
+            && x_chance_in_y(pow, 450))
+        {
+            mi->put_to_sleep(nullptr);
+        }
+    }
+
+    // Finally, ensure we get first action against any enemies in sight.
+    for (monster_near_iterator mi(you.pos(), LOS_NO_TRANS); mi; ++mi)
+    {
+        mi->speed_increment = 60;
+        mi->foe_memory = 0;
+        mi->foe = MHITNOT;
+
+        if (!mi->asleep())
+            mi->behaviour = BEH_WANDER;
+    }
 
     flash_view(UA_PLAYER, 0);
     mpr("You return to the normal time flow.");
@@ -2766,6 +2856,8 @@ void dithmenos_change_shadow_appearance(monster& shadow, int dur)
     // Change tile to show our shadow is in decoy mode
     shadow.props[MONSTER_TILE_KEY].get_int() = tileidx_player_shadow();
     shadow.add_ench(mon_enchant(ENCH_CHANGED_APPEARANCE, 0, &you, dur));
+#else
+    UNUSED(shadow, dur);
 #endif
 }
 
@@ -4056,8 +4148,9 @@ spret qazlal_elemental_force(bool fail)
     fail_check();
 
     shuffle_array(targets);
-    const int count = max(1, min((int)targets.size(),
-                                 random2avg(you.skill(SK_INVOCATIONS), 2)));
+    const int count = min((int)targets.size(),
+                          random_range(you.skill_rdiv(SK_INVOCATIONS, 1, 3),
+                                       1 + you.skill_rdiv(SK_INVOCATIONS, 1, 2)));
     mgen_data mg;
     mg.summon_type = MON_SUMM_AID;
     mg.abjuration_duration = 1;
@@ -4291,6 +4384,11 @@ static bool _sac_mut_maybe_valid(mutation_type mut)
 
     // No potion heal doesn't affect mummies since they can't quaff potions
     if (mut == MUT_NO_POTION_HEAL && you.has_mutation(MUT_NO_DRINK))
+        return false;
+
+    // Don't offer to sacrifice an eye for players with no eyes (not counting
+    // forms or mutations).
+    if (mut == MUT_MISSING_EYE && !player_has_eyes(false, false))
         return false;
 
     return true;

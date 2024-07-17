@@ -94,7 +94,8 @@ void monster_drop_things(monster* mons,
             && item != NON_ITEM
             && env.item[item].base_type == OBJ_GOLD
             && you.see_cell(mons->pos())
-            && x_chance_in_y(env.item[item].quantity, 100))
+            && x_chance_in_y(env.item[item].quantity, 100)
+            && you.can_be_dazzled())
         {
             string msg = make_stringf("%s dazzles you with the glint of coin.",
                                        god_name(GOD_GOZAG).c_str());
@@ -251,6 +252,12 @@ void change_monster_type(monster* mons, monster_type targetc, bool do_seen)
              || mons->mname == "shaped Serpent of Hell")
     {
         name   = "shaped Serpent of Hell";
+        flags |= MF_NAME_SUFFIX;
+    }
+    else if (mons->type == MONS_THE_ENCHANTRESS
+            || mons->mname == "shaped Enchantress")
+    {
+        name   = "shaped Enchantress";
         flags |= MF_NAME_SUFFIX;
     }
     else if (!mons->mname.empty())

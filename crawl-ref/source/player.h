@@ -720,7 +720,8 @@ public:
     bool can_safely_mutate(bool temp = true) const override;
     bool is_lifeless_undead(bool temp = true) const;
     bool can_polymorph() const override;
-    bool can_bleed(bool allow_tran = true) const override;
+    bool has_blood(bool temp = true) const override;
+    bool has_bones(bool temp = true) const override;
     bool can_drink(bool temp = true) const;
     bool is_stationary() const override;
     bool is_motile() const;
@@ -843,7 +844,9 @@ public:
     bool can_throw_large_rocks() const override;
     bool can_smell() const;
     bool can_sleep(bool holi_only = false) const override;
-    bool can_be_dazzled() const;
+
+    bool can_be_dazzled() const override;
+    bool can_be_blinded() const override;
 
     int racial_ac(bool temp) const;
     int base_ac(int scale) const;
@@ -1113,7 +1116,11 @@ void update_vision_range();
 
 maybe_bool you_can_wear(equipment_type eq, bool temp = false);
 bool player_can_use_armour();
+
+bool player_has_hair(bool temp = true, bool include_mutations = true);
 bool player_has_feet(bool temp = true, bool include_mutations = true);
+bool player_has_eyes(bool temp = true, bool include_mutations = true);
+bool player_has_ears(bool temp = true);
 
 bool enough_hp(int minimum, bool suppress_msg, bool abort_macros = true);
 bool enough_mp(int minimum, bool suppress_msg, bool abort_macros = true);
